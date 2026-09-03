@@ -1,0 +1,84 @@
+/* CDK overlays (dialog, menu, dropdown) */
+@import '@angular/cdk/overlay-prebuilt.css';
+
+/* =========================================================================
+   Design tokens do JuriFlow. Componentes referenciam via var(--jf-*).
+   ========================================================================= */
+:root {
+  --jf-primary: #2563eb;
+  --jf-primary-strong: #1d4ed8;
+  --jf-danger: #dc2626;
+  --jf-success: #16a34a;
+  --jf-warning: #d97706;
+
+  --jf-bg: #f8fafc;
+  --jf-surface: #ffffff;
+  --jf-surface-muted: #f1f5f9;
+  --jf-border: #e2e8f0;
+
+  --jf-text: #0f172a;
+  --jf-text-muted: #64748b;
+
+  --jf-radius: 8px;
+  --jf-radius-lg: 12px;
+
+  /* Breakpoints do brief (referência): mobile <768, tablet 768-1023, desktop >=1024 */
+  --jf-bp-tablet: 768px;
+  --jf-bp-desktop: 1024px;
+}
+
+/* ------------------------------- reset ---------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--jf-text);
+  background: var(--jf-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+:focus-visible {
+  outline: 2px solid var(--jf-primary);
+  outline-offset: 2px;
+}

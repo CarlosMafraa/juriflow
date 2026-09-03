@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+tmp/
+out-tsc/
+*.tsbuildinfo
+.angular/
+
+# Environment / secrets — NEVER commit real values
+.env
+.env.*
+!.env.example
+*.local
+
+# Supabase local stack
+supabase/.branches/
+supabase/.temp/
+supabase/.env
+
+# Editors / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.recommended.json
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Testing / coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Misc
+.cache/

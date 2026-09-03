@@ -1,0 +1,8 @@
+node_modules/
+dist/
+build/
+.angular/
+coverage/
+package-lock.json
+docs/PLANO-FASE-1.md
+supabase/.temp/

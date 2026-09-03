@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/shared-types" },
+    { "path": "./packages/domain" },
+    { "path": "./packages/collectors-core" }
+  ]
+}

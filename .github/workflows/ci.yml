@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Lint · Typecheck · Build · Unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck (pacotes)
+        run: npm run typecheck
+
+      - name: Build (pacotes + Angular)
+        run: npm run build
+
+      - name: Testes de pacotes (Vitest)
+        run: npm test
+
+      - name: Testes do Angular (headless)
+        run: npm run test:web
+
+  rls-tests:
+    name: RLS (pgTAP)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Sobe o banco local e aplica migrations
+        run: supabase db start
+
+      - name: Testa RLS
+        run: supabase test db
