@@ -18,3 +18,22 @@ insert into public.courts (name, type, jurisdiction) values
   ('Tribunal Regional Federal da 1ª Região', 'TRF', 'federal'),
   ('Tribunal Regional do Trabalho da 11ª Região', 'TRT', 'AM')
 on conflict do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Acompanhamento-B: estratégia de acompanhamento DataJud para o TJAM.
+-- Somente o TJAM. `alias` = índice da API Pública do DataJud (CNJ).
+-- NENHUM segredo aqui — a API key vai nos secrets da Edge Function.
+-- Em produção o SUPER_ADMIN cadastra a estratégia pela administração.
+-- ---------------------------------------------------------------------------
+insert into public.court_tracking_strategies
+  (court_id, source_kind, priority, params, requires_cnj, enabled)
+select c.id,
+       'datajud',
+       10,
+       jsonb_build_object('alias', 'api_publica_tjam', 'timeout_ms', 30000, 'max_movements', 5000),
+       true,
+       true
+from public.courts c
+where c.name = 'Tribunal de Justiça do Amazonas'
+  and c.jurisdiction = 'AM'
+on conflict (court_id, source_kind) do nothing;

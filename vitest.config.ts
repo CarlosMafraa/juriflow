@@ -10,6 +10,11 @@ export default defineConfig({
       '@juriflow/shared-types': resolve('./packages/shared-types/src/index.ts'),
       '@juriflow/domain': resolve('./packages/domain/src/index.ts'),
       '@juriflow/collectors-core': resolve('./packages/collectors-core/src/index.ts'),
+      '@juriflow/movement-normalizer': resolve('./packages/movement-normalizer/src/index.ts'),
+      '@juriflow/collector-engine/testing': resolve('./packages/collector-engine/src/testing/index.ts'),
+      '@juriflow/collector-engine': resolve('./packages/collector-engine/src/index.ts'),
+      '@juriflow/adapter-datajud/testing': resolve('./packages/adapter-datajud/src/testing/index.ts'),
+      '@juriflow/adapter-datajud': resolve('./packages/adapter-datajud/src/index.ts'),
     },
   },
   test: {

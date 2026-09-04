@@ -3,6 +3,9 @@
   "references": [
     { "path": "./packages/shared-types" },
     { "path": "./packages/domain" },
-    { "path": "./packages/collectors-core" }
+    { "path": "./packages/collectors-core" },
+    { "path": "./packages/movement-normalizer" },
+    { "path": "./packages/collector-engine" },
+    { "path": "./packages/adapter-datajud" }
   ]
 }

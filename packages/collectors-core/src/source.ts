@@ -49,6 +49,12 @@ export interface SourceFetchResult {
   readonly sourceKind: SourceKind;
   readonly collectedAt: string;
   readonly movements: readonly RawMovement[];
+  /**
+   * true quando a fonte NÃO conseguiu entregar tudo (página truncada, corte de
+   * segurança na paginação). O detector não fecha a 1ª sincronização e a
+   * próxima execução re-tenta. Ausente = coleta completa.
+   */
+  readonly partial?: boolean;
 }
 
 export interface ProcessDataSource {

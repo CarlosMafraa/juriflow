@@ -255,6 +255,16 @@ inspector_port = 8083
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 # entrypoint = "./functions/MY_FUNCTION_NAME/index.ts"
 
+# Acompanhamento-B — runtime DataJud. Acionada por pg_cron/pg_net (migration 0023)
+# ou manualmente. Faz a própria autenticação por segredo compartilhado: o gate de
+# JWT do gateway fica desligado e a função exige `COLLECTOR_INVOKE_SECRET` no
+# ambiente (sem ele responde 503 e não processa nada) + header `Authorization:
+# Bearer <COLLECTOR_INVOKE_SECRET>`. Configure o secret em TODO ambiente.
+[functions.collector-datajud]
+enabled = true
+verify_jwt = false
+import_map = "./functions/collector-datajud/deno.json"
+
 [analytics]
 enabled = false
 port = 55327

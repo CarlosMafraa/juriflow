@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
+    "@juriflow/collectors-core": "../../../packages/collectors-core/dist/index.js",
+    "@juriflow/movement-normalizer": "../../../packages/movement-normalizer/dist/index.js",
+    "@juriflow/collector-engine": "../../../packages/collector-engine/dist/index.js",
+    "@juriflow/adapter-datajud": "../../../packages/adapter-datajud/dist/index.js"
+  }
+}

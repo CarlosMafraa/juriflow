@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "composite": true
+  },
+  "references": [{ "path": "../collectors-core" }, { "path": "../movement-normalizer" }],
+  "include": ["src/**/*.ts"],
+  "exclude": ["**/*.spec.ts", "dist"]
+}

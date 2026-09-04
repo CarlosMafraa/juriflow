@@ -21,6 +21,7 @@ import { CardComponent } from '../../shared/ui/card.component';
 import { BadgeComponent } from '../../shared/ui/badge.component';
 import { SpinnerComponent } from '../../shared/ui/spinner.component';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
+import { ProcessTrackingPanelComponent } from './process-tracking-panel.component';
 
 @Component({
   selector: 'jf-process-detail',
@@ -35,6 +36,7 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
     BadgeComponent,
     SpinnerComponent,
     EmptyStateComponent,
+    ProcessTrackingPanelComponent,
   ],
   template: `
     @if (loading()) {
@@ -128,6 +130,12 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
           </div>
         }
       </jf-card>
+
+      <jf-process-tracking-panel
+        [processId]="process()!.id"
+        [courtId]="process()!.courtId"
+        [canOperate]="canOperateTracking()"
+      />
 
       @if (isAdmin()) {
         <jf-card title="Transferência de responsabilidade">
@@ -319,6 +327,12 @@ export class ProcessDetailComponent {
   }
 
   protected readonly isAdmin = (): boolean => this.permissions.can('space.manage');
+  /** Operar acompanhamento: ADMIN do espaço OU responsável atual (RLS/RPC confirmam). */
+  protected readonly canOperateTracking = computed(() => {
+    const p = this.process();
+    if (!p) return false;
+    return this.permissions.can('space.manage') || p.assignedUserId === this.auth.userId();
+  });
   protected readonly canEdit = computed(() => {
     const p = this.process();
     if (!p) return false;

@@ -14,6 +14,7 @@ export default tseslint.config(
       '**/coverage/**',
       'apps/web/**',
       'supabase/**',
+      'scripts/**',
     ],
   },
   eslint.configs.recommended,
