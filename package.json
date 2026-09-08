@@ -27,13 +27,15 @@
     "db:reset": "supabase db reset",
     "db:diff": "supabase db diff",
     "db:test": "supabase test db",
-    "dev": "npm run dev --workspace apps/web"
+    "dev": "npm run dev --workspace apps/web",
+    "tjam:scrape": "node scripts/tjam-projudi-scraper.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
     "@supabase/supabase-js": "^2.45.4",
     "eslint": "^9.13.0",
     "eslint-config-prettier": "^9.1.0",
+    "playwright": "^1.63.0",
     "prettier": "^3.3.3",
     "supabase": "^1.207.9",
     "typescript": "~5.5.4",
