@@ -1,0 +1,317 @@
+{
+  "vectors": [
+    {
+      "name": "1ª sincronização: só first_sync_completed, sem new_movement",
+      "input": {
+        "canonical": [
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": null,
+            "occurredAt": "2024-01-01T00:00:00.000Z",
+            "categoryCode": "26",
+            "categoryLabel": "Distribuição",
+            "description": "x",
+            "raw": {},
+            "contentHash": "a",
+            "needsReview": false
+          },
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": null,
+            "occurredAt": "2024-01-01T00:00:00.000Z",
+            "categoryCode": "26",
+            "categoryLabel": "Distribuição",
+            "description": "x",
+            "raw": {},
+            "contentHash": "b",
+            "needsReview": false
+          }
+        ],
+        "known": [],
+        "isFirstSync": true,
+        "allowFirstSyncComplete": true
+      },
+      "expected": {
+        "stateHash": "82d34c7d68cf28219ce4ab8dd592d88dec35d1ef51625beef76220c2df266bd3",
+        "newMovementContentHashes": [
+          "a",
+          "b"
+        ],
+        "amendedMovements": [],
+        "eventTypes": [
+          "first_sync_completed"
+        ],
+        "firstSyncCompleted": true
+      }
+    },
+    {
+      "name": "1ª sincronização parcial: não fecha first_sync_completed",
+      "input": {
+        "canonical": [
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": null,
+            "occurredAt": "2024-01-01T00:00:00.000Z",
+            "categoryCode": "26",
+            "categoryLabel": "Distribuição",
+            "description": "x",
+            "raw": {},
+            "contentHash": "a",
+            "needsReview": false
+          }
+        ],
+        "known": [],
+        "isFirstSync": true,
+        "allowFirstSyncComplete": false
+      },
+      "expected": {
+        "stateHash": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+        "newMovementContentHashes": [
+          "a"
+        ],
+        "amendedMovements": [],
+        "eventTypes": [],
+        "firstSyncCompleted": false
+      }
+    },
+    {
+      "name": "coleta seguinte: content_hash novo ⇒ new_movement",
+      "input": {
+        "canonical": [
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": null,
+            "occurredAt": "2024-01-01T00:00:00.000Z",
+            "categoryCode": "26",
+            "categoryLabel": "Distribuição",
+            "description": "x",
+            "raw": {},
+            "contentHash": "a",
+            "needsReview": false
+          },
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": null,
+            "occurredAt": "2024-01-01T00:00:00.000Z",
+            "categoryCode": "26",
+            "categoryLabel": "Distribuição",
+            "description": "x",
+            "raw": {},
+            "contentHash": "c",
+            "needsReview": false
+          }
+        ],
+        "known": [
+          {
+            "contentHash": "a",
+            "sourceMovementId": null
+          },
+          {
+            "contentHash": "b",
+            "sourceMovementId": null
+          }
+        ],
+        "isFirstSync": false,
+        "allowFirstSyncComplete": true
+      },
+      "expected": {
+        "stateHash": "4312f282527bcb7ff5ed6dd894e0560359b30d4e6e9920eae0c85290917c7fe5",
+        "newMovementContentHashes": [
+          "c"
+        ],
+        "amendedMovements": [],
+        "eventTypes": [
+          "new_movement"
+        ],
+        "firstSyncCompleted": false
+      }
+    },
+    {
+      "name": "idempotência: reprocessar os mesmos hashes ⇒ 0 eventos",
+      "input": {
+        "canonical": [
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": null,
+            "occurredAt": "2024-01-01T00:00:00.000Z",
+            "categoryCode": "26",
+            "categoryLabel": "Distribuição",
+            "description": "x",
+            "raw": {},
+            "contentHash": "a",
+            "needsReview": false
+          },
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": null,
+            "occurredAt": "2024-01-01T00:00:00.000Z",
+            "categoryCode": "26",
+            "categoryLabel": "Distribuição",
+            "description": "x",
+            "raw": {},
+            "contentHash": "b",
+            "needsReview": false
+          }
+        ],
+        "known": [
+          {
+            "contentHash": "a",
+            "sourceMovementId": null
+          },
+          {
+            "contentHash": "b",
+            "sourceMovementId": null
+          }
+        ],
+        "isFirstSync": false,
+        "allowFirstSyncComplete": true
+      },
+      "expected": {
+        "stateHash": "82d34c7d68cf28219ce4ab8dd592d88dec35d1ef51625beef76220c2df266bd3",
+        "newMovementContentHashes": [],
+        "amendedMovements": [],
+        "eventTypes": [],
+        "firstSyncCompleted": false
+      }
+    },
+    {
+      "name": "movimentação alterada: mesmo source_movement_id, hash diferente ⇒ movement_amended",
+      "input": {
+        "canonical": [
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": "S1",
+            "occurredAt": "2024-01-01T00:00:00.000Z",
+            "categoryCode": "26",
+            "categoryLabel": "Distribuição",
+            "description": "x",
+            "raw": {},
+            "contentHash": "a2",
+            "needsReview": false
+          }
+        ],
+        "known": [
+          {
+            "contentHash": "a1",
+            "sourceMovementId": "S1"
+          }
+        ],
+        "isFirstSync": false,
+        "allowFirstSyncComplete": true
+      },
+      "expected": {
+        "stateHash": "dd9db1aa5d05420f77850ea40052417cebb2db34351fe59ffbc4f0eb20eb50eb",
+        "newMovementContentHashes": [],
+        "amendedMovements": [
+          {
+            "contentHash": "a2",
+            "revisesContentHash": "a1"
+          }
+        ],
+        "eventTypes": [
+          "movement_amended"
+        ],
+        "firstSyncCompleted": false
+      }
+    },
+    {
+      "name": "state_hash independe da ordem de entrada (b,a)",
+      "input": {
+        "canonical": [
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": null,
+            "occurredAt": "2024-01-01T00:00:00.000Z",
+            "categoryCode": "26",
+            "categoryLabel": "Distribuição",
+            "description": "x",
+            "raw": {},
+            "contentHash": "b",
+            "needsReview": false
+          },
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": null,
+            "occurredAt": "2024-01-01T00:00:00.000Z",
+            "categoryCode": "26",
+            "categoryLabel": "Distribuição",
+            "description": "x",
+            "raw": {},
+            "contentHash": "a",
+            "needsReview": false
+          }
+        ],
+        "known": [],
+        "isFirstSync": false,
+        "allowFirstSyncComplete": true
+      },
+      "expected": {
+        "stateHash": "82d34c7d68cf28219ce4ab8dd592d88dec35d1ef51625beef76220c2df266bd3",
+        "newMovementContentHashes": [
+          "b",
+          "a"
+        ],
+        "amendedMovements": [],
+        "eventTypes": [
+          "new_movement",
+          "new_movement"
+        ],
+        "firstSyncCompleted": false
+      }
+    },
+    {
+      "name": "state_hash independe da ordem de entrada (a,b)",
+      "input": {
+        "canonical": [
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": null,
+            "occurredAt": "2024-01-01T00:00:00.000Z",
+            "categoryCode": "26",
+            "categoryLabel": "Distribuição",
+            "description": "x",
+            "raw": {},
+            "contentHash": "a",
+            "needsReview": false
+          },
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": null,
+            "occurredAt": "2024-01-01T00:00:00.000Z",
+            "categoryCode": "26",
+            "categoryLabel": "Distribuição",
+            "description": "x",
+            "raw": {},
+            "contentHash": "b",
+            "needsReview": false
+          }
+        ],
+        "known": [],
+        "isFirstSync": false,
+        "allowFirstSyncComplete": true
+      },
+      "expected": {
+        "stateHash": "82d34c7d68cf28219ce4ab8dd592d88dec35d1ef51625beef76220c2df266bd3",
+        "newMovementContentHashes": [
+          "a",
+          "b"
+        ],
+        "amendedMovements": [],
+        "eventTypes": [
+          "new_movement",
+          "new_movement"
+        ],
+        "firstSyncCompleted": false
+      }
+    }
+  ],
+  "invariants": [
+    {
+      "name": "state_hash é estável e independe da ordem de entrada",
+      "equalStateHashOf": [
+        "state_hash independe da ordem de entrada (b,a)",
+        "state_hash independe da ordem de entrada (a,b)"
+      ]
+    }
+  ]
+}

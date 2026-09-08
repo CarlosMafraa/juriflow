@@ -1,0 +1,915 @@
+{
+  "vectors": [
+    {
+      "name": "1ª coleta: 2 movimentos, is_first_sync, só first_sync_completed",
+      "input": {
+        "sourceKind": "datajud",
+        "isFirstSync": true,
+        "known": [],
+        "previousStateHash": null
+      },
+      "fetch": {
+        "throw": null,
+        "movements": [
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": "S1",
+            "occurredAt": "2024-03-01T00:00:00Z",
+            "description": "Distribuído",
+            "raw": {
+              "description": "Distribuído"
+            }
+          },
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": "S2",
+            "occurredAt": "2024-03-05T00:00:00Z",
+            "description": "Juntada",
+            "raw": {
+              "description": "Juntada"
+            }
+          }
+        ],
+        "partial": false
+      },
+      "categoryResolutions": [
+        {
+          "code": "26",
+          "label": "Distribuição"
+        },
+        null
+      ],
+      "expected": {
+        "status": "success",
+        "collectedAt": "2024-05-01T00:00:00.000Z",
+        "rawPayload": {
+          "sourceKind": "datajud",
+          "collectedAt": "2024-05-01T00:00:00.000Z",
+          "movements": [
+            {
+              "sourceKind": "datajud",
+              "sourceMovementId": "S1",
+              "occurredAt": "2024-03-01T00:00:00Z",
+              "description": "Distribuído",
+              "raw": {
+                "description": "Distribuído"
+              }
+            },
+            {
+              "sourceKind": "datajud",
+              "sourceMovementId": "S2",
+              "occurredAt": "2024-03-05T00:00:00Z",
+              "description": "Juntada",
+              "raw": {
+                "description": "Juntada"
+              }
+            }
+          ]
+        },
+        "movements": [
+          {
+            "content_hash": "47b71bac11a72fd4d849441dbb3fd48f3c707adbdcf67d06c4ff01e39239e657",
+            "source_movement_id": "S1",
+            "occurred_at": "2024-03-01T00:00:00.000Z",
+            "category_code": "26",
+            "category_label": "Distribuição",
+            "description": "Distribuído",
+            "raw": {
+              "description": "Distribuído"
+            },
+            "needs_review": false,
+            "is_first_sync": true,
+            "revises_content_hash": null
+          },
+          {
+            "content_hash": "c69349d987ae2274cff8c0162dc18ef1223c75deda790d4773d86e0b2f80275e",
+            "source_movement_id": "S2",
+            "occurred_at": "2024-03-05T00:00:00.000Z",
+            "category_code": null,
+            "category_label": null,
+            "description": "Juntada",
+            "raw": {
+              "description": "Juntada"
+            },
+            "needs_review": true,
+            "is_first_sync": true,
+            "revises_content_hash": null
+          }
+        ],
+        "events": [
+          {
+            "event_type": "first_sync_completed",
+            "content_hash": null,
+            "occurred_at": null,
+            "payload": {
+              "source_kind": "datajud",
+              "movements": 2
+            }
+          }
+        ],
+        "stateHash": "7fbd73e2c0f7cccc9bb227005f3e9637e744f7b117c43d769603a9270c9531d4",
+        "firstSyncCompleted": true,
+        "counts": {
+          "fetched": 2,
+          "new": 2,
+          "updated": 0
+        }
+      }
+    },
+    {
+      "name": "coleta seguinte (passo 1: 1ª coleta com 1 movimento)",
+      "input": {
+        "sourceKind": "datajud",
+        "isFirstSync": true,
+        "known": [],
+        "previousStateHash": null
+      },
+      "fetch": {
+        "throw": null,
+        "movements": [
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": "S1",
+            "occurredAt": "2024-03-01T00:00:00Z",
+            "description": "Distribuído",
+            "raw": {
+              "description": "Distribuído"
+            }
+          }
+        ],
+        "partial": false
+      },
+      "categoryResolutions": [
+        {
+          "code": "26",
+          "label": "Distribuição"
+        }
+      ],
+      "expected": {
+        "status": "success",
+        "collectedAt": "2024-05-01T00:00:00.000Z",
+        "rawPayload": {
+          "sourceKind": "datajud",
+          "collectedAt": "2024-05-01T00:00:00.000Z",
+          "movements": [
+            {
+              "sourceKind": "datajud",
+              "sourceMovementId": "S1",
+              "occurredAt": "2024-03-01T00:00:00Z",
+              "description": "Distribuído",
+              "raw": {
+                "description": "Distribuído"
+              }
+            }
+          ]
+        },
+        "movements": [
+          {
+            "content_hash": "47b71bac11a72fd4d849441dbb3fd48f3c707adbdcf67d06c4ff01e39239e657",
+            "source_movement_id": "S1",
+            "occurred_at": "2024-03-01T00:00:00.000Z",
+            "category_code": "26",
+            "category_label": "Distribuição",
+            "description": "Distribuído",
+            "raw": {
+              "description": "Distribuído"
+            },
+            "needs_review": false,
+            "is_first_sync": true,
+            "revises_content_hash": null
+          }
+        ],
+        "events": [
+          {
+            "event_type": "first_sync_completed",
+            "content_hash": null,
+            "occurred_at": null,
+            "payload": {
+              "source_kind": "datajud",
+              "movements": 1
+            }
+          }
+        ],
+        "stateHash": "f5240835cab0546b104ba5a5e80a7966089e3579505223752af60963c5230210",
+        "firstSyncCompleted": true,
+        "counts": {
+          "fetched": 1,
+          "new": 1,
+          "updated": 0
+        }
+      }
+    },
+    {
+      "name": "coleta seguinte (passo 2: +1 movimento ⇒ new_movement)",
+      "input": {
+        "sourceKind": "datajud",
+        "isFirstSync": false,
+        "known": [
+          {
+            "contentHash": "47b71bac11a72fd4d849441dbb3fd48f3c707adbdcf67d06c4ff01e39239e657",
+            "sourceMovementId": "S1"
+          }
+        ],
+        "previousStateHash": null
+      },
+      "fetch": {
+        "throw": null,
+        "movements": [
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": "S1",
+            "occurredAt": "2024-03-01T00:00:00Z",
+            "description": "Distribuído",
+            "raw": {
+              "description": "Distribuído"
+            }
+          },
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": "S2",
+            "occurredAt": "2024-03-05T00:00:00Z",
+            "description": "Juntada",
+            "raw": {
+              "description": "Juntada"
+            }
+          }
+        ],
+        "partial": false
+      },
+      "categoryResolutions": [
+        {
+          "code": "26",
+          "label": "Distribuição"
+        },
+        null
+      ],
+      "expected": {
+        "status": "success",
+        "collectedAt": "2024-05-01T00:00:00.000Z",
+        "rawPayload": {
+          "sourceKind": "datajud",
+          "collectedAt": "2024-05-01T00:00:00.000Z",
+          "movements": [
+            {
+              "sourceKind": "datajud",
+              "sourceMovementId": "S1",
+              "occurredAt": "2024-03-01T00:00:00Z",
+              "description": "Distribuído",
+              "raw": {
+                "description": "Distribuído"
+              }
+            },
+            {
+              "sourceKind": "datajud",
+              "sourceMovementId": "S2",
+              "occurredAt": "2024-03-05T00:00:00Z",
+              "description": "Juntada",
+              "raw": {
+                "description": "Juntada"
+              }
+            }
+          ]
+        },
+        "movements": [
+          {
+            "content_hash": "47b71bac11a72fd4d849441dbb3fd48f3c707adbdcf67d06c4ff01e39239e657",
+            "source_movement_id": "S1",
+            "occurred_at": "2024-03-01T00:00:00.000Z",
+            "category_code": "26",
+            "category_label": "Distribuição",
+            "description": "Distribuído",
+            "raw": {
+              "description": "Distribuído"
+            },
+            "needs_review": false,
+            "is_first_sync": false,
+            "revises_content_hash": null
+          },
+          {
+            "content_hash": "c69349d987ae2274cff8c0162dc18ef1223c75deda790d4773d86e0b2f80275e",
+            "source_movement_id": "S2",
+            "occurred_at": "2024-03-05T00:00:00.000Z",
+            "category_code": null,
+            "category_label": null,
+            "description": "Juntada",
+            "raw": {
+              "description": "Juntada"
+            },
+            "needs_review": true,
+            "is_first_sync": false,
+            "revises_content_hash": null
+          }
+        ],
+        "events": [
+          {
+            "event_type": "new_movement",
+            "content_hash": "c69349d987ae2274cff8c0162dc18ef1223c75deda790d4773d86e0b2f80275e",
+            "occurred_at": "2024-03-05T00:00:00.000Z",
+            "payload": {
+              "category_code": null,
+              "category_label": null,
+              "description": "Juntada",
+              "source_kind": "datajud"
+            }
+          }
+        ],
+        "stateHash": "7fbd73e2c0f7cccc9bb227005f3e9637e744f7b117c43d769603a9270c9531d4",
+        "firstSyncCompleted": false,
+        "counts": {
+          "fetched": 2,
+          "new": 1,
+          "updated": 0
+        }
+      }
+    },
+    {
+      "name": "coleta seguinte (passo 3: reprocessa ⇒ 0 novos, 0 eventos)",
+      "input": {
+        "sourceKind": "datajud",
+        "isFirstSync": false,
+        "known": [
+          {
+            "contentHash": "47b71bac11a72fd4d849441dbb3fd48f3c707adbdcf67d06c4ff01e39239e657",
+            "sourceMovementId": "S1"
+          },
+          {
+            "contentHash": "c69349d987ae2274cff8c0162dc18ef1223c75deda790d4773d86e0b2f80275e",
+            "sourceMovementId": "S2"
+          }
+        ],
+        "previousStateHash": null
+      },
+      "fetch": {
+        "throw": null,
+        "movements": [
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": "S1",
+            "occurredAt": "2024-03-01T00:00:00Z",
+            "description": "Distribuído",
+            "raw": {
+              "description": "Distribuído"
+            }
+          },
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": "S2",
+            "occurredAt": "2024-03-05T00:00:00Z",
+            "description": "Juntada",
+            "raw": {
+              "description": "Juntada"
+            }
+          }
+        ],
+        "partial": false
+      },
+      "categoryResolutions": [
+        {
+          "code": "26",
+          "label": "Distribuição"
+        },
+        null
+      ],
+      "expected": {
+        "status": "success",
+        "collectedAt": "2024-05-01T00:00:00.000Z",
+        "rawPayload": {
+          "sourceKind": "datajud",
+          "collectedAt": "2024-05-01T00:00:00.000Z",
+          "movements": [
+            {
+              "sourceKind": "datajud",
+              "sourceMovementId": "S1",
+              "occurredAt": "2024-03-01T00:00:00Z",
+              "description": "Distribuído",
+              "raw": {
+                "description": "Distribuído"
+              }
+            },
+            {
+              "sourceKind": "datajud",
+              "sourceMovementId": "S2",
+              "occurredAt": "2024-03-05T00:00:00Z",
+              "description": "Juntada",
+              "raw": {
+                "description": "Juntada"
+              }
+            }
+          ]
+        },
+        "movements": [
+          {
+            "content_hash": "47b71bac11a72fd4d849441dbb3fd48f3c707adbdcf67d06c4ff01e39239e657",
+            "source_movement_id": "S1",
+            "occurred_at": "2024-03-01T00:00:00.000Z",
+            "category_code": "26",
+            "category_label": "Distribuição",
+            "description": "Distribuído",
+            "raw": {
+              "description": "Distribuído"
+            },
+            "needs_review": false,
+            "is_first_sync": false,
+            "revises_content_hash": null
+          },
+          {
+            "content_hash": "c69349d987ae2274cff8c0162dc18ef1223c75deda790d4773d86e0b2f80275e",
+            "source_movement_id": "S2",
+            "occurred_at": "2024-03-05T00:00:00.000Z",
+            "category_code": null,
+            "category_label": null,
+            "description": "Juntada",
+            "raw": {
+              "description": "Juntada"
+            },
+            "needs_review": true,
+            "is_first_sync": false,
+            "revises_content_hash": null
+          }
+        ],
+        "events": [],
+        "stateHash": "7fbd73e2c0f7cccc9bb227005f3e9637e744f7b117c43d769603a9270c9531d4",
+        "firstSyncCompleted": false,
+        "counts": {
+          "fetched": 2,
+          "new": 0,
+          "updated": 0
+        }
+      }
+    },
+    {
+      "name": "movimentação alterada (passo 1: 1ª coleta)",
+      "input": {
+        "sourceKind": "datajud",
+        "isFirstSync": true,
+        "known": [],
+        "previousStateHash": null
+      },
+      "fetch": {
+        "throw": null,
+        "movements": [
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": "S9",
+            "occurredAt": "2024-04-01T00:00:00Z",
+            "description": "Decisão proferida",
+            "raw": {
+              "description": "Decisão proferida"
+            }
+          }
+        ],
+        "partial": false
+      },
+      "categoryResolutions": [
+        null
+      ],
+      "expected": {
+        "status": "success",
+        "collectedAt": "2024-05-01T00:00:00.000Z",
+        "rawPayload": {
+          "sourceKind": "datajud",
+          "collectedAt": "2024-05-01T00:00:00.000Z",
+          "movements": [
+            {
+              "sourceKind": "datajud",
+              "sourceMovementId": "S9",
+              "occurredAt": "2024-04-01T00:00:00Z",
+              "description": "Decisão proferida",
+              "raw": {
+                "description": "Decisão proferida"
+              }
+            }
+          ]
+        },
+        "movements": [
+          {
+            "content_hash": "6607f35cca899246f0923531ecff9bd834d7919cd85b97bd89791f4328d7a9e9",
+            "source_movement_id": "S9",
+            "occurred_at": "2024-04-01T00:00:00.000Z",
+            "category_code": null,
+            "category_label": null,
+            "description": "Decisão proferida",
+            "raw": {
+              "description": "Decisão proferida"
+            },
+            "needs_review": true,
+            "is_first_sync": true,
+            "revises_content_hash": null
+          }
+        ],
+        "events": [
+          {
+            "event_type": "first_sync_completed",
+            "content_hash": null,
+            "occurred_at": null,
+            "payload": {
+              "source_kind": "datajud",
+              "movements": 1
+            }
+          }
+        ],
+        "stateHash": "87787f53eaf39b60dbfd34c9a6af67f519fe4d459fd12d4cd652bf8cabd647ac",
+        "firstSyncCompleted": true,
+        "counts": {
+          "fetched": 1,
+          "new": 1,
+          "updated": 0
+        }
+      }
+    },
+    {
+      "name": "movimentação alterada (passo 2: revises_content_hash + movement_amended)",
+      "input": {
+        "sourceKind": "datajud",
+        "isFirstSync": false,
+        "known": [
+          {
+            "contentHash": "6607f35cca899246f0923531ecff9bd834d7919cd85b97bd89791f4328d7a9e9",
+            "sourceMovementId": "S9"
+          }
+        ],
+        "previousStateHash": null
+      },
+      "fetch": {
+        "throw": null,
+        "movements": [
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": "S9",
+            "occurredAt": "2024-04-01T00:00:00Z",
+            "description": "Decisão proferida (retificada)",
+            "raw": {
+              "description": "Decisão proferida (retificada)"
+            }
+          }
+        ],
+        "partial": false
+      },
+      "categoryResolutions": [
+        null
+      ],
+      "expected": {
+        "status": "success",
+        "collectedAt": "2024-05-01T00:00:00.000Z",
+        "rawPayload": {
+          "sourceKind": "datajud",
+          "collectedAt": "2024-05-01T00:00:00.000Z",
+          "movements": [
+            {
+              "sourceKind": "datajud",
+              "sourceMovementId": "S9",
+              "occurredAt": "2024-04-01T00:00:00Z",
+              "description": "Decisão proferida (retificada)",
+              "raw": {
+                "description": "Decisão proferida (retificada)"
+              }
+            }
+          ]
+        },
+        "movements": [
+          {
+            "content_hash": "6736ffd8629f0a2253cb44c6888d581e6d49e5b6e3476ba7559a5de14fbc48b2",
+            "source_movement_id": "S9",
+            "occurred_at": "2024-04-01T00:00:00.000Z",
+            "category_code": null,
+            "category_label": null,
+            "description": "Decisão proferida (retificada)",
+            "raw": {
+              "description": "Decisão proferida (retificada)"
+            },
+            "needs_review": true,
+            "is_first_sync": false,
+            "revises_content_hash": "6607f35cca899246f0923531ecff9bd834d7919cd85b97bd89791f4328d7a9e9"
+          }
+        ],
+        "events": [
+          {
+            "event_type": "movement_amended",
+            "content_hash": "6736ffd8629f0a2253cb44c6888d581e6d49e5b6e3476ba7559a5de14fbc48b2",
+            "occurred_at": "2024-04-01T00:00:00.000Z",
+            "payload": {
+              "category_code": null,
+              "category_label": null,
+              "description": "Decisão proferida (retificada)",
+              "source_kind": "datajud",
+              "revises": "6607f35cca899246f0923531ecff9bd834d7919cd85b97bd89791f4328d7a9e9"
+            }
+          }
+        ],
+        "stateHash": "30787c7dfb00516d9a415d9c8c36d2919cdba5be6474fc121cc6ee9845e9bd9a",
+        "firstSyncCompleted": false,
+        "counts": {
+          "fetched": 1,
+          "new": 0,
+          "updated": 1
+        }
+      }
+    },
+    {
+      "name": "coleta parcial: status partial, sem first_sync_completed",
+      "input": {
+        "sourceKind": "datajud",
+        "isFirstSync": true,
+        "known": [],
+        "previousStateHash": null
+      },
+      "fetch": {
+        "throw": null,
+        "movements": [
+          {
+            "sourceKind": "datajud",
+            "sourceMovementId": null,
+            "occurredAt": null,
+            "description": "p1",
+            "raw": {
+              "description": "p1"
+            }
+          }
+        ],
+        "partial": true
+      },
+      "categoryResolutions": [
+        null
+      ],
+      "expected": {
+        "status": "partial",
+        "collectedAt": "2024-05-01T00:00:00.000Z",
+        "rawPayload": {
+          "sourceKind": "datajud",
+          "collectedAt": "2024-05-01T00:00:00.000Z",
+          "movements": [
+            {
+              "sourceKind": "datajud",
+              "sourceMovementId": null,
+              "occurredAt": null,
+              "description": "p1",
+              "raw": {
+                "description": "p1"
+              }
+            }
+          ],
+          "partial": true
+        },
+        "movements": [
+          {
+            "content_hash": "97cbdd8339f33ecc342ffe77ff9a277395d21c9bb118a1c32fc9b00b84405659",
+            "source_movement_id": null,
+            "occurred_at": null,
+            "category_code": null,
+            "category_label": null,
+            "description": "p1",
+            "raw": {
+              "description": "p1"
+            },
+            "needs_review": true,
+            "is_first_sync": true,
+            "revises_content_hash": null
+          }
+        ],
+        "events": [],
+        "stateHash": "2e1872789cca1ce204a3c31eac126a4cb6ed3fbd1bea0e4aab6f1bb4b2943fca",
+        "firstSyncCompleted": false,
+        "counts": {
+          "fetched": 1,
+          "new": 1,
+          "updated": 0
+        }
+      }
+    },
+    {
+      "name": "falha: timeout",
+      "input": {
+        "sourceKind": "datajud",
+        "isFirstSync": true,
+        "known": [],
+        "previousStateHash": null
+      },
+      "fetch": {
+        "throw": "timeout",
+        "movements": [],
+        "partial": false
+      },
+      "categoryResolutions": [],
+      "expected": {
+        "status": "failed",
+        "rawPayload": null,
+        "movements": [],
+        "events": [],
+        "stateHash": "",
+        "firstSyncCompleted": false,
+        "counts": {
+          "fetched": 0,
+          "new": 0,
+          "updated": 0
+        },
+        "error": {
+          "code": "timeout",
+          "message": "Tempo limite excedido ao consultar a fonte.",
+          "retriable": true
+        }
+      }
+    },
+    {
+      "name": "falha: unavailable",
+      "input": {
+        "sourceKind": "datajud",
+        "isFirstSync": true,
+        "known": [],
+        "previousStateHash": null
+      },
+      "fetch": {
+        "throw": "unavailable",
+        "movements": [],
+        "partial": false
+      },
+      "categoryResolutions": [],
+      "expected": {
+        "status": "failed",
+        "rawPayload": null,
+        "movements": [],
+        "events": [],
+        "stateHash": "",
+        "firstSyncCompleted": false,
+        "counts": {
+          "fetched": 0,
+          "new": 0,
+          "updated": 0
+        },
+        "error": {
+          "code": "unavailable",
+          "message": "A fonte está indisponível.",
+          "retriable": true
+        }
+      }
+    },
+    {
+      "name": "falha: rate_limited",
+      "input": {
+        "sourceKind": "datajud",
+        "isFirstSync": true,
+        "known": [],
+        "previousStateHash": null
+      },
+      "fetch": {
+        "throw": "rate_limited",
+        "movements": [],
+        "partial": false
+      },
+      "categoryResolutions": [],
+      "expected": {
+        "status": "failed",
+        "rawPayload": null,
+        "movements": [],
+        "events": [],
+        "stateHash": "",
+        "firstSyncCompleted": false,
+        "counts": {
+          "fetched": 0,
+          "new": 0,
+          "updated": 0
+        },
+        "error": {
+          "code": "rate_limited",
+          "message": "Limite de requisições da fonte atingido.",
+          "retriable": true,
+          "httpStatus": 429
+        }
+      }
+    },
+    {
+      "name": "falha: auth_failed",
+      "input": {
+        "sourceKind": "datajud",
+        "isFirstSync": true,
+        "known": [],
+        "previousStateHash": null
+      },
+      "fetch": {
+        "throw": "auth_failed",
+        "movements": [],
+        "partial": false
+      },
+      "categoryResolutions": [],
+      "expected": {
+        "status": "failed",
+        "rawPayload": null,
+        "movements": [],
+        "events": [],
+        "stateHash": "",
+        "firstSyncCompleted": false,
+        "counts": {
+          "fetched": 0,
+          "new": 0,
+          "updated": 0
+        },
+        "error": {
+          "code": "auth_failed",
+          "message": "Credenciais inválidas ou expiradas para a fonte.",
+          "retriable": false,
+          "httpStatus": 401
+        }
+      }
+    },
+    {
+      "name": "falha: parse_error",
+      "input": {
+        "sourceKind": "datajud",
+        "isFirstSync": true,
+        "known": [],
+        "previousStateHash": null
+      },
+      "fetch": {
+        "throw": "parse_error",
+        "movements": [],
+        "partial": false
+      },
+      "categoryResolutions": [],
+      "expected": {
+        "status": "failed",
+        "rawPayload": null,
+        "movements": [],
+        "events": [],
+        "stateHash": "",
+        "firstSyncCompleted": false,
+        "counts": {
+          "fetched": 0,
+          "new": 0,
+          "updated": 0
+        },
+        "error": {
+          "code": "parse_error",
+          "message": "Não foi possível interpretar a resposta da fonte.",
+          "retriable": false
+        }
+      }
+    },
+    {
+      "name": "falha: not_found",
+      "input": {
+        "sourceKind": "datajud",
+        "isFirstSync": true,
+        "known": [],
+        "previousStateHash": null
+      },
+      "fetch": {
+        "throw": "not_found",
+        "movements": [],
+        "partial": false
+      },
+      "categoryResolutions": [],
+      "expected": {
+        "status": "failed",
+        "rawPayload": null,
+        "movements": [],
+        "events": [],
+        "stateHash": "",
+        "firstSyncCompleted": false,
+        "counts": {
+          "fetched": 0,
+          "new": 0,
+          "updated": 0
+        },
+        "error": {
+          "code": "not_found",
+          "message": "Processo não encontrado na fonte.",
+          "retriable": false,
+          "httpStatus": 404
+        }
+      }
+    },
+    {
+      "name": "falha: SourceUnavailableError (collectors-core) ⇒ unavailable/retriável",
+      "input": {
+        "sourceKind": "datajud",
+        "isFirstSync": true,
+        "known": [],
+        "previousStateHash": null
+      },
+      "fetch": {
+        "throw": "source_unavailable",
+        "movements": [],
+        "partial": false
+      },
+      "categoryResolutions": [],
+      "expected": {
+        "status": "failed",
+        "rawPayload": null,
+        "movements": [],
+        "events": [],
+        "stateHash": "",
+        "firstSyncCompleted": false,
+        "counts": {
+          "fetched": 0,
+          "new": 0,
+          "updated": 0
+        },
+        "error": {
+          "code": "unavailable",
+          "message": "Fonte 'datajud' indisponível: simulado",
+          "retriable": true
+        }
+      }
+    }
+  ],
+  "invariants": []
+}

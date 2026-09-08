@@ -1,0 +1,80 @@
+{
+  "vectors": [
+    {
+      "name": "CollectionTimeoutError (default) ⇒ timeout, retriable",
+      "expected": {
+        "code": "timeout",
+        "message": "Tempo limite excedido ao consultar a fonte.",
+        "retriable": true
+      }
+    },
+    {
+      "name": "CollectionUnavailableError (default) ⇒ unavailable, retriable",
+      "expected": {
+        "code": "unavailable",
+        "message": "A fonte está indisponível.",
+        "retriable": true
+      }
+    },
+    {
+      "name": "CollectionRateLimitedError (default) ⇒ rate_limited, retriable, httpStatus=429",
+      "expected": {
+        "code": "rate_limited",
+        "message": "Limite de requisições da fonte atingido.",
+        "retriable": true,
+        "httpStatus": 429
+      }
+    },
+    {
+      "name": "CollectionAuthError (default) ⇒ auth_failed, não retriable, httpStatus=401",
+      "expected": {
+        "code": "auth_failed",
+        "message": "Credenciais inválidas ou expiradas para a fonte.",
+        "retriable": false,
+        "httpStatus": 401
+      }
+    },
+    {
+      "name": "CollectionParseError (default) ⇒ parse_error, não retriable",
+      "expected": {
+        "code": "parse_error",
+        "message": "Não foi possível interpretar a resposta da fonte.",
+        "retriable": false
+      }
+    },
+    {
+      "name": "CollectionNotFoundError (default) ⇒ not_found, não retriable, httpStatus=404",
+      "expected": {
+        "code": "not_found",
+        "message": "Processo não encontrado na fonte.",
+        "retriable": false,
+        "httpStatus": 404
+      }
+    },
+    {
+      "name": "Error genérico ⇒ unknown, retriable (limitado)",
+      "expected": {
+        "code": "unknown",
+        "message": "boom",
+        "retriable": true
+      }
+    },
+    {
+      "name": "SourceUnavailableError (collectors-core) ⇒ unavailable, retriable",
+      "expected": {
+        "code": "unavailable",
+        "message": "Fonte 'datajud' indisponível: simulado",
+        "retriable": true
+      }
+    },
+    {
+      "name": "SourceNotRegisteredError (collectors-core) ⇒ unknown, não retriable",
+      "expected": {
+        "code": "unknown",
+        "message": "Nenhuma fonte registrada para 'minha-fonte'.",
+        "retriable": false
+      }
+    }
+  ],
+  "invariants": []
+}

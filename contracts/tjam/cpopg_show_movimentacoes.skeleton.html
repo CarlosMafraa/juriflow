@@ -1,0 +1,81 @@
+<!--
+  ESQUELETO SANITIZADO de GET https://consultasaj.tjam.jus.br/cpopg/show.do (e-SAJ CPOPG TJAM).
+  Estrutura (tags / id / class / aninhamento) reconstruida da observada em 2026-09-06.
+  TODOS OS VALORES SAO SINTETICOS. Nao e HTML de producao. Encoding real: UTF-8 (com entidades).
+  Contrato: docs/ACOMPANHAMENTO-TJAM-SOURCE-CONTRACT.md
+
+  Parser (Etapa de implementacao):
+   - cabecalho: span#numeroProcesso, #classeProcesso, #assuntoProcesso, #areaProcesso,
+     #foroProcesso, #varaProcesso, #juizProcesso, #dataHoraDistribuicaoProcesso, #valorAcaoProcesso
+   - segredo de justica: div#popupSenhaProcesso presente => NAO listar movimentacoes (resultado vazio)
+   - movimentacoes: tbody#tabelaTodasMovimentacoes > tr.containerMovimentacao, 3 <td>:
+       (1) td.dataMovimentacao         -> "DD/MM/AAAA" (sem hora)
+       (2) td[aria-hidden] width=20    -> opcional a.linkMovVincProc#linkMovVincProc-<cdDocumento>
+       (3) td.descricaoMovimentacao    -> titulo (texto OU a.linkMovVincProc#linkMovVincProc-2-<cdDoc>)
+                                          + <br> + span[style*="font-style: italic"] (complemento)
+-->
+<div id="containerProcesso">
+  <div class="unj-entity-header__summary">
+    <span id="numeroProcesso" class="unj-larger-1">0000000-00.2020.8.04.0001</span>
+    <div id="maisDetalhes" style="display:none">
+      <table class="secaoFormBody">
+        <tr><td><span class="unj-label">Classe</span></td><td><div id="classeProcesso">Procedimento Comum Cível</div></td><td></td></tr>
+        <tr><td><span class="unj-label">Assunto</span></td><td><div id="assuntoProcesso">Assunto Sintético de Teste</div></td><td></td></tr>
+        <tr><td><span class="unj-label">Área</span></td><td><div id="areaProcesso"><span title="Cível">Cível</span></div></td><td></td></tr>
+        <tr><td><span class="unj-label">Foro</span></td><td><div id="foroProcesso">Capital - Fórum de Teste</div></td><td></td></tr>
+        <tr><td><span class="unj-label">Vara</span></td><td><div id="varaProcesso">1ª Vara de Teste</div></td><td></td></tr>
+        <tr><td><span class="unj-label">Juiz</span></td><td><div id="juizProcesso">Juízo de Teste</div></td><td></td></tr>
+        <tr><td><span class="unj-label">Distribuição</span></td><td><div id="dataHoraDistribuicaoProcesso">01/02/2020 às 10:00 - Automática</div></td><td></td></tr>
+        <tr><td><span class="unj-label">Valor da ação</span></td><td><div id="valorAcaoProcesso">R$ 1.000,00</div></td><td></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- SEGREDO DE JUSTICA (comentado; a amostra publica nao tinha):
+    <div id="popupSenhaProcesso" style="display:none"> ... senha do processo ... </div> -->
+
+  <h2 class="subtitle" id="linkmovimentacoes">Movimentações</h2>
+  <table>
+    <tbody id="tabelaUltimasMovimentacoes">
+      <tr class="fundoClaro containerMovimentacao">
+        <td class="dataMovimentacao" width="120" style="vertical-align: top">15/03/2024</td>
+        <td width="20" valign="top" aria-hidden="true"></td>
+        <td class="descricaoMovimentacao" style="vertical-align: top; padding-bottom: 5px">
+          Conclusão <br /> <span style="font-style: italic;"> Conclusos para despacho </span>
+        </td>
+      </tr>
+    </tbody>
+
+    <tbody style="display: none;" id="tabelaTodasMovimentacoes">
+      <!-- (a) sem documento, span vazio, titulo em texto puro -->
+      <tr class="fundoClaro containerMovimentacao" style="">
+        <td class="dataMovimentacao" width="120" style="vertical-align: top">31/10/2025</td>
+        <td width="20" valign="top" aria-hidden="true"></td>
+        <td class="descricaoMovimentacao" style="vertical-align: top; padding-bottom: 5px">
+          Processo transferido para o PROJUDI <br /> <span style="font-style: italic;"> </span>
+        </td>
+      </tr>
+      <!-- (b) com documento: icone na col.2 + titulo dentro de <a> + span com entidades -->
+      <tr class="fundoEscuro containerMovimentacao" style="">
+        <td class="dataMovimentacao" width="120" style="vertical-align: top">24/10/2025</td>
+        <td width="20" valign="top" aria-hidden="true">
+          <a class="linkMovVincProc" id="linkMovVincProc-99999001" title="Visualizar documento em inteiro teor" href="#liberarAutoPorSenha">
+            <img width="16" height="16" border="0" src="/cpopg/imagens/doc.png" />
+          </a>
+        </td>
+        <td class="descricaoMovimentacao" style="vertical-align: top; padding-bottom: 5px">
+          <a class="linkMovVincProc" id="linkMovVincProc-2-99999001" title="Visualizar documento em inteiro teor" href="#liberarAutoPorSenha"> Expedição de tipo de documento. </a>
+          <br /> <span style="font-style: italic;"> Certid&atilde;o de Leitura de Intima&ccedil;&atilde;o Eletr&ocirc;nica Expirada </span>
+        </td>
+      </tr>
+      <!-- (c) titulo em texto puro, sem documento, com complemento -->
+      <tr class="fundoClaro containerMovimentacao" style="">
+        <td class="dataMovimentacao" width="120" style="vertical-align: top">01/02/2020</td>
+        <td width="20" valign="top" aria-hidden="true"></td>
+        <td class="descricaoMovimentacao" style="vertical-align: top; padding-bottom: 5px">
+          Distribuído por sorteio <br /> <span style="font-style: italic;"> 1ª Vara de Teste </span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

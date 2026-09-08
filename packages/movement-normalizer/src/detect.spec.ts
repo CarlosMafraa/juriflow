@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { detectChanges } from './detect.js';
 import type { CanonicalMovement, KnownMovement } from './canonical.js';
+import contractVectors from '../../../contracts/collector-engine/detect-changes.json' with { type: 'json' };
+
+/**
+ * Vetores de contrato compartilhados com a futura implementação Go
+ * (Acompanhamento-F, decisões F-1/F-2) — ver nota equivalente em
+ * `normalize.spec.ts`. Gerados por `scripts/extract-contract-vectors.mjs`.
+ */
+const [vec0, vec1, vec2, vec3, vec4, vec5, vec6] = contractVectors.vectors;
 
 function mov(hash: string, sourceMovementId: string | null = null): CanonicalMovement {
   return {
@@ -30,6 +38,7 @@ describe('detectChanges', () => {
     });
     expect(r.events.map((e) => e.eventType)).toEqual(['first_sync_completed']);
     expect(r.firstSyncCompleted).toBe(true);
+    expect(r.stateHash).toBe(vec0.expected.stateHash);
   });
 
   it('1ª sincronização parcial: não fecha first_sync_completed', () => {
@@ -41,6 +50,7 @@ describe('detectChanges', () => {
     });
     expect(r.events).toHaveLength(0);
     expect(r.firstSyncCompleted).toBe(false);
+    expect(r.stateHash).toBe(vec1.expected.stateHash);
   });
 
   it('coleta seguinte: content_hash novo ⇒ new_movement', () => {
@@ -52,6 +62,7 @@ describe('detectChanges', () => {
     });
     expect(r.newMovements.map((m) => m.contentHash)).toEqual(['c']);
     expect(r.events.map((e) => e.eventType)).toEqual(['new_movement']);
+    expect(r.stateHash).toBe(vec2.expected.stateHash);
   });
 
   it('idempotência: reprocessar os mesmos hashes ⇒ 0 eventos', () => {
@@ -63,6 +74,7 @@ describe('detectChanges', () => {
     });
     expect(r.newMovements).toHaveLength(0);
     expect(r.events).toHaveLength(0);
+    expect(r.stateHash).toBe(vec3.expected.stateHash);
   });
 
   it('movimentação alterada: mesmo source_movement_id, hash diferente ⇒ movement_amended + revision_of', () => {
@@ -77,6 +89,7 @@ describe('detectChanges', () => {
       { movement: expect.objectContaining({ contentHash: 'a2' }), revisesContentHash: 'a1' },
     ]);
     expect(r.events.map((e) => e.eventType)).toEqual(['movement_amended']);
+    expect(r.stateHash).toBe(vec4.expected.stateHash);
   });
 
   it('state_hash é estável e independe da ordem', () => {
@@ -93,5 +106,7 @@ describe('detectChanges', () => {
       allowFirstSyncComplete: true,
     });
     expect(r1.stateHash).toBe(r2.stateHash);
+    expect(r1.stateHash).toBe(vec5.expected.stateHash);
+    expect(r2.stateHash).toBe(vec6.expected.stateHash);
   });
 });

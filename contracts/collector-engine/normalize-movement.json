@@ -1,0 +1,198 @@
+{
+  "vectors": [
+    {
+      "name": "mesmo dia + mesma categoria + descrição equivalente ⇒ mesmo content_hash (a)",
+      "raw": {
+        "sourceKind": "datajud",
+        "sourceMovementId": null,
+        "occurredAt": "2024-03-10T13:00:00Z",
+        "description": "  Processo   DISTRIBUÍDO  ",
+        "raw": {
+          "description": "  Processo   DISTRIBUÍDO  "
+        }
+      },
+      "sourceKind": "datajud",
+      "expected": {
+        "sourceKind": "datajud",
+        "sourceMovementId": null,
+        "occurredAt": "2024-03-10T13:00:00.000Z",
+        "categoryCode": "26",
+        "categoryLabel": "Distribuição",
+        "description": "Processo DISTRIBUÍDO",
+        "contentHash": "1494d9a703350aa9e3479b8cc3963470a8ee54b9f29dcb374111657571a01cc5",
+        "needsReview": false
+      }
+    },
+    {
+      "name": "mesmo dia + mesma categoria + descrição equivalente ⇒ mesmo content_hash (b)",
+      "raw": {
+        "sourceKind": "datajud",
+        "sourceMovementId": null,
+        "occurredAt": "2024-03-10T20:00:00Z",
+        "description": "Processo distribuído",
+        "raw": {
+          "description": "Processo distribuído"
+        }
+      },
+      "sourceKind": "datajud",
+      "expected": {
+        "sourceKind": "datajud",
+        "sourceMovementId": null,
+        "occurredAt": "2024-03-10T20:00:00.000Z",
+        "categoryCode": "26",
+        "categoryLabel": "Distribuição",
+        "description": "Processo distribuído",
+        "contentHash": "1494d9a703350aa9e3479b8cc3963470a8ee54b9f29dcb374111657571a01cc5",
+        "needsReview": false
+      }
+    },
+    {
+      "name": "needsReview=true quando falta occurredAt",
+      "raw": {
+        "sourceKind": "datajud",
+        "sourceMovementId": null,
+        "occurredAt": null,
+        "description": "Processo distribuído",
+        "raw": {
+          "description": "Processo distribuído"
+        }
+      },
+      "sourceKind": "datajud",
+      "expected": {
+        "sourceKind": "datajud",
+        "sourceMovementId": null,
+        "occurredAt": null,
+        "categoryCode": "26",
+        "categoryLabel": "Distribuição",
+        "description": "Processo distribuído",
+        "contentHash": "af80bcb25fa1a2f5609eb1a2d8106d5add177cbdb00bfb7de58f51a58284940b",
+        "needsReview": true
+      }
+    },
+    {
+      "name": "needsReview=true quando a categoria não é reconhecida",
+      "raw": {
+        "sourceKind": "datajud",
+        "sourceMovementId": null,
+        "occurredAt": "2024-01-01T00:00:00Z",
+        "description": "Ato incomum",
+        "raw": {
+          "description": "Ato incomum"
+        }
+      },
+      "sourceKind": "datajud",
+      "expected": {
+        "sourceKind": "datajud",
+        "sourceMovementId": null,
+        "occurredAt": "2024-01-01T00:00:00.000Z",
+        "categoryCode": null,
+        "categoryLabel": null,
+        "description": "Ato incomum",
+        "contentHash": "1b7dec2dde243563415f5b52b45e88a5536dafc046a0d4d892c45476dbae4bfe",
+        "needsReview": true
+      }
+    },
+    {
+      "name": "usa movementCode/movementLabel do raw quando presentes",
+      "raw": {
+        "sourceKind": "datajud",
+        "sourceMovementId": null,
+        "occurredAt": "2024-01-01T00:00:00Z",
+        "description": "texto livre",
+        "raw": {
+          "movementCode": "26",
+          "movementLabel": "Distribuição"
+        }
+      },
+      "sourceKind": "datajud",
+      "expected": {
+        "sourceKind": "datajud",
+        "sourceMovementId": null,
+        "occurredAt": "2024-01-01T00:00:00.000Z",
+        "categoryCode": "26",
+        "categoryLabel": "Distribuição",
+        "description": "texto livre",
+        "contentHash": "29c6ec8835ffb4a755171fef67dc2a104eb2d45495325fca85bc4c59716deba7",
+        "needsReview": false
+      }
+    },
+    {
+      "name": "data diferente ⇒ content_hash diferente (m1)",
+      "raw": {
+        "sourceKind": "datajud",
+        "sourceMovementId": "x1",
+        "occurredAt": "2024-01-01T00:00:00Z",
+        "description": "Juntada",
+        "raw": {
+          "description": "Juntada"
+        }
+      },
+      "sourceKind": "datajud",
+      "expected": {
+        "sourceKind": "datajud",
+        "sourceMovementId": "x1",
+        "occurredAt": "2024-01-01T00:00:00.000Z",
+        "categoryCode": null,
+        "categoryLabel": null,
+        "description": "Juntada",
+        "contentHash": "b859edc11740414e2b1e04c4fa66f7a2713fdc75a275660b43ff620eadddc1c1",
+        "needsReview": true
+      }
+    },
+    {
+      "name": "data diferente ⇒ content_hash diferente (m2)",
+      "raw": {
+        "sourceKind": "datajud",
+        "sourceMovementId": "x1",
+        "occurredAt": "2024-01-02T00:00:00Z",
+        "description": "Juntada",
+        "raw": {
+          "description": "Juntada"
+        }
+      },
+      "sourceKind": "datajud",
+      "expected": {
+        "sourceKind": "datajud",
+        "sourceMovementId": "x1",
+        "occurredAt": "2024-01-02T00:00:00.000Z",
+        "categoryCode": null,
+        "categoryLabel": null,
+        "description": "Juntada",
+        "contentHash": "5a229cb0c66fdfb14365676166ac8c0f115880eaf7d50771b017ff1a38294eb2",
+        "needsReview": true
+      }
+    },
+    {
+      "name": "sourceMovementId diferente ⇒ content_hash diferente (m3)",
+      "raw": {
+        "sourceKind": "datajud",
+        "sourceMovementId": "x2",
+        "occurredAt": "2024-01-01T00:00:00Z",
+        "description": "Juntada",
+        "raw": {
+          "description": "Juntada"
+        }
+      },
+      "sourceKind": "datajud",
+      "expected": {
+        "sourceKind": "datajud",
+        "sourceMovementId": "x2",
+        "occurredAt": "2024-01-01T00:00:00.000Z",
+        "categoryCode": null,
+        "categoryLabel": null,
+        "description": "Juntada",
+        "contentHash": "b44faa802eaf62f7b972b0a2b2ea82c2cb07cc192bf0c75735ac7254651deaf5",
+        "needsReview": true
+      }
+    }
+  ],
+  "invariants": [
+    {
+      "name": "a.contentHash === b.contentHash (mesmo dia, mesma categoria, descrição equivalente)",
+      "equalContentHashOf": [
+        "mesmo dia + mesma categoria + descrição equivalente ⇒ mesmo content_hash (a)",
+        "mesmo dia + mesma categoria + descrição equivalente ⇒ mesmo content_hash (b)"
+      ]
+    }
+  ]
+}

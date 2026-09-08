@@ -1,0 +1,71 @@
+<!--
+  Fixture do FORMULÁRIO de busca do PROJUDI Consulta Pública TJAM.
+  Origem: GET real de /processo/consultaPublicaNova.do?actionType=iniciar, capturado
+  via navegador Edge que passou o F5 WAF em 2026-09-07 (dump de document.forms +
+  do HTML). Sem dados pessoais (formulário vazio). O jsessionid do `action` foi
+  substituído por <JSESSIONID>.
+
+  ENCODING: <meta charset="ISO-8859-1"> declarado; ver nota no README (bytes UTF-8).
+  reCAPTCHA: Google reCAPTCHA (script recaptcha__pt_br.js), site key
+  6Lem7S8tAAAAANmeA_FlCfvDl9ncTByRvecwapFO. Para um humano em IP residencial é
+  INVISÍVEL (não aparece desafio); o campo hidden g-recaptcha-response é preenchido
+  pelo JS do Google. NÃO resolver/burlar.
+-->
+<form name="processoBuscaForm" id="buscaProcessoForm" method="post"
+      action="/processo/consultaPublica.do;jsessionid=<JSESSIONID>?actionType=pesquisar">
+
+  <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response" value="">
+
+  <!-- Comarca / Foro -->
+  <select name="codComarca" id="codComarca">
+    <option value="-1" selected>Todos</option>
+    <option value="1000">Manaus</option>
+    <option value="2000">Alvarães</option>
+    <!-- ... ~60 comarcas, código numérico de 4 dígitos ... -->
+    <option value="5600">Manicoré</option>
+  </select>
+
+  <!-- Vara: populada por AJAX depois de escolher a comarca -->
+  <select name="codVara" id="codVara" style="width:400px"><option value="" selected></option></select>
+  <input type="hidden" name="codVaraEscolhida" value="" id="codVaraEscolhida">
+
+  <!-- Tipo de pesquisa -->
+  <select name="cbPesquisa" id="cbPesquisa">
+    <option value="NUMPROC" selected>Número do Processo</option>
+    <option value="NMPARTE">Nome da parte</option>
+    <option value="NUMOAB">OAB</option>
+    <option value="PRECATORIA">CPF/CNPJ</option>
+  </select>
+
+  <!-- Número único vs antigo -->
+  <input type="radio" name="flagNumeroUnico" value="true" checked
+         onchange="updateFlagNumeroUnicoHidden(this.value);" id="flagNumeracaoUnica">
+  <input type="radio" name="flagNumeroUnico" value="false"
+         onchange="updateFlagNumeroUnicoHidden(this.value);">
+  <input type="hidden" id="flagNumeroUnicoHidden" value="true">
+
+  <!-- CAMPO DO CNJ (busca por número) -->
+  <input type="text" name="numeroProcesso" size="30" value="" id="numeroProcesso" class="">
+
+  <!-- campos dos outros modos de busca (disabled quando cbPesquisa=NUMPROC) -->
+  <input type="text" name="nomeParte" size="40" value="" id="nomeParte" disabled>
+  <input type="text" name="nomeAdvogado" size="93" value="" id="nomeAdvogado" disabled>
+  <input type="text" name="oab" maxlength="8" size="8" value="" id="oab" disabled>
+  <select name="oabComplemento" style="width:40px"><option value="N" selected>N</option><option value="A">A</option><option value="B">B</option></select>
+  <select name="oabUF" style="width:45px"><option value="AM" selected>AM</option><!-- ...UFs... --></select>
+  <input type="text" name="cpfCnpj" size="25" value="" id="cpfCnpj" disabled>
+  <input type="text" name="dadosConsulta.valorConsulta" value="" formattype="TEXT" formato="100" rotulo="Documento da Parte">
+  <input type="hidden" name="loginAdvogado" value="" id="loginAdvogado" disabled>
+
+  <!-- paginação / ordenação (hidden, defaults) -->
+  <input type="hidden" name="processoPageSize" value="20">
+  <input type="hidden" name="processoPageNumber" value="1">
+  <input type="hidden" name="processoSortColumn" value="p.numeroUnico">
+  <input type="hidden" name="processoSortOrder" value="asc">
+  <input type="hidden" name="opcaoConsultaPublica" value="1" id="opcaoConsultaPublica">
+
+  <input type="submit" name="searchButton" value="Pesquisar" id="pesquisar" class="button"
+         onclick="$('#buscaProcessoForm').processoPageNumber.value=1;">
+  <input type="button" name="backButton" value="Voltar" id="backButton" class="button"
+         onclick="window.location.href='https://projudi.tjam.jus.br/projudi/';">
+</form>
