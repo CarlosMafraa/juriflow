@@ -15,6 +15,8 @@ export default defineConfig({
       '@juriflow/collector-engine': resolve('./packages/collector-engine/src/index.ts'),
       '@juriflow/adapter-datajud/testing': resolve('./packages/adapter-datajud/src/testing/index.ts'),
       '@juriflow/adapter-datajud': resolve('./packages/adapter-datajud/src/index.ts'),
+      '@juriflow/adapter-playwright/testing': resolve('./packages/adapter-playwright/src/testing/index.ts'),
+      '@juriflow/adapter-playwright': resolve('./packages/adapter-playwright/src/index.ts'),
     },
   },
   test: {

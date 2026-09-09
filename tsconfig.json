@@ -6,6 +6,7 @@
     { "path": "./packages/collectors-core" },
     { "path": "./packages/movement-normalizer" },
     { "path": "./packages/collector-engine" },
-    { "path": "./packages/adapter-datajud" }
+    { "path": "./packages/adapter-datajud" },
+    { "path": "./packages/adapter-playwright" }
   ]
 }
