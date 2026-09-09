@@ -10,7 +10,26 @@
   o charset declarado.
 
   <apm_do_not_touch> é injeção do AppDynamics (monitoramento) — ignorar no parser.
+
+  Cabeçalho abaixo (`<h3>` + `table.form`): valores SINTÉTICOS, estrutura como a real.
 -->
+<form name="processoBuscaForm" id="processoBuscaForm" method="post" action="/processo/consultaPublica.do?actionType=iniciar">
+  <h3> Processo <em class="attention">0000000-00.2025.8.04.1000</em> &nbsp; - &nbsp; (330 dia(s) em tramitação) </h3>
+  <fieldset>
+    <table class="form">
+      <tbody>
+        <tr><td class="label"><label>Classe Processual:</label></td><td colspan="4"> 7 - Procedimento Comum Cível </td></tr>
+        <tr><td class="label"><label>Assunto Principal:</label></td><td colspan="4"> 7621 - Seguro </td></tr>
+        <tr>
+          <td class="labelRadio"><label>Comarca:</label></td><td> Comarca de Teste </td>
+          <td width="20px">&nbsp;</td>
+          <td class="labelRadio"><label>Nível de Sigilo:</label></td><td> Público </td>
+        </tr>
+      </tbody>
+    </table>
+  </fieldset>
+</form>
+
 <table class="resultTable" cellpadding="0" cellspacing="0" style="width: 100%;" id="idTableMovimentacoesmov1Grau1">
   <colgroup>
     <col width="30px"><col width="50px"><col width="1px"><col width="auto"><col width="400px">

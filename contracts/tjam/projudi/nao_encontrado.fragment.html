@@ -1,0 +1,25 @@
+<!--
+  PROJUDI Consulta Pública TJAM — resultado "processo não encontrado".
+
+  SINTÉTICO. Não foi capturada uma resposta real de "não encontrado" do PROJUDI
+  (só um processo válido foi consultado). A evidência do texto vem do screenshot
+  do formulário fornecido pelo responsável (estado vazio da lista de resultados)
+  e do scraper de referência `Carcalto/TJAM-PROJUDI-Consulta` (`NO_RECORDS_XPATH`
+  = "Nenhum registro encontrado").
+
+  O parser detecta o texto "Nenhum registro encontrado" na página SEM a tabela
+  `#idTableMovimentacoesmov1Grau1`.
+-->
+<div id="conteudo">
+  <table class="resultTable" cellpadding="0" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Processo</th><th>Partes</th><th>Distribuição</th>
+        <th>Classe Processual (Assunto Principal)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="even"><td colspan="4"> Nenhum registro encontrado </td></tr>
+    </tbody>
+  </table>
+</div>
