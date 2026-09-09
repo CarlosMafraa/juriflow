@@ -25,5 +25,8 @@
     "@juriflow/collector-engine": "*",
     "linkedom": "^0.18.4",
     "playwright": "^1.63.0"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.45.4"
   }
 }

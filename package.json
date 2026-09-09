@@ -21,6 +21,7 @@
     "test:watch": "vitest",
     "test:web": "npm run test --workspace apps/web --if-present",
     "collector:tick": "tsc -b packages/collectors-core packages/movement-normalizer packages/collector-engine && node scripts/collector-tick.mjs",
+    "collector:tick:real": "tsc -b packages/collectors-core packages/movement-normalizer packages/collector-engine packages/adapter-playwright && node scripts/collector-tick-real.mjs",
     "datajud:smoke": "tsc -b packages/collectors-core packages/movement-normalizer packages/collector-engine packages/adapter-datajud && node scripts/datajud-smoke.mjs",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
