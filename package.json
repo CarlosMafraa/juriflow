@@ -9,7 +9,8 @@
   },
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "services/*"
   ],
   "scripts": {
     "build": "tsc -b && npm run build --workspace apps/web --if-present",

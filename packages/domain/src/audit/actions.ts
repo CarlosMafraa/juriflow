@@ -43,6 +43,11 @@ export const AUDIT_ACTIONS = {
   courtUpdate: 'court.update',
   courtActivate: 'court.activate',
   courtDeactivate: 'court.deactivate',
+
+  // MVP Acompanhamento — coleta (scraper-worker) e notificações WhatsApp
+  processMovementCollected: 'process.movement.collected',
+  notificationDeliverySent: 'notification.delivery.sent',
+  notificationDeliveryFailed: 'notification.delivery.failed',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

@@ -33,6 +33,8 @@ export interface Court {
   type: CourtType;
   jurisdiction: string;
   datajudCode: string | null;
+  /** SourceKind do @juriflow/collectors-core p/ coleta automática. NULL = não suportado ainda. */
+  trackingSourceKind: string | null;
   active: boolean;
   createdBy: Uuid | null;
   createdAt: IsoDateTime;
@@ -49,6 +51,12 @@ export interface Process {
   assignedUserId: Uuid;
   createdBy: Uuid;
   status: ProcessStatus;
+  /** Se falso, o worker de acompanhamento ignora o processo na rotina automática. */
+  trackingEnabled: boolean;
+  /** Hash do estado na última coleta. NULL = ainda sem 1ª coleta (RN11). */
+  lastStateHash: string | null;
+  lastCheckedAt: IsoDateTime | null;
+  lastCheckError: string | null;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime | null;
   deletedAt: IsoDateTime | null;

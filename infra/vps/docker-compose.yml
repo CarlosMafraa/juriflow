@@ -1,0 +1,28 @@
+name: juriflow
+
+services:
+  waha:
+    image: devlikeapro/waha:latest
+    restart: unless-stopped
+    environment:
+      WHATSAPP_API_KEY: ${WAHA_API_KEY}
+    volumes:
+      - waha_sessions:/app/.sessions
+    # Não publicar a porta 3000 na internet: acessar o QR code/painel via
+    # túnel SSH (`ssh -L 3000:localhost:3000 usuario@vps`), nunca exposto
+    # publicamente (RN seção 22 — WAHA é recurso administrativo, só ADMIN).
+
+  scraper-worker:
+    build:
+      context: ../..
+      dockerfile: services/scraper-worker/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - waha
+    # Idem: 3000 (HTTP de "consultar agora") não exposto publicamente nesta
+    # fase — sem frontend chamando ainda. Acessar via túnel SSH se precisar testar.
+
+volumes:
+  waha_sessions:

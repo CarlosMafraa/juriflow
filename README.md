@@ -11,11 +11,13 @@ Fonte Processual → Coletor → Normalizador → Processo/Estado → Histórico
 → Detector de Mudanças → Motor de Regras → Templates → WAHA → Auditoria
 ```
 
-> **Estado atual: Fase 2 — Fundação.** Autenticação, multi-tenancy (`space_id`),
-> papéis, RLS, layout autenticado, design system base e auditoria (estrutura).
-> Módulos de negócio (processos, coletores DataJud/Projudi/scraping, detector de
-> mudanças, notificações, WAHA completo, planos) entram nas fases seguintes.
-> Plano completo: [`docs/PLANO-FASE-1.md`](docs/PLANO-FASE-1.md).
+> **Estado atual: Fundação (Fases 1-3) pronta + MVP de acompanhamento em
+> construção.** Autenticação, multi-tenancy (`space_id`), papéis, RLS,
+> processos/clientes/tribunais e auditoria estão prontos. O MVP corta escopo
+> do roadmap original (ver [ADR-0007](docs/adr/0007-mvp-tjam-projudi-scraping.md)):
+> só coleta Projudi/TJAM (sem DataJud), rodando num worker separado
+> (`services/scraper-worker`) numa VPS própria, com WAHA para o envio real de
+> WhatsApp. Plano completo: [`docs/PLANO-FASE-1.md`](docs/PLANO-FASE-1.md).
 
 ## Stack
 
@@ -40,7 +42,11 @@ juriflow/
 ├─ packages/
 │  ├─ shared-types/       # tipos/DTOs compartilhados
 │  ├─ domain/             # autorização centralizada (RBAC) + catálogo de auditoria
-│  └─ collectors-core/    # porta ProcessDataSource + SourceRegistry (sem adapters ainda)
+│  └─ collectors-core/    # porta ProcessDataSource + SourceRegistry
+├─ services/
+│  └─ scraper-worker/     # worker Node (Playwright + WAHA) — roda numa VPS, não no Supabase
+├─ infra/
+│  └─ vps/                # docker-compose + guia de deploy do worker/WAHA
 ├─ supabase/
 │  ├─ migrations/         # SQL versionado — schema, RLS, funções, triggers
 │  ├─ tests/              # pgTAP — isolamento por espaço, papéis, append-only
