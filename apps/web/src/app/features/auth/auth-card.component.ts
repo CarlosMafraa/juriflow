@@ -1,16 +1,17 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import { CardModule } from 'primeng/card';
 
 /** Moldura centralizada das telas públicas de autenticação (responsiva). */
 @Component({
   selector: 'jf-auth-card',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [CardModule],
   template: `
     <div class="auth">
-      <div class="auth__box">
-        <h1 class="auth__title">{{ title }}</h1>
+      <p-card [header]="title" styleClass="auth__box">
         <ng-content />
-      </div>
+      </p-card>
     </div>
   `,
   styles: [
@@ -23,19 +24,13 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
         padding: 1.5rem;
         background: var(--jf-bg, #f8fafc);
       }
-      .auth__box {
+      :host ::ng-deep .auth__box {
         width: 100%;
         max-width: 22rem;
-        background: var(--jf-surface, #fff);
-        border: 1px solid var(--jf-border, #e2e8f0);
-        border-radius: var(--jf-radius-lg, 12px);
-        padding: 1.75rem;
-        box-shadow: 0 10px 40px rgb(15 23 42 / 8%);
       }
-      .auth__title {
-        margin: 0 0 1.25rem;
-        font-size: 1.15rem;
+      :host ::ng-deep .auth__box .p-card-title {
         text-align: center;
+        font-size: 1.15rem;
       }
     `,
   ],

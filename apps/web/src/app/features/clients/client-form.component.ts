@@ -3,63 +3,88 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { isValidClientDocument } from '@juriflow/domain';
 import type { ClientType } from '@juriflow/shared-types';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { CheckboxModule } from 'primeng/checkbox';
+import { InputTextModule } from 'primeng/inputtext';
+import { MessageModule } from 'primeng/message';
+import { SelectModule } from 'primeng/select';
 import { ClientService } from './client.service';
 import { ToastService } from '../../shared/feedback/toast.service';
-import { AlertComponent } from '../../shared/ui/alert.component';
-import { ButtonComponent } from '../../shared/ui/button.component';
-import { CardComponent } from '../../shared/ui/card.component';
-import { InputComponent } from '../../shared/ui/input.component';
 
 @Component({
   selector: 'jf-client-form',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, AlertComponent, ButtonComponent, CardComponent, InputComponent],
+  imports: [
+    ReactiveFormsModule,
+    ButtonModule,
+    CardModule,
+    CheckboxModule,
+    InputTextModule,
+    MessageModule,
+    SelectModule,
+  ],
   template: `
     <header class="head"><h1>{{ id() ? 'Editar cliente' : 'Novo cliente' }}</h1></header>
-    <jf-card>
+    <p-card>
       <form [formGroup]="form" (ngSubmit)="submit()" class="form">
         @if (error()) {
-          <jf-alert tone="danger">{{ error() }}</jf-alert>
+          <p-message severity="error" [text]="error()" styleClass="w-full" />
         }
 
-        <label class="type">
-          <span class="lbl">Tipo</span>
-          <select formControlName="type">
-            <option value="PF">Pessoa física</option>
-            <option value="PJ">Pessoa jurídica</option>
-          </select>
-        </label>
+        <div class="field">
+          <label for="type">Tipo</label>
+          <p-select inputId="type" [options]="typeOptions" formControlName="type" />
+        </div>
 
-        <jf-input
-          [label]="form.value.type === 'PJ' ? 'Razão social' : 'Nome'"
-          formControlName="name"
-          [required]="true"
-          [error]="showError('name') ? 'Informe o nome.' : ''"
-        />
-        <jf-input
-          [label]="form.value.type === 'PJ' ? 'CNPJ' : 'CPF'"
-          formControlName="document"
-          hint="Opcional. Único no espaço quando informado."
-          [error]="docError()"
-        />
-        <jf-input label="Telefone" type="tel" formControlName="phone" hint="Formato E.164, ex.: +5592999999999" [error]="phoneError()" />
-        <jf-input label="E-mail" type="email" formControlName="email" />
+        <div class="field">
+          <label for="name">{{ form.value.type === 'PJ' ? 'Razão social' : 'Nome' }}</label>
+          <input pInputText id="name" formControlName="name" />
+          @if (showError('name')) {
+            <small class="field__error">Informe o nome.</small>
+          }
+        </div>
+        <div class="field">
+          <label for="document">{{ form.value.type === 'PJ' ? 'CNPJ' : 'CPF' }}</label>
+          <input pInputText id="document" formControlName="document" />
+          @if (docError()) {
+            <small class="field__error">{{ docError() }}</small>
+          } @else {
+            <small class="field__hint">Opcional. Único no espaço quando informado.</small>
+          }
+        </div>
+        <div class="field">
+          <label for="phone">Telefone</label>
+          <input pInputText id="phone" type="tel" formControlName="phone" />
+          @if (phoneError()) {
+            <small class="field__error">{{ phoneError() }}</small>
+          } @else {
+            <small class="field__hint">Formato E.164, ex.: +5592999999999</small>
+          }
+        </div>
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input pInputText id="email" type="email" formControlName="email" />
+        </div>
         @if (form.value.type === 'PF') {
-          <jf-input label="Data de nascimento" type="date" formControlName="birthDate" />
+          <div class="field">
+            <label for="birthDate">Data de nascimento</label>
+            <input pInputText id="birthDate" type="date" formControlName="birthDate" />
+          </div>
         }
 
-        <label class="chk">
-          <input type="checkbox" formControlName="notificationOptIn" />
+        <label class="chk" for="notificationOptIn">
+          <p-checkbox inputId="notificationOptIn" [binary]="true" formControlName="notificationOptIn" />
           <span>Cliente consente em receber notificações por WhatsApp</span>
         </label>
 
         <div class="actions">
-          <jf-button type="button" variant="secondary" (click)="cancel()">Cancelar</jf-button>
-          <jf-button type="submit" [loading]="saving()">Salvar</jf-button>
+          <p-button type="button" severity="secondary" [outlined]="true" label="Cancelar" (onClick)="cancel()" />
+          <p-button type="submit" label="Salvar" [loading]="saving()" />
         </div>
       </form>
-    </jf-card>
+    </p-card>
   `,
   styles: [
     `
@@ -73,20 +98,6 @@ import { InputComponent } from '../../shared/ui/input.component';
         gap: 1rem;
         max-width: 32rem;
       }
-      .type,
-      .lbl {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-        font-size: 0.8125rem;
-        font-weight: 600;
-      }
-      select {
-        font: inherit;
-        padding: 0.55rem 0.75rem;
-        border: 1px solid var(--jf-border, #cbd5e1);
-        border-radius: var(--jf-radius, 8px);
-      }
       .chk {
         display: flex;
         gap: 0.5rem;
@@ -97,6 +108,9 @@ import { InputComponent } from '../../shared/ui/input.component';
         display: flex;
         justify-content: flex-end;
         gap: 0.5rem;
+      }
+      :host ::ng-deep .w-full {
+        width: 100%;
       }
     `,
   ],
@@ -111,6 +125,11 @@ export class ClientFormComponent {
 
   protected readonly saving = signal(false);
   protected readonly error = signal('');
+
+  protected readonly typeOptions = [
+    { label: 'Pessoa física', value: 'PF' },
+    { label: 'Pessoa jurídica', value: 'PJ' },
+  ];
 
   protected readonly form = this.fb.nonNullable.group({
     type: 'PF' as ClientType,

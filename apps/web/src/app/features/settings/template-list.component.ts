@@ -5,14 +5,17 @@ import {
   type MessageTemplate,
   type NotificationAudience,
 } from '@juriflow/shared-types';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { InputTextModule } from 'primeng/inputtext';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { SelectModule } from 'primeng/select';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
+import { TextareaModule } from 'primeng/textarea';
 import { TemplateService } from './template.service';
 import { DialogService } from '../../shared/ui/dialog.service';
 import { ToastService } from '../../shared/feedback/toast.service';
-import { ButtonComponent } from '../../shared/ui/button.component';
-import { CardComponent } from '../../shared/ui/card.component';
-import { BadgeComponent } from '../../shared/ui/badge.component';
-import { SpinnerComponent } from '../../shared/ui/spinner.component';
-import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 
 const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
   responsible: 'Responsável',
@@ -25,11 +28,14 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
-    ButtonComponent,
-    CardComponent,
-    BadgeComponent,
-    SpinnerComponent,
-    EmptyStateComponent,
+    ButtonModule,
+    CardModule,
+    InputTextModule,
+    ProgressSpinnerModule,
+    SelectModule,
+    TableModule,
+    TagModule,
+    TextareaModule,
   ],
   template: `
     <header class="head"><h1>Templates de mensagem</h1></header>
@@ -38,70 +44,55 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
       <code>{{ '{{movimentacao}}' }}</code>, <code>{{ '{{data}}' }}</code>.
     </p>
 
-    <jf-card [title]="editingId() ? 'Editar template' : 'Novo template'">
+    <p-card [header]="editingId() ? 'Editar template' : 'Novo template'" styleClass="section">
       <form class="form" [formGroup]="form" (ngSubmit)="save()">
-        <input class="f" placeholder="Nome do template" formControlName="name" />
-        <select class="f" formControlName="audience">
-          @for (a of audiences; track a) {
-            <option [value]="a">{{ audienceLabel(a) }}</option>
-          }
-        </select>
+        <input pInputText class="f" placeholder="Nome do template" formControlName="name" />
+        <p-select class="f" [options]="audienceOptions" formControlName="audience" />
         <textarea
+          pTextarea
           class="body"
           rows="4"
           placeholder="Olá! Houve uma nova movimentação no processo {{ '{{numero_processo}}' }}: {{ '{{movimentacao}}' }} (em {{ '{{data}}' }})."
           formControlName="body"
         ></textarea>
         <div class="actions">
-          <jf-button type="submit" size="sm" [loading]="saving()">
-            {{ editingId() ? 'Salvar' : 'Criar template' }}
-          </jf-button>
+          <p-button type="submit" size="small" [loading]="saving()" [label]="editingId() ? 'Salvar' : 'Criar template'" />
           @if (editingId()) {
-            <jf-button type="button" size="sm" variant="ghost" (click)="resetForm()"
-              >Cancelar</jf-button
-            >
+            <p-button type="button" size="small" severity="secondary" [text]="true" label="Cancelar" (onClick)="resetForm()" />
           }
         </div>
       </form>
-    </jf-card>
+    </p-card>
 
     @if (loading()) {
-      <div class="center"><jf-spinner [showLabel]="true" /></div>
-    } @else if (templates().length === 0) {
-      <jf-empty-state
-        title="Nenhum template cadastrado"
-        message="Sem templates, o worker usa a mensagem genérica embutida."
-      >
-        <span empty-icon>✉️</span>
-      </jf-empty-state>
+      <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
     } @else {
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Audiência</th>
-              <th>Corpo</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (t of templates(); track t.id) {
-              <tr>
-                <td>{{ t.name }}</td>
-                <td>
-                  <jf-badge tone="primary">{{ audienceLabel(t.audience) }}</jf-badge>
-                </td>
-                <td class="body-cell">{{ t.body }}</td>
-                <td class="actions-cell">
-                  <jf-button size="sm" variant="ghost" (click)="edit(t)">Editar</jf-button>
-                  <jf-button size="sm" variant="ghost" (click)="remove(t)">Excluir</jf-button>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+      <p-table [value]="templates()" styleClass="p-datatable-sm">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Nome</th>
+            <th>Audiência</th>
+            <th>Corpo</th>
+            <th></th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-t>
+          <tr>
+            <td>{{ t.name }}</td>
+            <td><p-tag severity="info" [value]="audienceLabel(t.audience)" /></td>
+            <td class="body-cell">{{ t.body }}</td>
+            <td class="actions-cell">
+              <p-button size="small" [text]="true" label="Editar" (onClick)="edit(t)" />
+              <p-button size="small" [text]="true" label="Excluir" (onClick)="remove(t)" />
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="4">Nenhum template cadastrado. Sem templates, o worker usa a mensagem genérica embutida.</td>
+          </tr>
+        </ng-template>
+      </p-table>
     }
   `,
   styles: [
@@ -120,7 +111,7 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
         padding: 0.1rem 0.35rem;
         border-radius: 4px;
       }
-      jf-card {
+      .section {
         display: block;
         margin-bottom: 1rem;
       }
@@ -130,15 +121,9 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
         gap: 0.6rem;
         max-width: 34rem;
       }
-      .f,
-      .body {
-        font: inherit;
-        padding: 0.5rem 0.7rem;
-        border: 1px solid var(--jf-border, #cbd5e1);
-        border-radius: var(--jf-radius, 8px);
-      }
       .body {
         resize: vertical;
+        width: 100%;
       }
       .actions {
         display: flex;
@@ -149,28 +134,11 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
         justify-content: center;
         padding: 2.5rem;
       }
-      .table-wrap {
-        overflow-x: auto;
-        border: 1px solid var(--jf-border, #e2e8f0);
-        border-radius: var(--jf-radius-lg, 12px);
-        background: var(--jf-surface, #fff);
+      :host ::ng-deep .spinner-sm {
+        width: 2.5rem;
+        height: 2.5rem;
       }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.875rem;
-      }
-      th,
-      td {
-        text-align: left;
-        padding: 0.6rem 1rem;
-        border-bottom: 1px solid var(--jf-border, #e2e8f0);
-        vertical-align: top;
-      }
-      th {
-        background: var(--jf-surface-muted, #f8fafc);
-      }
-      .body-cell {
+      :host ::ng-deep .body-cell {
         max-width: 26rem;
         white-space: pre-wrap;
         color: var(--jf-text-muted, #475569);
@@ -190,6 +158,10 @@ export class TemplateListComponent {
   private readonly toast = inject(ToastService);
 
   protected readonly audiences = NOTIFICATION_AUDIENCES;
+  protected readonly audienceOptions = NOTIFICATION_AUDIENCES.map((a) => ({
+    label: AUDIENCE_LABEL[a],
+    value: a,
+  }));
   protected readonly loading = signal(true);
   protected readonly templates = signal<MessageTemplate[]>([]);
   protected readonly saving = signal(false);

@@ -1,16 +1,18 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { ToastContainerComponent } from './shared/feedback/toast-container.component';
+import { ToastModule } from 'primeng/toast';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 
 @Component({
   selector: 'app-root',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, ToastContainerComponent],
+  imports: [RouterOutlet, ToastModule, ConfirmDialogModule],
   template: `
     <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
     <router-outlet />
-    <jf-toast-container />
+    <p-toast />
+    <p-confirmDialog />
   `,
   styles: [
     `

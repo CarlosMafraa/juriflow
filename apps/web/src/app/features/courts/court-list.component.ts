@@ -1,14 +1,17 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { COURT_TYPES, type Court, type CourtType } from '@juriflow/shared-types';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { CheckboxModule } from 'primeng/checkbox';
+import { InputTextModule } from 'primeng/inputtext';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { SelectModule } from 'primeng/select';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
 import { CourtService } from './court.service';
 import { PermissionService } from '../../core/authorization/permission.service';
 import { ToastService } from '../../shared/feedback/toast.service';
-import { ButtonComponent } from '../../shared/ui/button.component';
-import { CardComponent } from '../../shared/ui/card.component';
-import { BadgeComponent } from '../../shared/ui/badge.component';
-import { SpinnerComponent } from '../../shared/ui/spinner.component';
-import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 
 @Component({
   selector: 'jf-court-list',
@@ -16,71 +19,81 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
-    ButtonComponent,
-    CardComponent,
-    BadgeComponent,
-    SpinnerComponent,
-    EmptyStateComponent,
+    FormsModule,
+    ButtonModule,
+    CardModule,
+    CheckboxModule,
+    InputTextModule,
+    ProgressSpinnerModule,
+    SelectModule,
+    TableModule,
+    TagModule,
   ],
   template: `
     <header class="head"><h1>Tribunais</h1></header>
 
     @if (canManage()) {
-      <jf-card [title]="editingId() ? 'Editar tribunal' : 'Cadastrar tribunal'">
+      <p-card [header]="editingId() ? 'Editar tribunal' : 'Cadastrar tribunal'" styleClass="section">
         <form class="form" [formGroup]="form" (ngSubmit)="save()">
-          <input class="f" placeholder="Nome" formControlName="name" />
-          <select class="f" formControlName="type">
-            @for (t of types; track t) {
-              <option [value]="t">{{ t }}</option>
-            }
-          </select>
-          <input class="f" placeholder="Jurisdição (UF ou federal…)" formControlName="jurisdiction" />
-          <input class="f" placeholder="Código DataJud (opcional)" formControlName="datajudCode" />
-          <jf-button type="submit" size="sm" [loading]="saving()">{{ editingId() ? 'Salvar' : 'Cadastrar' }}</jf-button>
+          <input pInputText class="f" placeholder="Nome" formControlName="name" />
+          <p-select
+            class="f"
+            [options]="types"
+            formControlName="type"
+            placeholder="Tipo"
+          />
+          <input pInputText class="f" placeholder="Jurisdição (UF ou federal…)" formControlName="jurisdiction" />
+          <input pInputText class="f" placeholder="Código DataJud (opcional)" formControlName="datajudCode" />
+          <p-button type="submit" size="small" [label]="editingId() ? 'Salvar' : 'Cadastrar'" [loading]="saving()" />
           @if (editingId()) {
-            <jf-button type="button" size="sm" variant="ghost" (click)="resetForm()">Cancelar</jf-button>
+            <p-button type="button" size="small" severity="secondary" [text]="true" label="Cancelar" (onClick)="resetForm()" />
           }
         </form>
-      </jf-card>
+      </p-card>
     }
 
-    <jf-card>
-      <label class="inactive-toggle">
-        <input type="checkbox" [checked]="includeInactive()" (change)="toggleInactive($event)" />
+    <p-card styleClass="section">
+      <label class="inactive-toggle" for="includeInactive">
+        <p-checkbox inputId="includeInactive" [binary]="true" [ngModel]="includeInactive()" (ngModelChange)="toggleInactive($event)" [ngModelOptions]="{ standalone: true }" />
         Mostrar inativos
       </label>
-    </jf-card>
+    </p-card>
 
     @if (loading()) {
-      <div class="center"><jf-spinner [showLabel]="true" /></div>
-    } @else if (courts().length === 0) {
-      <jf-empty-state title="Nenhum tribunal cadastrado"><span empty-icon>🏛️</span></jf-empty-state>
+      <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
     } @else {
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Nome</th><th>Tipo</th><th>Jurisdição</th><th>Status</th>@if (canManage()) {<th></th>}</tr>
-          </thead>
-          <tbody>
-            @for (c of courts(); track c.id) {
-              <tr [class.dim]="!c.active">
-                <td>{{ c.name }}</td>
-                <td>{{ c.type }}</td>
-                <td>{{ c.jurisdiction }}</td>
-                <td><jf-badge [tone]="c.active ? 'success' : 'neutral'">{{ c.active ? 'ativo' : 'inativo' }}</jf-badge></td>
-                @if (canManage()) {
-                  <td class="actions">
-                    <jf-button size="sm" variant="ghost" (click)="edit(c)">Editar</jf-button>
-                    <jf-button size="sm" variant="ghost" (click)="toggleActive(c)">
-                      {{ c.active ? 'Desativar' : 'Ativar' }}
-                    </jf-button>
-                  </td>
-                }
-              </tr>
+      <p-table [value]="courts()" styleClass="p-datatable-sm">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Nome</th>
+            <th>Tipo</th>
+            <th>Jurisdição</th>
+            <th>Status</th>
+            @if (canManage()) {
+              <th></th>
             }
-          </tbody>
-        </table>
-      </div>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-c>
+          <tr [class.dim]="!c.active">
+            <td>{{ c.name }}</td>
+            <td>{{ c.type }}</td>
+            <td>{{ c.jurisdiction }}</td>
+            <td><p-tag [severity]="c.active ? 'success' : 'secondary'" [value]="c.active ? 'ativo' : 'inativo'" /></td>
+            @if (canManage()) {
+              <td class="actions">
+                <p-button size="small" [text]="true" label="Editar" (onClick)="edit(c)" />
+                <p-button size="small" [text]="true" [label]="c.active ? 'Desativar' : 'Ativar'" (onClick)="toggleActive(c)" />
+              </td>
+            }
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td [attr.colspan]="canManage() ? 5 : 4">Nenhum tribunal cadastrado.</td>
+          </tr>
+        </ng-template>
+      </p-table>
     }
   `,
   styles: [
@@ -89,7 +102,7 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         margin: 0 0 1rem;
         font-size: 1.35rem;
       }
-      jf-card {
+      .section {
         display: block;
         margin-bottom: 1rem;
       }
@@ -100,10 +113,6 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         align-items: center;
       }
       .f {
-        font: inherit;
-        padding: 0.45rem 0.6rem;
-        border: 1px solid var(--jf-border, #cbd5e1);
-        border-radius: var(--jf-radius, 8px);
         min-width: 9rem;
         flex: 1 1 9rem;
       }
@@ -118,27 +127,11 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         justify-content: center;
         padding: 2.5rem;
       }
-      .table-wrap {
-        overflow-x: auto;
-        border: 1px solid var(--jf-border, #e2e8f0);
-        border-radius: var(--jf-radius-lg, 12px);
-        background: var(--jf-surface, #fff);
+      :host ::ng-deep .spinner-sm {
+        width: 2.5rem;
+        height: 2.5rem;
       }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.875rem;
-      }
-      th,
-      td {
-        text-align: left;
-        padding: 0.6rem 1rem;
-        border-bottom: 1px solid var(--jf-border, #e2e8f0);
-      }
-      th {
-        background: var(--jf-surface-muted, #f8fafc);
-      }
-      tr.dim td {
+      :host ::ng-deep tr.dim td {
         opacity: 0.55;
       }
       .actions {
@@ -154,7 +147,7 @@ export class CourtListComponent {
   private readonly permissions = inject(PermissionService);
   private readonly toast = inject(ToastService);
 
-  protected readonly types = COURT_TYPES;
+  protected readonly types: CourtType[] = [...COURT_TYPES];
   protected readonly loading = signal(true);
   protected readonly courts = signal<Court[]>([]);
   protected readonly includeInactive = signal(false);
@@ -174,8 +167,8 @@ export class CourtListComponent {
     void this.load();
   }
 
-  protected toggleInactive(event: Event): void {
-    this.includeInactive.set((event.target as HTMLInputElement).checked);
+  protected toggleInactive(checked: boolean): void {
+    this.includeInactive.set(checked);
     void this.load();
   }
 

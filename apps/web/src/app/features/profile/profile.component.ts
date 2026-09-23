@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { InputTextModule } from 'primeng/inputtext';
 import { AuthService } from '../../core/auth/auth.service';
 import { ToastService } from '../../shared/feedback/toast.service';
-import { ButtonComponent } from '../../shared/ui/button.component';
-import { CardComponent } from '../../shared/ui/card.component';
-import { InputComponent } from '../../shared/ui/input.component';
 import { ProfileService } from './profile.service';
 
 const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
@@ -13,60 +13,61 @@ const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
   selector: 'jf-profile',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, ButtonComponent, CardComponent, InputComponent],
+  imports: [ReactiveFormsModule, ButtonModule, CardModule, InputTextModule],
   template: `
     <header class="head"><h1>Meu perfil</h1></header>
 
     <div class="grid">
-      <jf-card title="Dados pessoais">
+      <p-card header="Dados pessoais">
         <form class="form" [formGroup]="profileForm" (ngSubmit)="submitProfile()">
-          <jf-input
-            label="Nome completo"
-            formControlName="fullName"
-            [required]="true"
-            [error]="showProfileError('fullName') ? 'Informe seu nome completo.' : ''"
-          />
-          <jf-input
-            label="Telefone"
-            type="tel"
-            formControlName="phone"
-            hint="Formato E.164, ex.: +5592999999999"
-            [error]="phoneError()"
-          />
-          <jf-input
-            label="E-mail de acesso"
-            formControlName="email"
-            hint="Não pode ser alterado por aqui."
-          />
+          <div class="field">
+            <label for="fullName">Nome completo</label>
+            <input pInputText id="fullName" formControlName="fullName" />
+            @if (showProfileError('fullName')) {
+              <small class="field__error">Informe seu nome completo.</small>
+            }
+          </div>
+          <div class="field">
+            <label for="phone">Telefone</label>
+            <input pInputText id="phone" type="tel" formControlName="phone" />
+            @if (phoneError()) {
+              <small class="field__error">{{ phoneError() }}</small>
+            } @else {
+              <small class="field__hint">Formato E.164, ex.: +5592999999999</small>
+            }
+          </div>
+          <div class="field">
+            <label for="email">E-mail de acesso</label>
+            <input pInputText id="email" formControlName="email" />
+            <small class="field__hint">Não pode ser alterado por aqui.</small>
+          </div>
           <div class="actions">
-            <jf-button type="submit" [loading]="savingProfile()">Salvar alterações</jf-button>
+            <p-button type="submit" label="Salvar alterações" [loading]="savingProfile()" />
           </div>
         </form>
-      </jf-card>
+      </p-card>
 
-      <jf-card title="Segurança">
+      <p-card header="Segurança">
         <form class="form" [formGroup]="passwordForm" (ngSubmit)="submitPassword()">
-          <jf-input
-            label="Nova senha"
-            type="password"
-            autocomplete="new-password"
-            formControlName="password"
-            [error]="showPasswordError('password') ? 'Mínimo de 6 caracteres.' : ''"
-          />
-          <jf-input
-            label="Confirmar nova senha"
-            type="password"
-            autocomplete="new-password"
-            formControlName="confirm"
-            [error]="confirmError()"
-          />
+          <div class="field">
+            <label for="password">Nova senha</label>
+            <input pInputText id="password" type="password" autocomplete="new-password" formControlName="password" />
+            @if (showPasswordError('password')) {
+              <small class="field__error">Mínimo de 6 caracteres.</small>
+            }
+          </div>
+          <div class="field">
+            <label for="confirm">Confirmar nova senha</label>
+            <input pInputText id="confirm" type="password" autocomplete="new-password" formControlName="confirm" />
+            @if (confirmError()) {
+              <small class="field__error">{{ confirmError() }}</small>
+            }
+          </div>
           <div class="actions">
-            <jf-button type="submit" variant="secondary" [loading]="changingPassword()">
-              Alterar senha
-            </jf-button>
+            <p-button type="submit" severity="secondary" [outlined]="true" [loading]="changingPassword()" label="Alterar senha" />
           </div>
         </form>
-      </jf-card>
+      </p-card>
     </div>
   `,
   styles: [

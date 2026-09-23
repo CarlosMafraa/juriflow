@@ -1,18 +1,20 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import type { Court } from '@juriflow/shared-types';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { InputTextModule } from 'primeng/inputtext';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { SelectModule } from 'primeng/select';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
 import { ProcessService, type ProcessFilters, type ProcessListRow } from './process.service';
 import type { Page } from '../clients/client.service';
 import { CourtService } from '../courts/court.service';
 import { SpaceMembersService, type SpaceMemberOption } from '../../core/data/space-members.service';
 import { ActiveSpaceService } from '../../core/authorization/active-space.service';
 import { ToastService } from '../../shared/feedback/toast.service';
-import { ButtonComponent } from '../../shared/ui/button.component';
-import { CardComponent } from '../../shared/ui/card.component';
-import { BadgeComponent } from '../../shared/ui/badge.component';
-import { SpinnerComponent } from '../../shared/ui/spinner.component';
-import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 
 @Component({
   selector: 'jf-process-list',
@@ -21,84 +23,82 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    ButtonComponent,
-    CardComponent,
-    BadgeComponent,
-    SpinnerComponent,
-    EmptyStateComponent,
+    ButtonModule,
+    CardModule,
+    InputTextModule,
+    ProgressSpinnerModule,
+    SelectModule,
+    TableModule,
+    TagModule,
   ],
   template: `
     <header class="head">
       <h1>Processos</h1>
-      <a routerLink="/processos/novo"><jf-button>Novo processo</jf-button></a>
+      <a routerLink="/processos/novo"><p-button label="Novo processo" /></a>
     </header>
 
-    <jf-card>
+    <p-card styleClass="section">
       <form class="filters" [formGroup]="form" (ngSubmit)="apply()">
-        <input class="f" placeholder="Número CNJ" formControlName="cnj" />
-        <input class="f" placeholder="Referência interna" formControlName="internalRef" />
-        <select class="f" formControlName="courtId">
-          <option value="">Tribunal (todos)</option>
-          @for (c of courts(); track c.id) {
-            <option [value]="c.id">{{ c.name }}</option>
-          }
-        </select>
-        <select class="f" formControlName="assignedUserId">
-          <option value="">Responsável (todos)</option>
-          @for (m of members(); track m.profileId) {
-            <option [value]="m.profileId">{{ m.fullName }}</option>
-          }
-        </select>
-        <select class="f" formControlName="status">
-          <option value="">Status (todos)</option>
-          <option value="active">Ativo</option>
-          <option value="archived">Arquivado</option>
-          <option value="closed">Encerrado</option>
-        </select>
-        <jf-button type="submit" size="sm">Filtrar</jf-button>
-        <jf-button type="button" size="sm" variant="ghost" (click)="clear()">Limpar</jf-button>
+        <input pInputText class="f" placeholder="Número CNJ" formControlName="cnj" />
+        <input pInputText class="f" placeholder="Referência interna" formControlName="internalRef" />
+        <p-select class="f" [options]="courtOptions()" formControlName="courtId" placeholder="Tribunal (todos)" />
+        <p-select class="f" [options]="memberOptions()" formControlName="assignedUserId" placeholder="Responsável (todos)" />
+        <p-select class="f" [options]="statusOptions" formControlName="status" placeholder="Status (todos)" />
+        <p-button type="submit" size="small" label="Filtrar" />
+        <p-button type="button" size="small" severity="secondary" [text]="true" label="Limpar" (onClick)="clear()" />
       </form>
-    </jf-card>
+    </p-card>
 
     @if (loading()) {
-      <div class="center"><jf-spinner [showLabel]="true" /></div>
+      <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
     } @else if (page()) {
       @let p = page()!;
-      @if (p.rows.length === 0) {
-        <jf-empty-state title="Nenhum processo encontrado" message="Ajuste os filtros ou cadastre um novo processo.">
-          <span empty-icon>⚖️</span>
-        </jf-empty-state>
-      } @else {
-        <div class="table-wrap">
-          <table class="table">
-            <thead>
-              <tr><th>Número / Ref.</th><th>Tribunal</th><th>Responsável</th><th>Status</th><th></th></tr>
-            </thead>
-            <tbody>
-              @for (row of p.rows; track row.id) {
-                <tr>
-                  <td data-label="Número / Ref.">{{ row.cnjNumber || row.internalRef || '—' }}</td>
-                  <td data-label="Tribunal">{{ row.courtName }}</td>
-                  <td data-label="Responsável">{{ row.assignedName }}</td>
-                  <td data-label="Status">
-                    <jf-badge [tone]="row.status === 'active' ? 'success' : row.status === 'closed' ? 'neutral' : 'warning'">
-                      {{ row.status }}
-                    </jf-badge>
-                  </td>
-                  <td data-label="" class="actions">
-                    <a [routerLink]="['/processos', row.id]"><jf-button size="sm" variant="secondary">Abrir</jf-button></a>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+      <p-table [value]="p.rows" styleClass="p-datatable-sm">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Número / Ref.</th>
+            <th>Tribunal</th>
+            <th>Responsável</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-row>
+          <tr>
+            <td>{{ row.cnjNumber || row.internalRef || '—' }}</td>
+            <td>{{ row.courtName }}</td>
+            <td>{{ row.assignedName }}</td>
+            <td>
+              <p-tag
+                [severity]="row.status === 'active' ? 'success' : row.status === 'closed' ? 'secondary' : 'warn'"
+                [value]="row.status"
+              />
+            </td>
+            <td class="actions">
+              <a [routerLink]="['/processos', row.id]">
+                <p-button size="small" severity="secondary" [outlined]="true" label="Abrir" />
+              </a>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="5">Nenhum processo encontrado. Ajuste os filtros ou cadastre um novo processo.</td>
+          </tr>
+        </ng-template>
+      </p-table>
+      @if (p.rows.length > 0) {
         <div class="pager">
-          <jf-button size="sm" variant="ghost" [disabled]="p.page <= 1" (click)="go(p.page - 1)">Anterior</jf-button>
+          <p-button size="small" severity="secondary" [text]="true" label="Anterior" [disabled]="p.page <= 1" (onClick)="go(p.page - 1)" />
           <span>Página {{ p.page }} — {{ p.total }} processo(s)</span>
-          <jf-button size="sm" variant="ghost" [disabled]="p.page * p.pageSize >= p.total" (click)="go(p.page + 1)">
-            Próxima
-          </jf-button>
+          <p-button
+            size="small"
+            severity="secondary"
+            [text]="true"
+            label="Próxima"
+            [disabled]="p.page * p.pageSize >= p.total"
+            (onClick)="go(p.page + 1)"
+          />
         </div>
       }
     }
@@ -116,6 +116,10 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         margin: 0;
         font-size: 1.35rem;
       }
+      .section {
+        display: block;
+        margin-bottom: 1rem;
+      }
       .filters {
         display: flex;
         flex-wrap: wrap;
@@ -123,11 +127,7 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         align-items: center;
       }
       .f {
-        font: inherit;
-        padding: 0.45rem 0.6rem;
-        border: 1px solid var(--jf-border, #cbd5e1);
-        border-radius: var(--jf-radius, 8px);
-        min-width: 8rem;
+        min-width: 9rem;
         flex: 1 1 9rem;
       }
       .center {
@@ -135,26 +135,9 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         justify-content: center;
         padding: 2.5rem;
       }
-      .table-wrap {
-        overflow-x: auto;
-        border: 1px solid var(--jf-border, #e2e8f0);
-        border-radius: var(--jf-radius-lg, 12px);
-        margin-top: 1rem;
-        background: var(--jf-surface, #fff);
-      }
-      .table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.875rem;
-      }
-      .table th,
-      .table td {
-        padding: 0.7rem 1rem;
-        border-bottom: 1px solid var(--jf-border, #e2e8f0);
-        text-align: left;
-      }
-      .table th {
-        background: var(--jf-surface-muted, #f8fafc);
+      :host ::ng-deep .spinner-sm {
+        width: 2.5rem;
+        height: 2.5rem;
       }
       .actions {
         text-align: right;
@@ -167,30 +150,6 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         margin-top: 1rem;
         font-size: 0.85rem;
         color: var(--jf-text-muted, #64748b);
-      }
-      @media (max-width: 767px) {
-        .table thead {
-          display: none;
-        }
-        .table tr {
-          display: block;
-          border-bottom: 2px solid var(--jf-border, #e2e8f0);
-        }
-        .table td {
-          display: flex;
-          justify-content: space-between;
-          gap: 1rem;
-          border: 0;
-          padding: 0.4rem 1rem;
-        }
-        .table td::before {
-          content: attr(data-label);
-          font-weight: 600;
-          color: var(--jf-text-muted, #64748b);
-        }
-        .actions {
-          justify-content: flex-end;
-        }
       }
     `,
   ],
@@ -207,6 +166,21 @@ export class ProcessListComponent {
   protected readonly page = signal<Page<ProcessListRow> | null>(null);
   protected readonly courts = signal<Court[]>([]);
   protected readonly members = signal<SpaceMemberOption[]>([]);
+
+  protected readonly courtOptions = computed(() => [
+    { label: 'Tribunal (todos)', value: '' },
+    ...this.courts().map((c) => ({ label: c.name, value: c.id })),
+  ]);
+  protected readonly memberOptions = computed(() => [
+    { label: 'Responsável (todos)', value: '' },
+    ...this.members().map((m) => ({ label: m.fullName, value: m.profileId })),
+  ]);
+  protected readonly statusOptions = [
+    { label: 'Status (todos)', value: '' },
+    { label: 'Ativo', value: 'active' },
+    { label: 'Arquivado', value: 'archived' },
+    { label: 'Encerrado', value: 'closed' },
+  ];
 
   protected readonly form = this.fb.nonNullable.group({
     cnj: '',

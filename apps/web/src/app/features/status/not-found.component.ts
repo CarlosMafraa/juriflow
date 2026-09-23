@@ -1,18 +1,54 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
-import { ButtonComponent } from '../../shared/ui/button.component';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
 
 @Component({
   selector: 'jf-not-found',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, EmptyStateComponent, ButtonComponent],
+  imports: [RouterLink, ButtonModule, CardModule],
   template: `
-    <jf-empty-state title="Página não encontrada" message="O endereço acessado não existe.">
-      <span empty-icon>🧭</span>
-      <a empty-action routerLink="/"><jf-button variant="secondary">Voltar ao início</jf-button></a>
-    </jf-empty-state>
+    <div class="wrap">
+      <p-card>
+        <div class="content">
+          <i class="pi pi-compass" aria-hidden="true"></i>
+          <h1>Página não encontrada</h1>
+          <p>O endereço acessado não existe.</p>
+          <a routerLink="/"><p-button severity="secondary" [outlined]="true" label="Voltar ao início" /></a>
+        </div>
+      </p-card>
+    </div>
   `,
+  styles: [
+    `
+      .wrap {
+        display: flex;
+        justify-content: center;
+        padding: 3rem 1rem;
+      }
+      .content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        text-align: center;
+        max-width: 26rem;
+      }
+      .content i {
+        font-size: 2rem;
+        color: var(--jf-text-muted, #64748b);
+      }
+      .content h1 {
+        margin: 0.25rem 0;
+        font-size: 1.2rem;
+      }
+      .content p {
+        margin: 0 0 0.75rem;
+        color: var(--jf-text-muted, #64748b);
+        font-size: 0.9rem;
+      }
+    `,
+  ],
 })
 export class NotFoundComponent {}

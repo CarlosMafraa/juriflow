@@ -41,7 +41,7 @@ describe('AuthLayoutComponent (responsivo)', () => {
     expect(component['isDesktop']()).toBe(false);
     expect(component['drawerOpen']()).toBe(false);
 
-    const toggle = fixture.nativeElement.querySelector('.topbar__toggle');
+    const toggle = fixture.nativeElement.querySelector('p-button[icon="pi pi-bars"]');
     expect(toggle).toBeTruthy();
 
     component['toggleDrawer']();
@@ -56,7 +56,7 @@ describe('AuthLayoutComponent (responsivo)', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance['isDesktop']()).toBe(true);
-    expect(fixture.nativeElement.querySelector('.topbar__toggle')).toBeNull();
+    expect(fixture.nativeElement.querySelector('p-button[icon="pi pi-bars"]')).toBeNull();
     expect(fixture.nativeElement.querySelector('.drawer')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('.drawer--overlay')).toBeNull();
   });

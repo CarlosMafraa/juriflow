@@ -3,6 +3,9 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterOutlet } from '@angular/router';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { map } from 'rxjs';
+import { ButtonModule } from 'primeng/button';
+import { SelectModule } from 'primeng/select';
+import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/auth/auth.service';
 import { ActiveSpaceService } from '../../core/authorization/active-space.service';
 import { SidebarComponent } from './sidebar.component';
@@ -14,43 +17,49 @@ export const DESKTOP_QUERY = '(min-width: 1024px)';
   selector: 'jf-auth-layout',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, SidebarComponent],
+  imports: [RouterOutlet, SidebarComponent, ButtonModule, SelectModule, FormsModule],
   template: `
     <div class="layout" [class.layout--desktop]="isDesktop()">
       <header class="topbar">
         @if (!isDesktop()) {
-          <button
-            type="button"
-            class="topbar__toggle"
+          <p-button
+            icon="pi pi-bars"
+            [text]="true"
+            severity="secondary"
             [attr.aria-expanded]="drawerOpen()"
-            aria-label="Alternar menu"
-            (click)="toggleDrawer()"
-          >
-            ☰
-          </button>
+            ariaLabel="Alternar menu"
+            (onClick)="toggleDrawer()"
+          />
         }
         <span class="topbar__brand">JuriFlow</span>
 
         <div class="topbar__spacer"></div>
 
         @if (spaces().length > 1) {
-          <label class="topbar__space">
+          <label class="topbar__space" for="active-space">
             <span class="sr-only">Espaço ativo</span>
-            <select
-              [value]="activeSpaceId() ?? ''"
-              (change)="onSpaceChange($event)"
-              aria-label="Espaço ativo"
-            >
-              @for (space of spaces(); track space.id) {
-                <option [value]="space.id">{{ space.name }}</option>
-              }
-            </select>
+            <p-select
+              inputId="active-space"
+              [options]="spaces()"
+              optionLabel="name"
+              optionValue="id"
+              [ngModel]="activeSpaceId()"
+              (ngModelChange)="onSpaceChange($event)"
+              ariaLabel="Espaço ativo"
+            />
           </label>
         } @else if (spaces().length === 1) {
           <span class="topbar__space-name">{{ spaces()[0].name }}</span>
         }
 
-        <button type="button" class="topbar__signout" (click)="signOut()">Sair</button>
+        <p-button
+          label="Sair"
+          icon="pi pi-sign-out"
+          severity="secondary"
+          [outlined]="true"
+          size="small"
+          (onClick)="signOut()"
+        />
       </header>
 
       <div class="body">
@@ -88,27 +97,12 @@ export const DESKTOP_QUERY = '(min-width: 1024px)';
         top: 0;
         z-index: 20;
       }
-      .topbar__toggle,
-      .topbar__signout {
-        font: inherit;
-        border: 1px solid var(--jf-border, #cbd5e1);
-        background: var(--jf-surface, #fff);
-        border-radius: var(--jf-radius, 8px);
-        padding: 0.35rem 0.7rem;
-        cursor: pointer;
-      }
       .topbar__brand {
         font-weight: 800;
         letter-spacing: 0.02em;
       }
       .topbar__spacer {
         flex: 1;
-      }
-      .topbar__space select {
-        font: inherit;
-        padding: 0.3rem 0.5rem;
-        border-radius: var(--jf-radius, 8px);
-        border: 1px solid var(--jf-border, #cbd5e1);
       }
       .topbar__space-name {
         font-size: 0.85rem;
@@ -184,8 +178,8 @@ export class AuthLayoutComponent {
     this._drawerOpen.set(false);
   }
 
-  protected onSpaceChange(event: Event): void {
-    this.activeSpace.setActiveSpace((event.target as HTMLSelectElement).value || null);
+  protected onSpaceChange(spaceId: string | null): void {
+    this.activeSpace.setActiveSpace(spaceId || null);
   }
 
   protected async signOut(): Promise<void> {

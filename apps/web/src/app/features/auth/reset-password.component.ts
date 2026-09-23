@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { MessageModule } from 'primeng/message';
 import { AuthService } from '../../core/auth/auth.service';
-import { AlertComponent } from '../../shared/ui/alert.component';
-import { ButtonComponent } from '../../shared/ui/button.component';
-import { InputComponent } from '../../shared/ui/input.component';
 import { AuthCardComponent } from './auth-card.component';
 
 /**
@@ -16,33 +16,37 @@ import { AuthCardComponent } from './auth-card.component';
   selector: 'jf-reset-password',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    ReactiveFormsModule,
-    AlertComponent,
-    ButtonComponent,
-    InputComponent,
-    AuthCardComponent,
-  ],
+  imports: [ReactiveFormsModule, ButtonModule, InputTextModule, MessageModule, AuthCardComponent],
   template: `
     <jf-auth-card title="Definir nova senha">
       <form [formGroup]="form" (ngSubmit)="submit()" class="form">
         @if (error()) {
-          <jf-alert tone="danger">{{ error() }}</jf-alert>
+          <p-message severity="error" [text]="error()" styleClass="w-full" />
         }
-        <jf-input
-          label="Nova senha"
-          type="password"
-          autocomplete="new-password"
-          formControlName="password"
-        />
-        <jf-input
-          label="Confirmar senha"
-          type="password"
-          autocomplete="new-password"
-          formControlName="confirm"
-          [error]="mismatch() ? 'As senhas não conferem.' : ''"
-        />
-        <jf-button type="submit" [loading]="loading()" block>Salvar senha</jf-button>
+        <div class="field">
+          <label for="password">Nova senha</label>
+          <input
+            pInputText
+            id="password"
+            type="password"
+            autocomplete="new-password"
+            formControlName="password"
+          />
+        </div>
+        <div class="field">
+          <label for="confirm">Confirmar senha</label>
+          <input
+            pInputText
+            id="confirm"
+            type="password"
+            autocomplete="new-password"
+            formControlName="confirm"
+          />
+          @if (mismatch()) {
+            <small class="field__error">As senhas não conferem.</small>
+          }
+        </div>
+        <p-button type="submit" label="Salvar senha" [loading]="loading()" styleClass="w-full" />
       </form>
     </jf-auth-card>
   `,
@@ -52,6 +56,9 @@ import { AuthCardComponent } from './auth-card.component';
         display: flex;
         flex-direction: column;
         gap: 1rem;
+      }
+      :host ::ng-deep .w-full {
+        width: 100%;
       }
     `,
   ],

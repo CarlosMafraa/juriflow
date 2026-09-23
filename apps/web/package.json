@@ -28,7 +28,10 @@
     "@angular/router": "^18.2.0",
     "@juriflow/domain": "*",
     "@juriflow/shared-types": "*",
+    "@primeng/themes": "18.0.2",
     "@supabase/supabase-js": "^2.45.4",
+    "primeicons": "^8.0.1",
+    "primeng": "18.0.2",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.14.10"

@@ -28,7 +28,7 @@ import { NAV_ITEMS, visibleNavItems } from './nav';
               [routerLinkActiveOptions]="{ exact: !!item.exact }"
               (click)="navigate.emit()"
             >
-              <span class="sidebar__icon" aria-hidden="true">{{ item.icon }}</span>
+              <i class="sidebar__icon {{ item.icon }}" aria-hidden="true"></i>
               <span class="sidebar__label">{{ item.label }}</span>
             </a>
           </li>
@@ -71,6 +71,7 @@ import { NAV_ITEMS, visibleNavItems } from './nav';
       .sidebar__icon {
         width: 1.25rem;
         text-align: center;
+        font-size: 1rem;
       }
     `,
   ],

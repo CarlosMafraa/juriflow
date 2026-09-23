@@ -3,12 +3,14 @@ import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ClientService, type Page } from './client.service';
 import type { Client } from '@juriflow/shared-types';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { InputTextModule } from 'primeng/inputtext';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { SelectModule } from 'primeng/select';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
 import { ToastService } from '../../shared/feedback/toast.service';
-import { ButtonComponent } from '../../shared/ui/button.component';
-import { CardComponent } from '../../shared/ui/card.component';
-import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
-import { SpinnerComponent } from '../../shared/ui/spinner.component';
-import { BadgeComponent } from '../../shared/ui/badge.component';
 
 @Component({
   selector: 'jf-client-list',
@@ -17,74 +19,77 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    ButtonComponent,
-    CardComponent,
-    EmptyStateComponent,
-    SpinnerComponent,
-    BadgeComponent,
+    ButtonModule,
+    CardModule,
+    InputTextModule,
+    ProgressSpinnerModule,
+    SelectModule,
+    TableModule,
+    TagModule,
   ],
   template: `
     <header class="head">
       <h1>Clientes</h1>
-      <a routerLink="/clientes/novo"><jf-button>Novo cliente</jf-button></a>
+      <a routerLink="/clientes/novo"><p-button label="Novo cliente" /></a>
     </header>
 
-    <jf-card>
+    <p-card styleClass="section">
       <form class="filters" [formGroup]="form" (ngSubmit)="apply()">
-        <input class="f" placeholder="Nome" formControlName="search" />
-        <input class="f" placeholder="CPF / CNPJ" formControlName="document" />
-        <select class="f" formControlName="type">
-          <option value="">Tipo (todos)</option>
-          <option value="PF">Pessoa física</option>
-          <option value="PJ">Pessoa jurídica</option>
-        </select>
-        <input class="f" placeholder="Telefone" formControlName="phone" />
-        <input class="f" placeholder="E-mail" formControlName="email" />
-        <jf-button type="submit" size="sm">Filtrar</jf-button>
-        <jf-button type="button" size="sm" variant="ghost" (click)="clear()">Limpar</jf-button>
+        <input pInputText class="f" placeholder="Nome" formControlName="search" />
+        <input pInputText class="f" placeholder="CPF / CNPJ" formControlName="document" />
+        <p-select class="f" [options]="typeOptions" formControlName="type" placeholder="Tipo (todos)" />
+        <input pInputText class="f" placeholder="Telefone" formControlName="phone" />
+        <input pInputText class="f" placeholder="E-mail" formControlName="email" />
+        <p-button type="submit" size="small" label="Filtrar" />
+        <p-button type="button" size="small" severity="secondary" [text]="true" label="Limpar" (onClick)="clear()" />
       </form>
-    </jf-card>
+    </p-card>
 
     @if (loading()) {
-      <div class="center"><jf-spinner [showLabel]="true" /></div>
+      <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
     } @else if (page()) {
       @let p = page()!;
-      @if (p.rows.length === 0) {
-        <jf-empty-state title="Nenhum cliente encontrado" message="Ajuste os filtros ou cadastre um novo cliente.">
-          <span empty-icon>🧑</span>
-        </jf-empty-state>
-      } @else {
-        <div class="table-wrap">
-          <table class="table">
-            <thead>
-              <tr><th>Nome</th><th>Tipo</th><th>Documento</th><th>Contato</th><th></th></tr>
-            </thead>
-            <tbody>
-              @for (c of p.rows; track c.id) {
-                <tr>
-                  <td data-label="Nome">{{ c.name }}</td>
-                  <td data-label="Tipo"><jf-badge>{{ c.type }}</jf-badge></td>
-                  <td data-label="Documento">{{ c.document || '—' }}</td>
-                  <td data-label="Contato">{{ c.phone || c.email || '—' }}</td>
-                  <td data-label="" class="actions">
-                    <a [routerLink]="['/clientes', c.id]"><jf-button size="sm" variant="secondary">Abrir</jf-button></a>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+      <p-table [value]="p.rows" styleClass="p-datatable-sm">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Nome</th>
+            <th>Tipo</th>
+            <th>Documento</th>
+            <th>Contato</th>
+            <th></th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-c>
+          <tr>
+            <td>{{ c.name }}</td>
+            <td><p-tag severity="secondary" [value]="c.type" /></td>
+            <td>{{ c.document || '—' }}</td>
+            <td>{{ c.phone || c.email || '—' }}</td>
+            <td class="actions">
+              <a [routerLink]="['/clientes', c.id]">
+                <p-button size="small" severity="secondary" [outlined]="true" label="Abrir" />
+              </a>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="5">Nenhum cliente encontrado. Ajuste os filtros ou cadastre um novo cliente.</td>
+          </tr>
+        </ng-template>
+      </p-table>
+      @if (p.rows.length > 0) {
         <div class="pager">
-          <jf-button size="sm" variant="ghost" [disabled]="p.page <= 1" (click)="go(p.page - 1)">Anterior</jf-button>
+          <p-button size="small" severity="secondary" [text]="true" label="Anterior" [disabled]="p.page <= 1" (onClick)="go(p.page - 1)" />
           <span>Página {{ p.page }} — {{ p.total }} cliente(s)</span>
-          <jf-button
-            size="sm"
-            variant="ghost"
+          <p-button
+            size="small"
+            severity="secondary"
+            [text]="true"
+            label="Próxima"
             [disabled]="p.page * p.pageSize >= p.total"
-            (click)="go(p.page + 1)"
-          >
-            Próxima
-          </jf-button>
+            (onClick)="go(p.page + 1)"
+          />
         </div>
       }
     }
@@ -102,6 +107,10 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
         margin: 0;
         font-size: 1.35rem;
       }
+      .section {
+        display: block;
+        margin-bottom: 1rem;
+      }
       .filters {
         display: flex;
         flex-wrap: wrap;
@@ -109,10 +118,6 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
         align-items: center;
       }
       .f {
-        font: inherit;
-        padding: 0.45rem 0.6rem;
-        border: 1px solid var(--jf-border, #cbd5e1);
-        border-radius: var(--jf-radius, 8px);
         min-width: 8rem;
         flex: 1 1 8rem;
       }
@@ -121,26 +126,9 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
         justify-content: center;
         padding: 2.5rem;
       }
-      .table-wrap {
-        overflow-x: auto;
-        border: 1px solid var(--jf-border, #e2e8f0);
-        border-radius: var(--jf-radius-lg, 12px);
-        margin-top: 1rem;
-        background: var(--jf-surface, #fff);
-      }
-      .table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.875rem;
-      }
-      .table th,
-      .table td {
-        padding: 0.7rem 1rem;
-        border-bottom: 1px solid var(--jf-border, #e2e8f0);
-        text-align: left;
-      }
-      .table th {
-        background: var(--jf-surface-muted, #f8fafc);
+      :host ::ng-deep .spinner-sm {
+        width: 2.5rem;
+        height: 2.5rem;
       }
       .actions {
         text-align: right;
@@ -154,30 +142,6 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
         font-size: 0.85rem;
         color: var(--jf-text-muted, #64748b);
       }
-      @media (max-width: 767px) {
-        .table thead {
-          display: none;
-        }
-        .table tr {
-          display: block;
-          border-bottom: 2px solid var(--jf-border, #e2e8f0);
-        }
-        .table td {
-          display: flex;
-          justify-content: space-between;
-          gap: 1rem;
-          border: 0;
-          padding: 0.4rem 1rem;
-        }
-        .table td::before {
-          content: attr(data-label);
-          font-weight: 600;
-          color: var(--jf-text-muted, #64748b);
-        }
-        .actions {
-          justify-content: flex-end;
-        }
-      }
     `,
   ],
 })
@@ -189,6 +153,12 @@ export class ClientListComponent {
 
   protected readonly loading = signal(true);
   protected readonly page = signal<Page<Client> | null>(null);
+
+  protected readonly typeOptions = [
+    { label: 'Tipo (todos)', value: '' },
+    { label: 'Pessoa física', value: 'PF' },
+    { label: 'Pessoa jurídica', value: 'PJ' },
+  ];
 
   protected readonly form = this.fb.nonNullable.group({
     search: '',

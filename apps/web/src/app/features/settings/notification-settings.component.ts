@@ -1,12 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import type { MessageTemplate } from '@juriflow/shared-types';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { CheckboxModule } from 'primeng/checkbox';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { SelectModule } from 'primeng/select';
 import { NotificationConfigService } from './notification-config.service';
 import { TemplateService } from './template.service';
 import { ToastService } from '../../shared/feedback/toast.service';
-import { ButtonComponent } from '../../shared/ui/button.component';
-import { CardComponent } from '../../shared/ui/card.component';
-import { SpinnerComponent } from '../../shared/ui/spinner.component';
 
 const NO_TEMPLATE = '';
 
@@ -14,7 +17,15 @@ const NO_TEMPLATE = '';
   selector: 'jf-notification-settings',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ButtonComponent, CardComponent, SpinnerComponent],
+  imports: [
+    RouterLink,
+    FormsModule,
+    ButtonModule,
+    CardModule,
+    CheckboxModule,
+    ProgressSpinnerModule,
+    SelectModule,
+  ],
   template: `
     <header class="head"><h1>Regras de notificação</h1></header>
     <p class="hint">
@@ -24,61 +35,55 @@ const NO_TEMPLATE = '';
     </p>
 
     @if (loading()) {
-      <div class="center"><jf-spinner [showLabel]="true" /></div>
+      <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
     } @else {
-      <jf-card title="Padrão do espaço">
+      <p-card header="Padrão do espaço">
         <div class="row">
-          <label class="chk">
-            <input
-              type="checkbox"
-              [checked]="notifyResponsible()"
-              (change)="notifyResponsible.set($any($event.target).checked)"
+          <label class="chk" for="notifyResponsible">
+            <p-checkbox
+              inputId="notifyResponsible"
+              [binary]="true"
+              [ngModel]="notifyResponsible()"
+              (ngModelChange)="notifyResponsible.set($event)"
+              [ngModelOptions]="{ standalone: true }"
             />
             Notificar o responsável pelo processo
           </label>
-          <select
+          <p-select
             class="f"
             [disabled]="!notifyResponsible()"
-            (change)="responsibleTemplateId.set($any($event.target).value)"
-          >
-            <option [value]="noTemplate" [selected]="responsibleTemplateId() === noTemplate">
-              Mensagem genérica embutida
-            </option>
-            @for (t of responsibleTemplates(); track t.id) {
-              <option [value]="t.id" [selected]="t.id === responsibleTemplateId()">
-                {{ t.name }}
-              </option>
-            }
-          </select>
+            [options]="responsibleOptions()"
+            [ngModel]="responsibleTemplateId()"
+            (ngModelChange)="responsibleTemplateId.set($event)"
+            [ngModelOptions]="{ standalone: true }"
+          />
         </div>
 
         <div class="row">
-          <label class="chk">
-            <input
-              type="checkbox"
-              [checked]="notifyClients()"
-              (change)="notifyClients.set($any($event.target).checked)"
+          <label class="chk" for="notifyClients">
+            <p-checkbox
+              inputId="notifyClients"
+              [binary]="true"
+              [ngModel]="notifyClients()"
+              (ngModelChange)="notifyClients.set($event)"
+              [ngModelOptions]="{ standalone: true }"
             />
             Notificar os clientes vinculados
           </label>
-          <select
+          <p-select
             class="f"
             [disabled]="!notifyClients()"
-            (change)="clientTemplateId.set($any($event.target).value)"
-          >
-            <option [value]="noTemplate" [selected]="clientTemplateId() === noTemplate">
-              Mensagem genérica embutida
-            </option>
-            @for (t of clientTemplates(); track t.id) {
-              <option [value]="t.id" [selected]="t.id === clientTemplateId()">{{ t.name }}</option>
-            }
-          </select>
+            [options]="clientOptions()"
+            [ngModel]="clientTemplateId()"
+            (ngModelChange)="clientTemplateId.set($event)"
+            [ngModelOptions]="{ standalone: true }"
+          />
         </div>
 
         <div class="actions">
-          <jf-button (click)="save()" [loading]="saving()">Salvar</jf-button>
+          <p-button (onClick)="save()" [loading]="saving()" label="Salvar" />
         </div>
-      </jf-card>
+      </p-card>
     }
   `,
   styles: [
@@ -98,6 +103,10 @@ const NO_TEMPLATE = '';
         justify-content: center;
         padding: 2.5rem;
       }
+      :host ::ng-deep .spinner-sm {
+        width: 2.5rem;
+        height: 2.5rem;
+      }
       .row {
         display: flex;
         flex-wrap: wrap;
@@ -114,10 +123,6 @@ const NO_TEMPLATE = '';
         min-width: 16rem;
       }
       .f {
-        font: inherit;
-        padding: 0.4rem 0.6rem;
-        border: 1px solid var(--jf-border, #cbd5e1);
-        border-radius: var(--jf-radius, 8px);
         min-width: 14rem;
       }
       .actions {
@@ -149,6 +154,14 @@ export class NotificationSettingsComponent {
   protected readonly clientTemplates = computed(() =>
     this.templates().filter((t) => t.audience === 'client'),
   );
+  protected readonly responsibleOptions = computed(() => [
+    { label: 'Mensagem genérica embutida', value: NO_TEMPLATE },
+    ...this.responsibleTemplates().map((t) => ({ label: t.name, value: t.id })),
+  ]);
+  protected readonly clientOptions = computed(() => [
+    { label: 'Mensagem genérica embutida', value: NO_TEMPLATE },
+    ...this.clientTemplates().map((t) => ({ label: t.name, value: t.id })),
+  ]);
 
   constructor() {
     void this.load();

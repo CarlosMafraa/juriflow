@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { MessageModule } from 'primeng/message';
 import { AuthService } from '../../core/auth/auth.service';
-import { AlertComponent } from '../../shared/ui/alert.component';
-import { ButtonComponent } from '../../shared/ui/button.component';
-import { InputComponent } from '../../shared/ui/input.component';
 import { AuthCardComponent } from './auth-card.component';
 
 @Component({
@@ -14,23 +14,32 @@ import { AuthCardComponent } from './auth-card.component';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    AlertComponent,
-    ButtonComponent,
-    InputComponent,
+    ButtonModule,
+    InputTextModule,
+    MessageModule,
     AuthCardComponent,
   ],
   template: `
     <jf-auth-card title="Recuperar acesso">
       @if (sent()) {
-        <jf-alert tone="success">
+        <p-message severity="success" styleClass="w-full">
           Se existir uma conta para esse e-mail, você receberá um link para redefinir a senha.
-        </jf-alert>
+        </p-message>
         <a class="link" routerLink="/login">Voltar para o login</a>
       } @else {
         <form [formGroup]="form" (ngSubmit)="submit()" class="form">
           <p class="hint">Informe seu e-mail e enviaremos um link de redefinição.</p>
-          <jf-input label="E-mail" type="email" autocomplete="username" formControlName="email" />
-          <jf-button type="submit" [loading]="loading()" block>Enviar link</jf-button>
+          <div class="field">
+            <label for="email">E-mail</label>
+            <input
+              pInputText
+              id="email"
+              type="email"
+              autocomplete="username"
+              formControlName="email"
+            />
+          </div>
+          <p-button type="submit" label="Enviar link" [loading]="loading()" styleClass="w-full" />
           <a class="link" routerLink="/login">Voltar para o login</a>
         </form>
       }
@@ -54,6 +63,9 @@ import { AuthCardComponent } from './auth-card.component';
         margin-top: 1rem;
         font-size: 0.85rem;
         color: var(--jf-primary, #2563eb);
+      }
+      :host ::ng-deep .w-full {
+        width: 100%;
       }
     `,
   ],

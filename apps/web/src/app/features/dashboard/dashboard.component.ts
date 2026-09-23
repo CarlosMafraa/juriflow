@@ -1,24 +1,24 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { CardModule } from 'primeng/card';
+import { TagModule } from 'primeng/tag';
 import { AuthService } from '../../core/auth/auth.service';
 import { ActiveSpaceService } from '../../core/authorization/active-space.service';
-import { CardComponent } from '../../shared/ui/card.component';
-import { BadgeComponent } from '../../shared/ui/badge.component';
 
 @Component({
   selector: 'jf-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, CardComponent, BadgeComponent],
+  imports: [RouterLink, CardModule, TagModule],
   template: `
     <header class="page-head">
       <h1>Olá{{ name() ? ', ' + name() : '' }}</h1>
       <p class="muted">
         @if (space()) {
           Espaço ativo: <strong>{{ space()!.name }}</strong>
-          <jf-badge tone="primary">{{ space()!.role }}</jf-badge>
+          <p-tag severity="info" [value]="space()!.role" />
         } @else if (isSuperAdmin()) {
-          <jf-badge tone="primary">SUPER_ADMIN</jf-badge> — você administra a plataforma.
+          <p-tag severity="info" value="SUPER_ADMIN" /> — você administra a plataforma.
         } @else {
           Você ainda não faz parte de nenhum espaço.
           <a routerLink="/configuracoes/usuarios">Ver convites pendentes</a>
@@ -27,18 +27,18 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
     </header>
 
     <section class="grid">
-      <jf-card title="Processos">
+      <p-card header="Processos">
         <p class="metric">—</p>
         <p class="muted">Disponível na fase de Processos.</p>
-      </jf-card>
-      <jf-card title="Movimentações recentes">
+      </p-card>
+      <p-card header="Movimentações recentes">
         <p class="metric">—</p>
         <p class="muted">Disponível na fase de Acompanhamento.</p>
-      </jf-card>
-      <jf-card title="Notificações enviadas">
+      </p-card>
+      <p-card header="Notificações enviadas">
         <p class="metric">—</p>
         <p class="muted">Disponível na fase de Notificações.</p>
-      </jf-card>
+      </p-card>
     </section>
   `,
   styles: [

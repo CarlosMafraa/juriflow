@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { MessageModule } from 'primeng/message';
 import { AuthService } from '../../core/auth/auth.service';
 import { Logger } from '../../core/observability/logger';
-import { AlertComponent } from '../../shared/ui/alert.component';
-import { ButtonComponent } from '../../shared/ui/button.component';
-import { InputComponent } from '../../shared/ui/input.component';
 import { AuthCardComponent } from './auth-card.component';
 
 @Component({
@@ -15,34 +15,50 @@ import { AuthCardComponent } from './auth-card.component';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    AlertComponent,
-    ButtonComponent,
-    InputComponent,
+    ButtonModule,
+    InputTextModule,
+    MessageModule,
     AuthCardComponent,
   ],
   template: `
     <jf-auth-card title="Entrar no JuriFlow">
       <form [formGroup]="form" (ngSubmit)="submit()" class="form">
         @if (error()) {
-          <jf-alert tone="danger">{{ error() }}</jf-alert>
+          <p-message severity="error" [text]="error()" styleClass="w-full" />
         }
-        <jf-input
-          label="E-mail"
-          type="email"
-          autocomplete="username"
-          formControlName="email"
-          [error]="fieldError('email')"
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input
+            pInputText
+            id="email"
+            type="email"
+            autocomplete="username"
+            formControlName="email"
+          />
+          @if (fieldError('email')) {
+            <small class="field__error">{{ fieldError('email') }}</small>
+          }
+        </div>
+        <div class="field">
+          <label for="password">Senha</label>
+          <input
+            pInputText
+            id="password"
+            type="password"
+            autocomplete="current-password"
+            formControlName="password"
+          />
+          @if (fieldError('password')) {
+            <small class="field__error">{{ fieldError('password') }}</small>
+          }
+        </div>
+        <p-button
+          type="submit"
+          label="Entrar"
+          [loading]="loading()"
+          [disabled]="loading()"
+          styleClass="w-full"
         />
-        <jf-input
-          label="Senha"
-          type="password"
-          autocomplete="current-password"
-          formControlName="password"
-          [error]="fieldError('password')"
-        />
-        <jf-button type="submit" [loading]="loading()" [disabled]="loading()" block>
-          Entrar
-        </jf-button>
         <a class="form__link" routerLink="/recuperar-senha">Esqueci minha senha</a>
       </form>
     </jf-auth-card>
@@ -58,6 +74,9 @@ import { AuthCardComponent } from './auth-card.component';
         text-align: center;
         font-size: 0.85rem;
         color: var(--jf-primary, #2563eb);
+      }
+      :host ::ng-deep .w-full {
+        width: 100%;
       }
     `,
   ],

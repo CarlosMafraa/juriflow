@@ -1,19 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import type { SpaceInvite, SpaceRole } from '@juriflow/shared-types';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { InputTextModule } from 'primeng/inputtext';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { SelectModule } from 'primeng/select';
+import { TagModule } from 'primeng/tag';
 import { AuthService } from '../../core/auth/auth.service';
 import { ActiveSpaceService } from '../../core/authorization/active-space.service';
 import { PermissionService } from '../../core/authorization/permission.service';
 import { ToastService } from '../../shared/feedback/toast.service';
 import { DialogService } from '../../shared/ui/dialog.service';
-import { ButtonComponent } from '../../shared/ui/button.component';
-import { CardComponent } from '../../shared/ui/card.component';
-import { InputComponent } from '../../shared/ui/input.component';
-import { SelectComponent } from '../../shared/ui/select.component';
-import { BadgeComponent } from '../../shared/ui/badge.component';
-import { SpinnerComponent } from '../../shared/ui/spinner.component';
-import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { TeamService, type TeamMember } from './team.service';
 
 const ROLE_OPTIONS = [
@@ -28,29 +27,27 @@ const ROLE_OPTIONS = [
   imports: [
     DatePipe,
     ReactiveFormsModule,
-    ButtonComponent,
-    CardComponent,
-    InputComponent,
-    SelectComponent,
-    BadgeComponent,
-    SpinnerComponent,
-    EmptyStateComponent,
+    FormsModule,
+    ButtonModule,
+    CardModule,
+    InputTextModule,
+    ProgressSpinnerModule,
+    SelectModule,
+    TagModule,
   ],
   template: `
     <header class="head">
       <h1>Equipe</h1>
       @if (hasActiveSpace() && isAdmin()) {
-        <jf-button size="sm" (click)="toggleInviteForm()">
-          {{ showInviteForm() ? 'Cancelar' : 'Convidar' }}
-        </jf-button>
+        <p-button size="small" [label]="showInviteForm() ? 'Cancelar' : 'Convidar'" (onClick)="toggleInviteForm()" />
       }
     </header>
 
     @if (loading()) {
-      <div class="center"><jf-spinner [showLabel]="true" /></div>
+      <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
     } @else {
       @if (myPendingInvites().length > 0) {
-        <jf-card title="Convites recebidos" class="section">
+        <p-card header="Convites recebidos" styleClass="section">
           <ul class="list">
             @for (invite of myPendingInvites(); track invite.id) {
               <li class="row">
@@ -60,46 +57,45 @@ const ROLE_OPTIONS = [
                     {{ invite.role === 'ADMIN' ? 'Administrador' : 'Colaborador' }}
                   </p>
                 </div>
-                <jf-button
-                  size="sm"
+                <p-button
+                  size="small"
                   [loading]="accepting() === invite.token"
-                  (click)="accept(invite)"
-                >
-                  Aceitar
-                </jf-button>
+                  label="Aceitar"
+                  (onClick)="accept(invite)"
+                />
               </li>
             }
           </ul>
-        </jf-card>
+        </p-card>
       }
 
       @if (hasActiveSpace() && isAdmin() && showInviteForm()) {
-        <jf-card title="Convidar usuário" class="section">
+        <p-card header="Convidar usuário" styleClass="section">
           <form class="invite-form" [formGroup]="inviteForm" (ngSubmit)="submitInvite()">
-            <jf-input
-              label="E-mail"
-              type="email"
-              placeholder="pessoa@escritorio.com.br"
-              formControlName="email"
-            />
-            <jf-select label="Papel" [options]="roleOptions" formControlName="role" />
-            <jf-button type="submit" [loading]="inviting()">Enviar convite</jf-button>
+            <div class="field">
+              <label for="invite-email">E-mail</label>
+              <input pInputText id="invite-email" type="email" placeholder="pessoa@escritorio.com.br" formControlName="email" />
+            </div>
+            <div class="field">
+              <label for="invite-role">Papel</label>
+              <p-select inputId="invite-role" [options]="roleOptions" formControlName="role" />
+            </div>
+            <p-button type="submit" [loading]="inviting()" label="Enviar convite" />
           </form>
-        </jf-card>
+        </p-card>
       }
 
       @if (!hasActiveSpace()) {
-        <jf-empty-state
-          title="Você ainda não faz parte de nenhum espaço"
-          message="Aceite um convite acima, se houver, ou peça a um administrador para te convidar."
-        />
+        <p class="muted note">
+          Você ainda não faz parte de nenhum espaço. Aceite um convite acima, se houver, ou peça a
+          um administrador para te convidar.
+        </p>
       } @else {
-        <jf-card title="Membros" class="section">
+        <p-card header="Membros" styleClass="section">
           @if (members().length === 0) {
-            <jf-empty-state
-              title="Nenhum membro"
-              message="Convide pessoas para colaborar no acompanhamento dos processos."
-            />
+            <p class="muted">
+              Nenhum membro. Convide pessoas para colaborar no acompanhamento dos processos.
+            </p>
           } @else {
             <ul class="list">
               @for (m of members(); track m.id) {
@@ -115,50 +111,44 @@ const ROLE_OPTIONS = [
                   </div>
                   <div class="actions">
                     @if (!m.active) {
-                      <jf-badge tone="neutral">Inativo</jf-badge>
+                      <p-tag severity="secondary" value="Inativo" />
                     }
                     @if (isAdmin()) {
-                      <select
+                      <p-select
                         class="role-select"
                         [attr.aria-label]="'Papel de ' + m.name"
                         [disabled]="isLastActiveAdmin(m)"
-                        (change)="changeRole(m, $any($event.target).value)"
-                      >
-                        @for (opt of roleOptions; track opt.value) {
-                          <option [value]="opt.value" [selected]="opt.value === m.role">
-                            {{ opt.label }}
-                          </option>
-                        }
-                      </select>
+                        [options]="roleOptions"
+                        [ngModel]="m.role"
+                        (ngModelChange)="changeRole(m, $event)"
+                        [ngModelOptions]="{ standalone: true }"
+                      />
                     } @else {
-                      <jf-badge tone="primary">{{
-                        m.role === 'ADMIN' ? 'Administrador' : 'Colaborador'
-                      }}</jf-badge>
+                      <p-tag severity="info" [value]="m.role === 'ADMIN' ? 'Administrador' : 'Colaborador'" />
                     }
                     @if (isAdmin() && m.profileId !== currentUserId()) {
-                      <jf-button
-                        size="sm"
-                        variant="secondary"
+                      <p-button
+                        size="small"
+                        severity="secondary"
+                        [outlined]="true"
                         [disabled]="isLastActiveAdmin(m)"
-                        (click)="toggleActive(m)"
-                      >
-                        {{ m.active ? 'Desativar' : 'Reativar' }}
-                      </jf-button>
+                        [label]="m.active ? 'Desativar' : 'Reativar'"
+                        (onClick)="toggleActive(m)"
+                      />
                     }
                   </div>
                 </li>
               }
             </ul>
           }
-        </jf-card>
+        </p-card>
 
         @if (isAdmin()) {
-          <jf-card title="Convites pendentes" class="section">
+          <p-card header="Convites pendentes" styleClass="section">
             @if (pendingInvites().length === 0) {
-              <jf-empty-state
-                title="Nenhum convite pendente"
-                message="Use o botão Convidar para adicionar alguém ao espaço."
-              />
+              <p class="muted">
+                Nenhum convite pendente. Use o botão Convidar para adicionar alguém ao espaço.
+              </p>
             } @else {
               <ul class="list">
                 @for (invite of pendingInvites(); track invite.id) {
@@ -170,14 +160,12 @@ const ROLE_OPTIONS = [
                         {{ invite.expiresAt | date: 'dd/MM/yyyy' }}
                       </p>
                     </div>
-                    <jf-button size="sm" variant="ghost" (click)="cancelInvite(invite)"
-                      >Cancelar</jf-button
-                    >
+                    <p-button size="small" [text]="true" label="Cancelar" (onClick)="cancelInvite(invite)" />
                   </li>
                 }
               </ul>
             }
-          </jf-card>
+          </p-card>
         } @else {
           <p class="muted note">
             Somente administradores podem convidar usuários ou alterar papéis.
@@ -204,7 +192,12 @@ const ROLE_OPTIONS = [
         justify-content: center;
         padding: 2.5rem;
       }
+      :host ::ng-deep .spinner-sm {
+        width: 2.5rem;
+        height: 2.5rem;
+      }
       .section {
+        display: block;
         margin-bottom: 1rem;
       }
       .invite-form {
@@ -249,17 +242,7 @@ const ROLE_OPTIONS = [
         flex-wrap: wrap;
       }
       .role-select {
-        font: inherit;
         min-width: 11rem;
-        padding: 0.4rem 0.6rem;
-        border: 1px solid var(--jf-border, #cbd5e1);
-        border-radius: var(--jf-radius, 8px);
-        background: var(--jf-surface, #fff);
-        color: var(--jf-text, #0f172a);
-      }
-      .role-select:disabled {
-        background: var(--jf-surface-muted, #f1f5f9);
-        opacity: 0.7;
       }
       .note {
         text-align: center;

@@ -1,47 +1,41 @@
 import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import type { Client } from '@juriflow/shared-types';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { TagModule } from 'primeng/tag';
 import { ClientService } from './client.service';
 import { ProcessService, type ProcessListRow } from '../processes/process.service';
 import { PermissionService } from '../../core/authorization/permission.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { DialogService } from '../../shared/ui/dialog.service';
 import { ToastService } from '../../shared/feedback/toast.service';
-import { ButtonComponent } from '../../shared/ui/button.component';
-import { CardComponent } from '../../shared/ui/card.component';
-import { BadgeComponent } from '../../shared/ui/badge.component';
-import { SpinnerComponent } from '../../shared/ui/spinner.component';
-import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 
 @Component({
   selector: 'jf-client-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    RouterLink,
-    ButtonComponent,
-    CardComponent,
-    BadgeComponent,
-    SpinnerComponent,
-    EmptyStateComponent,
-  ],
+  imports: [RouterLink, ButtonModule, CardModule, ProgressSpinnerModule, TagModule],
   template: `
     @if (loading()) {
-      <div class="center"><jf-spinner [showLabel]="true" /></div>
+      <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
     } @else if (!client()) {
-      <jf-empty-state title="Cliente não encontrado"><span empty-icon>🧭</span></jf-empty-state>
+      <p class="muted">Cliente não encontrado.</p>
     } @else {
       <header class="head">
-        <h1>{{ client()!.name }} <jf-badge>{{ client()!.type }}</jf-badge></h1>
+        <h1>{{ client()!.name }} <p-tag severity="secondary" [value]="client()!.type" /></h1>
         <div class="acts">
           @if (canEdit()) {
-            <a [routerLink]="['/clientes', client()!.id, 'editar']"><jf-button variant="secondary">Editar</jf-button></a>
-            <jf-button variant="danger" (click)="remove()">Excluir</jf-button>
+            <a [routerLink]="['/clientes', client()!.id, 'editar']">
+              <p-button severity="secondary" [outlined]="true" label="Editar" />
+            </a>
+            <p-button severity="danger" label="Excluir" (onClick)="remove()" />
           }
         </div>
       </header>
 
-      <jf-card title="Dados">
+      <p-card header="Dados" styleClass="section">
         <dl class="grid">
           <dt>Documento</dt><dd>{{ client()!.document || '—' }}</dd>
           <dt>Telefone</dt><dd>{{ client()!.phone || '—' }}</dd>
@@ -52,9 +46,9 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
           <dt>Notificações WhatsApp</dt>
           <dd>{{ client()!.notificationOptIn ? 'Consentido' : 'Não consentido' }}</dd>
         </dl>
-      </jf-card>
+      </p-card>
 
-      <jf-card title="Processos vinculados">
+      <p-card header="Processos vinculados" styleClass="section">
         @if (processes().length === 0) {
           <p class="muted">Nenhum processo vinculado visível para você.</p>
         } @else {
@@ -62,12 +56,12 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
             @for (p of processes(); track p.id) {
               <li>
                 <a [routerLink]="['/processos', p.id]">{{ p.cnjNumber || p.internalRef || p.id }}</a>
-                <jf-badge [tone]="p.status === 'active' ? 'success' : 'neutral'">{{ p.status }}</jf-badge>
+                <p-tag [severity]="p.status === 'active' ? 'success' : 'secondary'" [value]="p.status" />
               </li>
             }
           </ul>
         }
-      </jf-card>
+      </p-card>
     }
   `,
   styles: [
@@ -76,6 +70,10 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         display: flex;
         justify-content: center;
         padding: 2.5rem;
+      }
+      :host ::ng-deep .spinner-sm {
+        width: 2.5rem;
+        height: 2.5rem;
       }
       .head {
         display: flex;
@@ -126,7 +124,7 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         gap: 0.6rem;
         align-items: center;
       }
-      jf-card {
+      .section {
         display: block;
         margin-bottom: 1rem;
       }

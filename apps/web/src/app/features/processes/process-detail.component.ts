@@ -1,7 +1,16 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import type { Client, MessageTemplate } from '@juriflow/shared-types';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { CheckboxModule } from 'primeng/checkbox';
+import { InputTextModule } from 'primeng/inputtext';
+import { MessageModule } from 'primeng/message';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { SelectModule } from 'primeng/select';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
 import {
   ProcessService,
   type HistoryRow,
@@ -18,12 +27,6 @@ import { AuthService } from '../../core/auth/auth.service';
 import { PermissionService } from '../../core/authorization/permission.service';
 import { DialogService } from '../../shared/ui/dialog.service';
 import { ToastService } from '../../shared/feedback/toast.service';
-import { AlertComponent } from '../../shared/ui/alert.component';
-import { ButtonComponent } from '../../shared/ui/button.component';
-import { CardComponent } from '../../shared/ui/card.component';
-import { BadgeComponent } from '../../shared/ui/badge.component';
-import { SpinnerComponent } from '../../shared/ui/spinner.component';
-import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 
 @Component({
   selector: 'jf-process-detail',
@@ -31,68 +34,67 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
+    FormsModule,
     RouterLink,
-    AlertComponent,
-    ButtonComponent,
-    CardComponent,
-    BadgeComponent,
-    SpinnerComponent,
-    EmptyStateComponent,
+    ButtonModule,
+    CardModule,
+    CheckboxModule,
+    InputTextModule,
+    MessageModule,
+    ProgressSpinnerModule,
+    SelectModule,
+    TableModule,
+    TagModule,
   ],
   template: `
     @if (loading()) {
-      <div class="center"><jf-spinner [showLabel]="true" /></div>
+      <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
     } @else if (!process()) {
-      <jf-empty-state
-        title="Processo não encontrado"
-        message="Ele pode ter sido transferido, arquivado ou você não tem acesso."
-      >
-        <span empty-icon>🔒</span>
-        <a empty-action routerLink="/processos"
-          ><jf-button variant="secondary">Voltar</jf-button></a
-        >
-      </jf-empty-state>
+      <p-message severity="warn" styleClass="w-full">
+        Processo não encontrado. Ele pode ter sido transferido, arquivado ou você não tem acesso.
+      </p-message>
+      <a routerLink="/processos"><p-button severity="secondary" [outlined]="true" label="Voltar" styleClass="back-btn" /></a>
     } @else {
       <header class="head">
         <div>
           <h1>{{ process()!.cnjNumber || process()!.internalRef || 'Processo' }}</h1>
-          <jf-badge [tone]="statusTone()">{{ process()!.status }}</jf-badge>
+          <p-tag [severity]="statusTone()" [value]="process()!.status" />
         </div>
         <div class="acts">
           @if (canEdit() && process()!.status !== 'closed') {
             @if (process()!.status === 'active') {
-              <jf-button variant="secondary" (click)="setStatus('archived')">Arquivar</jf-button>
+              <p-button severity="secondary" [outlined]="true" label="Arquivar" (onClick)="setStatus('archived')" />
             } @else {
-              <jf-button variant="secondary" (click)="setStatus('active')">Reativar</jf-button>
+              <p-button severity="secondary" [outlined]="true" label="Reativar" (onClick)="setStatus('active')" />
             }
           }
           @if (isAdmin()) {
             @if (process()!.status !== 'closed') {
-              <jf-button variant="secondary" (click)="setStatus('closed')">Encerrar</jf-button>
+              <p-button severity="secondary" [outlined]="true" label="Encerrar" (onClick)="setStatus('closed')" />
             } @else {
-              <jf-button variant="secondary" (click)="setStatus('active')">Reabrir</jf-button>
+              <p-button severity="secondary" [outlined]="true" label="Reabrir" (onClick)="setStatus('active')" />
             }
           }
           @if (canEdit()) {
-            <jf-button variant="danger" (click)="remove()">Excluir</jf-button>
+            <p-button severity="danger" label="Excluir" (onClick)="remove()" />
           }
         </div>
       </header>
 
       @if (msg()) {
-        <jf-alert [tone]="msg()!.tone">{{ msg()!.text }}</jf-alert>
+        <p-message [severity]="msg()!.tone" [text]="msg()!.text" styleClass="w-full section" />
       }
 
-      <jf-card title="Dados">
+      <p-card header="Dados" styleClass="section">
         <form [formGroup]="coreForm" (ngSubmit)="saveCore()" class="core">
-          <label>
-            <span>Número CNJ</span>
-            <input formControlName="cnjNumber" [readonly]="!canEdit()" placeholder="—" />
-          </label>
-          <label>
-            <span>Referência interna</span>
-            <input formControlName="internalRef" [readonly]="!canEdit()" placeholder="—" />
-          </label>
+          <div class="field">
+            <label for="cnjNumber">Número CNJ</label>
+            <input pInputText id="cnjNumber" formControlName="cnjNumber" [readonly]="!canEdit()" placeholder="—" />
+          </div>
+          <div class="field">
+            <label for="internalRef">Referência interna</label>
+            <input pInputText id="internalRef" formControlName="internalRef" [readonly]="!canEdit()" placeholder="—" />
+          </div>
           <div class="ro">
             <span>Tribunal</span><strong>{{ process()!.courtName }}</strong>
           </div>
@@ -104,20 +106,20 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
           </div>
           @if (canEdit()) {
             <div class="core-actions">
-              <jf-button type="submit" size="sm" [loading]="savingCore()">Salvar dados</jf-button>
+              <p-button type="submit" size="small" label="Salvar dados" [loading]="savingCore()" />
             </div>
           }
         </form>
-      </jf-card>
+      </p-card>
 
-      <jf-card title="Movimentações">
+      <p-card header="Movimentações" styleClass="section">
         @if (movementsLoading()) {
-          <div class="center"><jf-spinner [showLabel]="true" /></div>
+          <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
         } @else if (movements().length === 0) {
-          <jf-empty-state
-            title="Nenhuma movimentação coletada"
-            message="A coleta automática roda diariamente. Movimentações aparecem aqui assim que forem encontradas."
-          />
+          <p class="muted">
+            Nenhuma movimentação coletada. A coleta automática roda diariamente. Movimentações
+            aparecem aqui assim que forem encontradas.
+          </p>
         } @else {
           <ol class="movements">
             @for (m of movements(); track m.id) {
@@ -126,7 +128,7 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
                   <span class="movements__date">{{
                     m.occurredAt ? fmt(m.occurredAt) : 'Sem data'
                   }}</span>
-                  <jf-badge tone="neutral">{{ sourceLabel(m.sourceKind) }}</jf-badge>
+                  <p-tag severity="secondary" [value]="sourceLabel(m.sourceKind)" />
                 </div>
                 <p class="movements__desc">{{ m.description }}</p>
                 <span class="movements__collected">coletado em {{ fmt(m.collectedAt) }}</span>
@@ -134,9 +136,9 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
             }
           </ol>
         }
-      </jf-card>
+      </p-card>
 
-      <jf-card title="Clientes vinculados">
+      <p-card header="Clientes vinculados" styleClass="section">
         @if (clients().length === 0) {
           <p class="muted">Nenhum cliente vinculado.</p>
         } @else {
@@ -146,7 +148,7 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
                 <a [routerLink]="['/clientes', c.clientId]">{{ c.name }}</a>
                 <span class="muted">{{ c.type }} · {{ c.document || 's/ documento' }}</span>
                 @if (canEdit()) {
-                  <jf-button size="sm" variant="ghost" (click)="detach(c)">Remover</jf-button>
+                  <p-button size="small" [text]="true" label="Remover" (onClick)="detach(c)" />
                 }
               </li>
             }
@@ -155,6 +157,7 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         @if (canEdit()) {
           <div class="attach">
             <input
+              pInputText
               type="text"
               placeholder="Buscar cliente por nome"
               [value]="term()"
@@ -167,142 +170,123 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
                     <span
                       >{{ r.name }} <small class="muted">{{ r.type }}</small></span
                     >
-                    <jf-button size="sm" variant="ghost" (click)="attach(r)">Vincular</jf-button>
+                    <p-button size="small" [text]="true" label="Vincular" (onClick)="attach(r)" />
                   </li>
                 }
               </ul>
             }
           </div>
         }
-      </jf-card>
+      </p-card>
 
       @if (canEdit()) {
-        <jf-card title="Notificações deste processo">
+        <p-card header="Notificações deste processo" styleClass="section">
           @if (notifLoading()) {
-            <div class="center"><jf-spinner [showLabel]="true" /></div>
+            <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
           } @else if (!notifOverride()) {
             <p class="muted">Este processo usa a configuração geral do espaço.</p>
-            <jf-button size="sm" variant="secondary" (click)="enableNotifOverride()"
-              >Personalizar</jf-button
-            >
+            <p-button size="small" severity="secondary" [outlined]="true" label="Personalizar" (onClick)="enableNotifOverride()" />
           } @else {
             <div class="notif-row">
-              <label class="chk">
-                <input
-                  type="checkbox"
-                  [checked]="notifResponsible()"
-                  (change)="notifResponsible.set($any($event.target).checked)"
+              <label class="chk" for="notifResponsible">
+                <p-checkbox
+                  inputId="notifResponsible"
+                  [binary]="true"
+                  [ngModel]="notifResponsible()"
+                  (ngModelChange)="notifResponsible.set($event)"
+                  [ngModelOptions]="{ standalone: true }"
                 />
                 Notificar o responsável
               </label>
-              <select
+              <p-select
                 class="f"
                 [disabled]="!notifResponsible()"
-                (change)="notifResponsibleTemplateId.set($any($event.target).value)"
-              >
-                <option value="" [selected]="notifResponsibleTemplateId() === ''">
-                  Mensagem genérica embutida
-                </option>
-                @for (t of notifResponsibleTemplates(); track t.id) {
-                  <option [value]="t.id" [selected]="t.id === notifResponsibleTemplateId()">
-                    {{ t.name }}
-                  </option>
-                }
-              </select>
+                [options]="responsibleTemplateOptions()"
+                [ngModel]="notifResponsibleTemplateId()"
+                (ngModelChange)="notifResponsibleTemplateId.set($event)"
+                [ngModelOptions]="{ standalone: true }"
+                placeholder="Mensagem genérica embutida"
+              />
             </div>
             <div class="notif-row">
-              <label class="chk">
-                <input
-                  type="checkbox"
-                  [checked]="notifClients()"
-                  (change)="notifClients.set($any($event.target).checked)"
+              <label class="chk" for="notifClients">
+                <p-checkbox
+                  inputId="notifClients"
+                  [binary]="true"
+                  [ngModel]="notifClients()"
+                  (ngModelChange)="notifClients.set($event)"
+                  [ngModelOptions]="{ standalone: true }"
                 />
                 Notificar os clientes
               </label>
-              <select
+              <p-select
                 class="f"
                 [disabled]="!notifClients()"
-                (change)="notifClientTemplateId.set($any($event.target).value)"
-              >
-                <option value="" [selected]="notifClientTemplateId() === ''">
-                  Mensagem genérica embutida
-                </option>
-                @for (t of notifClientTemplates(); track t.id) {
-                  <option [value]="t.id" [selected]="t.id === notifClientTemplateId()">
-                    {{ t.name }}
-                  </option>
-                }
-              </select>
+                [options]="clientTemplateOptions()"
+                [ngModel]="notifClientTemplateId()"
+                (ngModelChange)="notifClientTemplateId.set($event)"
+                [ngModelOptions]="{ standalone: true }"
+                placeholder="Mensagem genérica embutida"
+              />
             </div>
             <div class="core-actions">
-              <jf-button size="sm" [loading]="notifSaving()" (click)="saveNotifOverride()"
-                >Salvar</jf-button
-              >
-              <jf-button size="sm" variant="ghost" (click)="removeNotifOverride()"
-                >Voltar ao padrão do espaço</jf-button
-              >
+              <p-button size="small" label="Salvar" [loading]="notifSaving()" (onClick)="saveNotifOverride()" />
+              <p-button size="small" severity="secondary" [text]="true" label="Voltar ao padrão do espaço" (onClick)="removeNotifOverride()" />
             </div>
           }
-        </jf-card>
+        </p-card>
       }
 
       @if (isAdmin()) {
-        <jf-card title="Transferência de responsabilidade">
+        <p-card header="Transferência de responsabilidade" styleClass="section">
           <div class="transfer">
-            <select
-              [value]="transferTarget()"
-              (change)="transferTarget.set($any($event.target).value)"
-            >
-              <option value="">Selecione o novo responsável…</option>
-              @for (m of members(); track m.profileId) {
-                @if (m.profileId !== process()!.assignedUserId) {
-                  <option [value]="m.profileId">{{ m.fullName }} ({{ m.role }})</option>
-                }
-              }
-            </select>
-            <jf-button
+            <p-select
+              class="f"
+              [options]="transferOptions()"
+              [ngModel]="transferTarget()"
+              (ngModelChange)="transferTarget.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+              placeholder="Selecione o novo responsável…"
+            />
+            <p-button
               [disabled]="!transferTarget()"
               [loading]="transferring()"
-              (click)="transfer()"
-              >Transferir</jf-button
-            >
+              label="Transferir"
+              (onClick)="transfer()"
+            />
           </div>
           <p class="muted small">
             O responsável anterior perde o acesso ao processo imediatamente. O histórico é
             preservado.
           </p>
-        </jf-card>
+        </p-card>
 
-        <jf-card title="Histórico de responsabilidade">
+        <p-card header="Histórico de responsabilidade" styleClass="section">
           @if (history().length === 0) {
             <p class="muted">Sem histórico.</p>
           } @else {
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Responsável</th>
-                    <th>Motivo</th>
-                    <th>Início</th>
-                    <th>Fim</th>
-                    <th>Atribuído por</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (h of history(); track h.id) {
-                    <tr>
-                      <td>{{ h.responsibleName }}</td>
-                      <td>{{ h.reason === 'transfer' ? 'Transferência' : 'Cadastro' }}</td>
-                      <td>{{ fmt(h.startedAt) }}</td>
-                      <td>{{ h.endedAt ? fmt(h.endedAt) : 'atual' }}</td>
-                      <td>{{ h.assignedByName || '—' }}</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
+            <p-table [value]="history()" styleClass="p-datatable-sm">
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Responsável</th>
+                  <th>Motivo</th>
+                  <th>Início</th>
+                  <th>Fim</th>
+                  <th>Atribuído por</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-h>
+                <tr>
+                  <td>{{ h.responsibleName }}</td>
+                  <td>{{ h.reason === 'transfer' ? 'Transferência' : 'Cadastro' }}</td>
+                  <td>{{ fmt(h.startedAt) }}</td>
+                  <td>{{ h.endedAt ? fmt(h.endedAt) : 'atual' }}</td>
+                  <td>{{ h.assignedByName || '—' }}</td>
+                </tr>
+              </ng-template>
+            </p-table>
           }
-        </jf-card>
+        </p-card>
       }
     }
   `,
@@ -312,6 +296,10 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         display: flex;
         justify-content: center;
         padding: 2.5rem;
+      }
+      :host ::ng-deep .spinner-sm {
+        width: 2.5rem;
+        height: 2.5rem;
       }
       .head {
         display: flex;
@@ -330,9 +318,12 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         gap: 0.5rem;
         flex-wrap: wrap;
       }
-      jf-card {
+      .section {
         display: block;
         margin-bottom: 1rem;
+      }
+      :host ::ng-deep .back-btn {
+        display: inline-block;
       }
       .core {
         display: flex;
@@ -340,25 +331,14 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         gap: 0.85rem;
         max-width: 30rem;
       }
-      .core label,
       .ro {
         display: flex;
         flex-direction: column;
         gap: 0.3rem;
       }
-      .core label span,
       .ro span {
         font-size: 0.78rem;
         color: var(--jf-text-muted, #64748b);
-      }
-      .core input {
-        font: inherit;
-        padding: 0.5rem 0.7rem;
-        border: 1px solid var(--jf-border, #cbd5e1);
-        border-radius: var(--jf-radius, 8px);
-      }
-      .core input[readonly] {
-        background: var(--jf-surface-muted, #f1f5f9);
       }
       .muted {
         color: var(--jf-text-muted, #64748b);
@@ -419,12 +399,7 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
       .attach {
         margin-top: 0.85rem;
       }
-      .attach input,
-      .transfer select {
-        font: inherit;
-        padding: 0.5rem 0.7rem;
-        border: 1px solid var(--jf-border, #cbd5e1);
-        border-radius: var(--jf-radius, 8px);
+      .attach input {
         width: 100%;
         max-width: 24rem;
       }
@@ -433,6 +408,9 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         gap: 0.5rem;
         align-items: center;
         flex-wrap: wrap;
+      }
+      .transfer .f {
+        min-width: 16rem;
       }
       .notif-row {
         display: flex;
@@ -450,25 +428,10 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         min-width: 14rem;
       }
       .notif-row .f {
-        font: inherit;
-        padding: 0.4rem 0.6rem;
-        border: 1px solid var(--jf-border, #cbd5e1);
-        border-radius: var(--jf-radius, 8px);
         min-width: 14rem;
       }
-      .table-wrap {
-        overflow-x: auto;
-      }
-      table {
+      :host ::ng-deep .w-full {
         width: 100%;
-        border-collapse: collapse;
-        font-size: 0.85rem;
-      }
-      th,
-      td {
-        text-align: left;
-        padding: 0.5rem 0.7rem;
-        border-bottom: 1px solid var(--jf-border, #e2e8f0);
       }
     `,
   ],
@@ -501,7 +464,7 @@ export class ProcessDetailComponent {
   protected readonly transferTarget = signal('');
   protected readonly term = signal('');
   protected readonly results = signal<Client[]>([]);
-  protected readonly msg = signal<{ tone: 'danger' | 'success' | 'warning'; text: string } | null>(
+  protected readonly msg = signal<{ tone: 'error' | 'success' | 'warn'; text: string } | null>(
     null,
   );
 
@@ -519,6 +482,20 @@ export class ProcessDetailComponent {
   protected readonly notifClientTemplates = computed(() =>
     this.notifTemplates().filter((t) => t.audience === 'client'),
   );
+  protected readonly responsibleTemplateOptions = computed(() => [
+    { label: 'Mensagem genérica embutida', value: '' },
+    ...this.notifResponsibleTemplates().map((t) => ({ label: t.name, value: t.id })),
+  ]);
+  protected readonly clientTemplateOptions = computed(() => [
+    { label: 'Mensagem genérica embutida', value: '' },
+    ...this.notifClientTemplates().map((t) => ({ label: t.name, value: t.id })),
+  ]);
+  protected readonly transferOptions = computed(() => [
+    { label: 'Selecione o novo responsável…', value: '' },
+    ...this.members()
+      .filter((m) => m.profileId !== this.process()?.assignedUserId)
+      .map((m) => ({ label: `${m.fullName} (${m.role})`, value: m.profileId })),
+  ]);
 
   protected readonly coreForm = this.fb.nonNullable.group({ cnjNumber: '', internalRef: '' });
 
@@ -540,9 +517,9 @@ export class ProcessDetailComponent {
       (p.createdBy === this.auth.userId() && p.assignedUserId === this.auth.userId())
     );
   });
-  protected readonly statusTone = (): 'success' | 'neutral' | 'warning' => {
+  protected readonly statusTone = (): 'success' | 'secondary' | 'warn' => {
     const s = this.process()?.status;
-    return s === 'active' ? 'success' : s === 'closed' ? 'neutral' : 'warning';
+    return s === 'active' ? 'success' : s === 'closed' ? 'secondary' : 'warn';
   };
 
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -650,7 +627,7 @@ export class ProcessDetailComponent {
       this.toast.success('Dados atualizados.');
       await this.load();
     } catch (err) {
-      this.msg.set({ tone: 'danger', text: this.humanize(err) });
+      this.msg.set({ tone: 'error', text: this.humanize(err) });
     } finally {
       this.savingCore.set(false);
     }
@@ -662,7 +639,7 @@ export class ProcessDetailComponent {
       await this.service.setStatus(this.id(), status);
       await this.load();
     } catch (err) {
-      this.msg.set({ tone: 'danger', text: this.humanize(err) });
+      this.msg.set({ tone: 'error', text: this.humanize(err) });
     }
   }
 
@@ -684,7 +661,7 @@ export class ProcessDetailComponent {
       this.toast.success('Processo transferido.');
       await this.load();
     } catch (err) {
-      this.msg.set({ tone: 'danger', text: this.humanize(err) });
+      this.msg.set({ tone: 'error', text: this.humanize(err) });
     } finally {
       this.transferring.set(false);
     }
@@ -704,7 +681,7 @@ export class ProcessDetailComponent {
       this.toast.success('Processo excluído.');
       await this.router.navigate(['/processos']);
     } catch (err) {
-      this.msg.set({ tone: 'danger', text: this.humanize(err) });
+      this.msg.set({ tone: 'error', text: this.humanize(err) });
     }
   }
 
@@ -734,7 +711,7 @@ export class ProcessDetailComponent {
       this.results.set([]);
       await this.load();
     } catch (err) {
-      this.msg.set({ tone: 'danger', text: this.humanize(err) });
+      this.msg.set({ tone: 'error', text: this.humanize(err) });
     }
   }
 
@@ -750,7 +727,7 @@ export class ProcessDetailComponent {
       await this.service.detachClient(c.linkId);
       await this.load();
     } catch (err) {
-      this.msg.set({ tone: 'danger', text: this.humanize(err) });
+      this.msg.set({ tone: 'error', text: this.humanize(err) });
     }
   }
 

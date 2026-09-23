@@ -1,33 +1,32 @@
 import { Injectable, inject } from '@angular/core';
-import { Dialog, type DialogRef } from '@angular/cdk/dialog';
-import { ComponentType } from '@angular/cdk/portal';
-import { firstValueFrom } from 'rxjs';
-import { ConfirmDialogComponent, type ConfirmDialogData } from './confirm-dialog.component';
+import { ConfirmationService } from 'primeng/api';
 
-/** Camada fina sobre o CDK Dialog. */
+export interface ConfirmDialogData {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  tone?: 'primary' | 'danger';
+}
+
+/** Camada fina sobre o ConfirmationService/`<p-confirmDialog>` do PrimeNG. */
 @Injectable({ providedIn: 'root' })
 export class DialogService {
-  private readonly dialog = inject(Dialog);
+  private readonly confirmation = inject(ConfirmationService);
 
-  open<TComponent, TData = unknown, TResult = unknown>(
-    component: ComponentType<TComponent>,
-    data?: TData,
-  ): DialogRef<TResult, TComponent> {
-    return this.dialog.open<TResult, TData, TComponent>(component, {
-      data,
-      hasBackdrop: true,
-      autoFocus: 'first-tabbable',
-      restoreFocus: true,
+  /** Resolve `true` se confirmado, `false` se cancelado ou fechado sem escolha. */
+  confirm(data: ConfirmDialogData): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.confirmation.confirm({
+        header: data.title,
+        message: data.message,
+        acceptLabel: data.confirmLabel || 'Confirmar',
+        rejectLabel: data.cancelLabel || 'Cancelar',
+        acceptButtonProps: { severity: data.tone === 'danger' ? 'danger' : 'primary' },
+        rejectButtonProps: { severity: 'secondary', outlined: true },
+        accept: () => resolve(true),
+        reject: () => resolve(false),
+      });
     });
-  }
-
-  /** Diálogo de confirmação. Resolve `true` se confirmado. */
-  async confirm(data: ConfirmDialogData): Promise<boolean> {
-    const ref = this.dialog.open<boolean, ConfirmDialogData>(ConfirmDialogComponent, {
-      data,
-      hasBackdrop: true,
-      autoFocus: 'first-tabbable',
-    });
-    return (await firstValueFrom(ref.closed)) ?? false;
   }
 }

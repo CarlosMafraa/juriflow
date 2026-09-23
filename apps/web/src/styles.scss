@@ -82,3 +82,34 @@ img {
   outline: 2px solid var(--jf-primary);
   outline-offset: 2px;
 }
+
+/* =========================================================================
+   Padrão de campo de formulário (PrimeNG não empacota label/erro prontos).
+   Uso: <div class="field"><label>..</label><input pInputText .. /><small
+   class="field__error">..</small></div>
+   ========================================================================= */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.field > label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.field input,
+.field textarea,
+.field p-select,
+.field .p-select,
+.field .p-inputtext,
+.field .p-inputtextarea {
+  width: 100%;
+}
+.field__error {
+  font-size: 0.75rem;
+  color: var(--jf-danger, #dc2626);
+}
+.field__hint {
+  font-size: 0.75rem;
+  color: var(--jf-text-muted, #64748b);
+}
