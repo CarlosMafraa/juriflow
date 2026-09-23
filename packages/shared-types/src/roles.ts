@@ -29,3 +29,7 @@ export function isSpaceRole(value: string): value is SpaceRole {
 /** Situação do vínculo de um usuário com um espaço. */
 export const SPACE_MEMBER_STATUSES = ['active', 'invited', 'disabled'] as const;
 export type SpaceMemberStatus = (typeof SPACE_MEMBER_STATUSES)[number];
+
+/** Situação de um convite por e-mail (`space_invites`). */
+export const SPACE_INVITE_STATUSES = ['pending', 'accepted', 'cancelled', 'expired'] as const;
+export type SpaceInviteStatus = (typeof SPACE_INVITE_STATUSES)[number];

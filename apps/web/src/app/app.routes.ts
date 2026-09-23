@@ -50,7 +50,9 @@ export const routes: Routes = [
         path: 'processos/:id',
         canActivate: [permissionGuard('space.view')],
         loadComponent: () =>
-          import('./features/processes/process-detail.component').then((m) => m.ProcessDetailComponent),
+          import('./features/processes/process-detail.component').then(
+            (m) => m.ProcessDetailComponent,
+          ),
       },
       {
         path: 'clientes',
@@ -110,13 +112,12 @@ export const routes: Routes = [
           ),
       },
       {
+        // Sem permissionGuard de propósito: um usuário recém-convidado ainda não
+        // tem vínculo em nenhum espaço (por isso não teria `member.view`), mas
+        // precisa conseguir ver e aceitar o convite pendente nesta mesma tela.
         path: 'configuracoes/usuarios',
-        canActivate: [permissionGuard('member.view')],
-        data: { title: 'Usuários do espaço', note: 'Gestão de membros — fase de Multi-tenancy.' },
         loadComponent: () =>
-          import('./features/placeholder/placeholder.component').then(
-            (m) => m.PlaceholderComponent,
-          ),
+          import('./features/team/team-list.component').then((m) => m.TeamListComponent),
       },
       {
         path: 'auditoria',

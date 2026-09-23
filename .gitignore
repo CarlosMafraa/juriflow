@@ -42,3 +42,7 @@ coverage/
 
 # Misc
 .cache/
+
+# Artefatos locais de testes end-to-end manuais (scripts/screenshots ad-hoc)
+.e2e-*/
+.e2e-*.mjs

@@ -8,6 +8,7 @@ interface CourtRow {
   type: CourtType;
   jurisdiction: string;
   datajud_code: string | null;
+  tracking_source_kind: string | null;
   active: boolean;
   created_by: string | null;
   created_at: string;
@@ -28,6 +29,7 @@ function toCourt(r: CourtRow): Court {
     type: r.type,
     jurisdiction: r.jurisdiction,
     datajudCode: r.datajud_code,
+    trackingSourceKind: r.tracking_source_kind,
     active: r.active,
     createdBy: r.created_by,
     createdAt: r.created_at,

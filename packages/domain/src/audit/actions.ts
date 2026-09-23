@@ -13,6 +13,7 @@ export const AUDIT_ACTIONS = {
   spaceSuspend: 'space.suspend',
 
   memberInvite: 'member.invite',
+  memberInviteCancel: 'member.invite.cancel',
   memberAccept: 'member.accept',
   memberRoleUpdate: 'member.role.update',
   memberDeactivate: 'member.deactivate',

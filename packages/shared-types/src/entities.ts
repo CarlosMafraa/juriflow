@@ -1,5 +1,5 @@
 import type { AuditActorType, AuditResult } from './audit.js';
-import type { SpaceMemberStatus, SpaceRole } from './roles.js';
+import type { SpaceInviteStatus, SpaceMemberStatus, SpaceRole } from './roles.js';
 
 /** ISO-8601 timestamp string (as returned by PostgREST). */
 export type IsoDateTime = string;
@@ -41,6 +41,23 @@ export interface SpaceMember {
   acceptedAt: IsoDateTime | null;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime | null;
+}
+
+/**
+ * Convite por e-mail a um espaço (`space_invites`). Ver `member.invite`.
+ * `spaceName`/`token` só vêm preenchidos no resultado de `my_pending_invites`
+ * (o convidado ainda não tem vínculo com o espaço para saber o nome de outra
+ * forma); a listagem do ADMIN no próprio espaço não precisa deles.
+ */
+export interface SpaceInvite {
+  id: Uuid;
+  spaceId: Uuid;
+  spaceName?: string;
+  email: string;
+  role: SpaceRole;
+  status: SpaceInviteStatus;
+  token?: Uuid;
+  expiresAt: IsoDateTime;
 }
 
 /** Registro imutável da trilha de auditoria. */

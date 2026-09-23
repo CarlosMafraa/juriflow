@@ -28,17 +28,22 @@ export class ActiveSpaceService {
 
   constructor() {
     // Mantém a seleção válida conforme os vínculos mudam (login/logout/troca).
-    effect(() => {
-      const spaces = this.availableSpaces();
-      const current = this._activeSpaceId();
-      if (spaces.length === 0) {
-        if (current !== null) this.setActiveSpace(null);
-        return;
-      }
-      if (!current || !spaces.some((s) => s.id === current)) {
-        this.setActiveSpace(spaces[0]!.id);
-      }
-    });
+    // allowSignalWrites: o efeito lê `_activeSpaceId` e pode escrever nele
+    // mesmo (corrigir para um valor válido) — padrão suportado pelo Angular.
+    effect(
+      () => {
+        const spaces = this.availableSpaces();
+        const current = this._activeSpaceId();
+        if (spaces.length === 0) {
+          if (current !== null) this.setActiveSpace(null);
+          return;
+        }
+        if (!current || !spaces.some((s) => s.id === current)) {
+          this.setActiveSpace(spaces[0]!.id);
+        }
+      },
+      { allowSignalWrites: true },
+    );
   }
 
   setActiveSpace(spaceId: string | null): void {

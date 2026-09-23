@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { ActiveSpaceService } from '../../core/authorization/active-space.service';
 import { CardComponent } from '../../shared/ui/card.component';
@@ -8,7 +9,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
   selector: 'jf-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CardComponent, BadgeComponent],
+  imports: [RouterLink, CardComponent, BadgeComponent],
   template: `
     <header class="page-head">
       <h1>Olá{{ name() ? ', ' + name() : '' }}</h1>
@@ -20,6 +21,7 @@ import { BadgeComponent } from '../../shared/ui/badge.component';
           <jf-badge tone="primary">SUPER_ADMIN</jf-badge> — você administra a plataforma.
         } @else {
           Você ainda não faz parte de nenhum espaço.
+          <a routerLink="/configuracoes/usuarios">Ver convites pendentes</a>
         }
       </p>
     </header>

@@ -59,8 +59,23 @@ export class AuthService {
   }
 
   async signInWithPassword(email: string, password: string): Promise<void> {
-    const { error } = await this.supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await this.supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    // Hidrata o contexto (perfil/memberships) já aqui: esperar só pelo evento
+    // assíncrono de onAuthStateChange cria uma corrida com a navegação pós-login
+    // (o guard pode rodar com isAuthenticated() ainda falso).
+    await this.applySession(data.session);
+  }
+
+  /**
+   * Recarrega perfil/memberships sem esperar um evento de auth. Necessário
+   * depois de ações que mudam o próprio vínculo do usuário nesta sessão (ex.:
+   * aceitar um convite) — o contexto não se atualiza por conta própria.
+   */
+  async refreshContext(): Promise<void> {
+    const session = this._session();
+    if (!session) return;
+    this._context.set(await this.loadContext(session));
   }
 
   async signOut(): Promise<void> {
