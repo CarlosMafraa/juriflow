@@ -19,7 +19,12 @@ export class ActiveSpaceService {
     this.auth
       .memberships()
       .filter((m) => m.status === 'active')
-      .map((m) => ({ id: m.spaceId, name: m.spaceName ?? m.spaceId, role: m.role })),
+      .map((m) => ({
+        id: m.spaceId,
+        name: m.spaceName ?? m.spaceId,
+        color: m.spaceColor ?? '#94a3b8',
+        role: m.role,
+      })),
   );
 
   readonly activeSpace = computed(

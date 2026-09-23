@@ -24,6 +24,8 @@ export interface Space {
   name: string;
   slug: string;
   status: 'active' | 'suspended';
+  /** Cor decorativa (hex) — só identificação visual, não é tema. */
+  color: string;
   createdBy: Uuid | null;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime | null;

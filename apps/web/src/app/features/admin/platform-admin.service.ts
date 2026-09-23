@@ -8,6 +8,7 @@ interface SpaceRow {
   name: string;
   slug: string;
   status: Space['status'];
+  color: string;
   created_by: string | null;
   created_at: string;
   updated_at: string | null;
@@ -30,6 +31,7 @@ function toSpace(r: SpaceRow): Space {
     name: r.name,
     slug: r.slug,
     status: r.status,
+    color: r.color,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,

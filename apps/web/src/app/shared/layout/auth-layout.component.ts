@@ -46,10 +46,26 @@ export const DESKTOP_QUERY = '(min-width: 1024px)';
               [ngModel]="activeSpaceId()"
               (ngModelChange)="onSpaceChange($event)"
               ariaLabel="Espaço ativo"
-            />
+            >
+              <ng-template pTemplate="selectedItem" let-space>
+                <span class="space-option">
+                  <span class="dot" [style.background]="space.color"></span>
+                  {{ space.name }}
+                </span>
+              </ng-template>
+              <ng-template pTemplate="item" let-space>
+                <span class="space-option">
+                  <span class="dot" [style.background]="space.color"></span>
+                  {{ space.name }}
+                </span>
+              </ng-template>
+            </p-select>
           </label>
         } @else if (spaces().length === 1) {
-          <span class="topbar__space-name">{{ spaces()[0].name }}</span>
+          <span class="topbar__space-name">
+            <span class="dot" [style.background]="spaces()[0].color"></span>
+            {{ spaces()[0].name }}
+          </span>
         }
 
         <p-button
@@ -105,8 +121,22 @@ export const DESKTOP_QUERY = '(min-width: 1024px)';
         flex: 1;
       }
       .topbar__space-name {
+        display: inline-flex;
+        align-items: center;
         font-size: 0.85rem;
         color: var(--jf-text-muted, #64748b);
+      }
+      .space-option {
+        display: inline-flex;
+        align-items: center;
+      }
+      .dot {
+        display: inline-block;
+        width: 0.6rem;
+        height: 0.6rem;
+        border-radius: 999px;
+        margin-right: 0.4rem;
+        flex: none;
       }
       .body {
         flex: 1;

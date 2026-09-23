@@ -5,6 +5,7 @@ export interface Membership {
   role: SpaceRole;
   status: SpaceMemberStatus;
   spaceName: string | null;
+  spaceColor: string | null;
 }
 
 export interface AuthContext {

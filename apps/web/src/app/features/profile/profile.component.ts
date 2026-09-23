@@ -19,6 +19,33 @@ const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
 
     <div class="grid">
       <p-card header="Dados pessoais">
+        <div class="avatar-row">
+          @if (avatarUrl()) {
+            <img [src]="avatarUrl()" alt="Foto de perfil" class="avatar" />
+          } @else {
+            <span class="avatar avatar--placeholder pi pi-user"></span>
+          }
+          <div>
+            <input
+              #fileInput
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              hidden
+              (change)="onAvatarSelected($event)"
+            />
+            <p-button
+              type="button"
+              size="small"
+              severity="secondary"
+              [outlined]="true"
+              [loading]="uploadingAvatar()"
+              label="Alterar foto"
+              (onClick)="fileInput.click()"
+            />
+            <p class="field__hint">PNG, JPEG ou WebP.</p>
+          </div>
+        </div>
+
         <form class="form" [formGroup]="profileForm" (ngSubmit)="submitProfile()">
           <div class="field">
             <label for="fullName">Nome completo</label>
@@ -96,6 +123,27 @@ const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
         display: flex;
         justify-content: flex-end;
       }
+      .avatar-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+      }
+      .avatar {
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 999px;
+        object-fit: cover;
+        border: 1px solid var(--jf-border, #e2e8f0);
+      }
+      .avatar--placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--jf-bg, #f1f5f9);
+        color: var(--jf-text-muted, #64748b);
+        font-size: 1.5rem;
+      }
     `,
   ],
 })
@@ -107,6 +155,8 @@ export class ProfileComponent {
 
   protected readonly savingProfile = signal(false);
   protected readonly changingPassword = signal(false);
+  protected readonly uploadingAvatar = signal(false);
+  protected readonly avatarUrl = signal<string | null>(null);
 
   protected readonly profileForm = this.fb.nonNullable.group({
     fullName: ['', [Validators.required, Validators.minLength(3)]],
@@ -127,6 +177,29 @@ export class ProfileComponent {
       email: profile?.email ?? '',
     });
     this.profileForm.controls.email.disable();
+    this.avatarUrl.set(profile?.avatarUrl ?? null);
+  }
+
+  protected async onAvatarSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    const userId = this.auth.userId();
+    if (!userId) return;
+
+    this.uploadingAvatar.set(true);
+    try {
+      const url = await this.profileService.uploadAvatar(userId, file);
+      this.avatarUrl.set(url);
+      await this.auth.refreshContext();
+      this.toast.success('Foto de perfil atualizada.');
+    } catch {
+      this.toast.error('Não foi possível atualizar a foto de perfil.');
+    } finally {
+      this.uploadingAvatar.set(false);
+    }
   }
 
   protected showProfileError(name: 'fullName'): boolean {

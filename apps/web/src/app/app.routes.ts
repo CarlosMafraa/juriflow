@@ -91,6 +91,14 @@ export const routes: Routes = [
           import('./features/profile/profile.component').then((m) => m.ProfileComponent),
       },
       {
+        path: 'configuracoes/espaco',
+        canActivate: [permissionGuard('space.manage')],
+        loadComponent: () =>
+          import('./features/settings/space-settings.component').then(
+            (m) => m.SpaceSettingsComponent,
+          ),
+      },
+      {
         path: 'configuracoes/regras',
         canActivate: [permissionGuard('space.manage')],
         loadComponent: () =>

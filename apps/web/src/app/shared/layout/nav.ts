@@ -20,6 +20,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Tribunais', path: '/tribunais', icon: 'pi pi-building' },
   { label: 'Meu perfil', path: '/perfil', icon: 'pi pi-user' },
   {
+    label: 'Dados do espaço',
+    path: '/configuracoes/espaco',
+    icon: 'pi pi-palette',
+    permission: 'space.manage',
+  },
+  {
     label: 'Regras de notificação',
     path: '/configuracoes/regras',
     icon: 'pi pi-bell',
