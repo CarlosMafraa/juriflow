@@ -36,7 +36,8 @@ export interface WorkerConfig {
 
   readonly wahaBaseUrl: string;
   readonly wahaApiKey: string;
-  readonly wahaSession: string;
+  /** Intervalo do polling de whatsapp_sessions (conectar/desconectar/status). */
+  readonly wahaSessionPollMs: number;
 
   readonly tjamProjudiBaseUrl: string;
   readonly scraperHeadless: boolean;
@@ -55,7 +56,7 @@ export function loadConfig(): WorkerConfig {
 
     wahaBaseUrl: required('WAHA_BASE_URL'),
     wahaApiKey: required('WAHA_API_KEY'),
-    wahaSession: optional('WAHA_SESSION', 'default'),
+    wahaSessionPollMs: optionalInt('WAHA_SESSION_POLL_MS', 5000),
 
     tjamProjudiBaseUrl: optional(
       'TJAM_PROJUDI_BASE_URL',

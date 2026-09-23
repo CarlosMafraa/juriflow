@@ -143,7 +143,7 @@ export class TrackProcessUseCase {
         const template = recipient.type === 'responsible' ? responsibleTemplate : clientTemplate;
         const message = template.render({ cnjNumber: process.cnjNumber, movement });
         try {
-          await this.notifier.sendText(recipient.phone, message);
+          await this.notifier.sendText(process.spaceId, recipient.phone, message);
           await this.notificationLog.recordSent({
             spaceId: process.spaceId,
             processId: process.id,

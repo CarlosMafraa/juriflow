@@ -35,15 +35,18 @@ O banco (Supabase) fica na nuvem, fora desta VPS.
    docker compose up -d --build
    ```
 
-4. **Conectar o WhatsApp (QR code)** — feito uma única vez (ou quando a sessão
-   cair). As portas não são expostas publicamente, então use um túnel SSH:
+4. **Conectar o WhatsApp (QR code)** — feito pelo ADMIN de cada espaço, direto
+   no app, em `/configuracoes/whatsapp`: ele clica em "Conectar", o
+   scraper-worker abre uma sessão nomeada para aquele espaço no WAHA (rede
+   interna do compose), busca o QR code e grava em `whatsapp_sessions`
+   (Supabase); a tela do app mostra o QR e atualiza o status assim que a
+   sessão conecta. A porta do WAHA não é exposta publicamente — só o
+   scraper-worker fala com ele. Para depuração administrativa avulsa (não é
+   o fluxo normal de conexão), ainda é possível abrir um túnel SSH:
 
    ```bash
    ssh -L 3000:localhost:3000 usuario@sua-vps
    ```
-
-   Com o túnel aberto, acesse `http://localhost:3000` no seu navegador local
-   para escanear o QR code do WAHA (painel do próprio WAHA).
 
 5. **Verificar que o worker está no ar** (ainda pelo túnel, na porta do
    worker — ajuste a porta local do túnel se usar as duas ao mesmo tempo):

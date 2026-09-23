@@ -109,10 +109,9 @@ export const routes: Routes = [
       {
         path: 'configuracoes/whatsapp',
         canActivate: [permissionGuard('space.manage')],
-        data: { title: 'Integração WhatsApp', note: 'Fase WAHA. Apenas ADMIN.' },
         loadComponent: () =>
-          import('./features/placeholder/placeholder.component').then(
-            (m) => m.PlaceholderComponent,
+          import('./features/settings/whatsapp-settings.component').then(
+            (m) => m.WhatsappSettingsComponent,
           ),
       },
       {
@@ -126,20 +125,14 @@ export const routes: Routes = [
       {
         path: 'auditoria',
         canActivate: [permissionGuard('audit.view')],
-        data: { title: 'Auditoria', note: 'Consulta da trilha — fase de Auditoria.' },
         loadComponent: () =>
-          import('./features/placeholder/placeholder.component').then(
-            (m) => m.PlaceholderComponent,
-          ),
+          import('./features/audit/audit-list.component').then((m) => m.AuditListComponent),
       },
       {
         path: 'admin',
         canActivate: [permissionGuard('platform.admin')],
-        data: { title: 'Administração da plataforma', note: 'Área do SUPER_ADMIN.' },
         loadComponent: () =>
-          import('./features/placeholder/placeholder.component').then(
-            (m) => m.PlaceholderComponent,
-          ),
+          import('./features/admin/admin.component').then((m) => m.AdminComponent),
       },
       {
         path: 'forbidden',

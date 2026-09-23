@@ -1106,7 +1106,7 @@ Priorizando o verificável por teste automatizado.
 | **DP-12** | DataJud como fonte de movimentações em produção (além de estrutural) | cobertura de coleta | disponível como `SourceAdapter`; decidir se é produção |
 | **DP-13** | TJAM/Projudi: mecanismo (API/scraping), de quem são as credenciais, 2FA/captcha | viabilidade da coleta TJAM | adapter isolado; credenciais em Vault; browser headless no worker |
 | **DP-14** | Fuso de referência, janelas de execução, pull-08:00 vs. event-driven | comportamento dos jobs | começar 08:00 (fuso a definir); arquitetura permite evoluir |
-| **DP-15** | Parâmetros de segurança: política de senha, MFA, rate limits, rotação de secrets | segurança | valores concretos a definir; mecanismos já previstos |
+| **DP-15** | Parâmetros de segurança: política de senha, MFA, rate limits, rotação de secrets | segurança | rate limit de login **decidido** (5 tentativas → bloqueio de ~15min via Redis, `ADR-0008` — implementação pendente); política de senha/MFA/rotação de secrets ainda em aberto |
 | **DP-16** | Quais telas são mobile-first obrigatórias | frontend | operação = mobile-first; admin = desktop-first (suspeita) |
 | **DP-17** | Biblioteca de componentes Angular (Material / PrimeNG / CDK puro) | frontend, velocidade | Angular Material + CDK como default |
 | **DP-18** | Nx vs. Turborepo vs. pnpm puro | DX, CI | pnpm workspaces + Nx |

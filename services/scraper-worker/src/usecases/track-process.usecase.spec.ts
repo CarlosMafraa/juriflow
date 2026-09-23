@@ -153,7 +153,11 @@ describe('TrackProcessUseCase — motor de notificações', () => {
     const result = await useCase.execute(PROCESS);
     expect(result.notificationsSent).toBe(1);
     expect(notifier.sendText).toHaveBeenCalledTimes(1);
-    expect(notifier.sendText).toHaveBeenCalledWith('+5592900000002', expect.any(String));
+    expect(notifier.sendText).toHaveBeenCalledWith(
+      PROCESS.spaceId,
+      '+5592900000002',
+      expect.any(String),
+    );
   });
 
   it('notifyClients=false remove os clientes, mas mantém o responsável', async () => {
@@ -162,7 +166,11 @@ describe('TrackProcessUseCase — motor de notificações', () => {
     });
     const result = await useCase.execute(PROCESS);
     expect(result.notificationsSent).toBe(1);
-    expect(notifier.sendText).toHaveBeenCalledWith('+5592900000001', expect.any(String));
+    expect(notifier.sendText).toHaveBeenCalledWith(
+      PROCESS.spaceId,
+      '+5592900000001',
+      expect.any(String),
+    );
   });
 
   it('notifyResponsible=false e notifyClients=false: nenhuma notificação, mesmo com movimentação nova', async () => {
@@ -186,10 +194,10 @@ describe('TrackProcessUseCase — motor de notificações', () => {
     });
     await useCase.execute(PROCESS);
 
-    const responsibleCall = notifier.sendText.mock.calls.find((c) => c[0] === '+5592900000001');
-    const clientCall = notifier.sendText.mock.calls.find((c) => c[0] === '+5592900000002');
-    expect(responsibleCall?.[1]).toBe(`Mensagem custom para ${PROCESS.cnjNumber}`);
-    expect(clientCall?.[1]).toContain('Olá! Houve uma nova movimentação');
+    const responsibleCall = notifier.sendText.mock.calls.find((c) => c[1] === '+5592900000001');
+    const clientCall = notifier.sendText.mock.calls.find((c) => c[1] === '+5592900000002');
+    expect(responsibleCall?.[2]).toBe(`Mensagem custom para ${PROCESS.cnjNumber}`);
+    expect(clientCall?.[2]).toContain('Olá! Houve uma nova movimentação');
   });
 
   it('não reenvia para quem já recebeu esta movimentação (idempotência)', async () => {

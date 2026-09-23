@@ -8,9 +8,13 @@ services:
       WHATSAPP_API_KEY: ${WAHA_API_KEY}
     volumes:
       - waha_sessions:/app/.sessions
-    # Não publicar a porta 3000 na internet: acessar o QR code/painel via
-    # túnel SSH (`ssh -L 3000:localhost:3000 usuario@vps`), nunca exposto
-    # publicamente (RN seção 22 — WAHA é recurso administrativo, só ADMIN).
+    # Nunca publicar a porta 3000 na internet: só o scraper-worker (rede
+    # interna deste compose) fala HTTP com o WAHA. Sessão por espaço,
+    # nome namespaced (`space_<id>`) — RN seção 22 / F12: o QR code de cada
+    # espaço chega ao ADMIN pela própria tela do app (/configuracoes/whatsapp),
+    # via whatsapp_sessions no Supabase; o WAHA em si nunca é acessado direto
+    # pelo navegador (docs/PLANO-FASE-1.md seção 10). Túnel SSH continua
+    # disponível só para depuração administrativa, não é mais o fluxo normal.
 
   scraper-worker:
     build:
@@ -21,8 +25,11 @@ services:
       - .env
     depends_on:
       - waha
-    # Idem: 3000 (HTTP de "consultar agora") não exposto publicamente nesta
-    # fase — sem frontend chamando ainda. Acessar via túnel SSH se precisar testar.
+    # É o único componente que conhece a WAHA_API_KEY: fala com o WAHA na
+    # rede interna do compose, atende os pedidos de conexão/QR/status gravados
+    # em whatsapp_sessions e envia mensagens usando a sessão do espaço do
+    # processo. Porta 3000 (HTTP de "consultar agora") continua sem
+    # publicação externa — acessar via túnel SSH se precisar depurar.
 
 volumes:
   waha_sessions:

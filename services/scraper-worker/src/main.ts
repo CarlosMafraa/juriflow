@@ -10,10 +10,13 @@ import { SupabaseNotificationConfigResolver } from './infra/supabase-notificatio
 import { SupabaseTemplateRepository } from './infra/supabase-template.repository.js';
 import { SupabaseNotificationLog } from './infra/supabase-notification-log.js';
 import { WahaNotifier } from './infra/waha-notifier.js';
+import { WahaSessionGateway } from './infra/waha-session-gateway.js';
+import { SupabaseWhatsappSessionRepository } from './infra/supabase-whatsapp-session.repository.js';
 import { GeneralMovementTemplate } from './domain/message-template.js';
 import { TjamProjudiAdapter } from './adapters/tjam-projudi.adapter.js';
 import { TrackProcessUseCase } from './usecases/track-process.usecase.js';
 import { DailyCheckJob } from './jobs/daily-check.job.js';
+import { WhatsappSessionJob } from './jobs/whatsapp-session.job.js';
 import { createHttpServer } from './http/server.js';
 
 /**
@@ -33,7 +36,7 @@ async function main(): Promise<void> {
   const notificationConfigResolver = new SupabaseNotificationConfigResolver(supabase);
   const templateRepository = new SupabaseTemplateRepository(supabase);
   const notificationLog = new SupabaseNotificationLog(supabase);
-  const notifier = new WahaNotifier(config.wahaBaseUrl, config.wahaApiKey, config.wahaSession);
+  const notifier = new WahaNotifier(config.wahaBaseUrl, config.wahaApiKey);
   const defaultTemplate = new GeneralMovementTemplate();
 
   const tjamAdapter = new TjamProjudiAdapter({
@@ -69,11 +72,30 @@ async function main(): Promise<void> {
   });
   logger.info('Rotina diária agendada.', { cron: config.dailyCheckCron });
 
+  const whatsappSessionGateway = new WahaSessionGateway(config.wahaBaseUrl, config.wahaApiKey);
+  const whatsappSessionRepository = new SupabaseWhatsappSessionRepository(supabase);
+  const whatsappSessionJob = new WhatsappSessionJob(
+    whatsappSessionGateway,
+    whatsappSessionRepository,
+    logger,
+  );
+  const whatsappSessionInterval = setInterval(() => {
+    whatsappSessionJob
+      .tick()
+      .catch((error) =>
+        logger.error('Polling de sessões WhatsApp falhou de forma inesperada.', {
+          error: String(error),
+        }),
+      );
+  }, config.wahaSessionPollMs);
+  logger.info('Polling de sessões WhatsApp agendado.', { intervalMs: config.wahaSessionPollMs });
+
   const server = createHttpServer(useCase, processRepository, logger);
   server.listen(config.httpPort, () => logger.info('Worker no ar.', { port: config.httpPort }));
 
   const shutdown = async (): Promise<void> => {
     logger.info('Encerrando worker...');
+    clearInterval(whatsappSessionInterval);
     server.close();
     await tjamAdapter.dispose();
     process.exit(0);

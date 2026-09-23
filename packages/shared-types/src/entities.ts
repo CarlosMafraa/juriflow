@@ -75,3 +75,26 @@ export interface AuditLog {
   context: Record<string, unknown> | null;
   createdAt: IsoDateTime;
 }
+
+export type WhatsappSessionStatus =
+  | 'disconnected'
+  | 'connecting'
+  | 'qr_ready'
+  | 'connected'
+  | 'failed';
+
+/** Status da sessão WhatsApp (WAHA) de um espaço (`whatsapp_sessions`). */
+export interface WhatsappSession {
+  spaceId: Uuid;
+  sessionName: string;
+  status: WhatsappSessionStatus;
+  pendingAction: 'connect' | 'disconnect' | null;
+  /** Imagem do QR code em base64 (data URL), só presente enquanto status=qr_ready. */
+  qrCode: string | null;
+  lastError: string | null;
+  requestedBy: Uuid | null;
+  requestedAt: IsoDateTime | null;
+  connectedAt: IsoDateTime | null;
+  lastCheckedAt: IsoDateTime | null;
+  updatedAt: IsoDateTime | null;
+}
