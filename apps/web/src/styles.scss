@@ -22,6 +22,22 @@
   --jf-radius: 8px;
   --jf-radius-lg: 12px;
 
+  /* Identidade de marca (telas de autenticação) — ver litigio-link-main/src/styles.css */
+  --jf-font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
+  --jf-gold: oklch(0.74 0.128 78);
+  --jf-gold-foreground: oklch(0.24 0.05 70);
+  --jf-navy: oklch(0.34 0.072 258);
+  --jf-navy-foreground: oklch(0.985 0.005 250);
+  --jf-brand-gradient: linear-gradient(
+    135deg,
+    oklch(0.3 0.06 258) 0%,
+    oklch(0.38 0.08 262) 55%,
+    oklch(0.45 0.07 240) 100%
+  );
+  --jf-shadow-card:
+    0 1px 2px oklch(0.24 0.04 258 / 0.06),
+    0 8px 24px oklch(0.24 0.04 258 / 0.06);
+
   /* Breakpoints do brief (referência): mobile <768, tablet 768-1023, desktop >=1024 */
   --jf-bp-tablet: 768px;
   --jf-bp-desktop: 1024px;

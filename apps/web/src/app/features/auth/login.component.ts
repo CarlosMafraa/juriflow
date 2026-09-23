@@ -21,7 +21,7 @@ import { AuthCardComponent } from './auth-card.component';
     AuthCardComponent,
   ],
   template: `
-    <jf-auth-card title="Entrar no JuriFlow">
+    <jf-auth-card title="Bem-vindo" subtitle="Acesse o painel do seu escritório.">
       <form [formGroup]="form" (ngSubmit)="submit()" class="form">
         @if (error()) {
           <p-message severity="error" [text]="error()" styleClass="w-full" />

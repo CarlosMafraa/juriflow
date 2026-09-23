@@ -18,7 +18,7 @@ import { AuthCardComponent } from './auth-card.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, ButtonModule, InputTextModule, MessageModule, AuthCardComponent],
   template: `
-    <jf-auth-card title="Definir nova senha">
+    <jf-auth-card title="Definir nova senha" subtitle="Escolha uma nova senha para sua conta.">
       <form [formGroup]="form" (ngSubmit)="submit()" class="form">
         @if (error()) {
           <p-message severity="error" [text]="error()" styleClass="w-full" />

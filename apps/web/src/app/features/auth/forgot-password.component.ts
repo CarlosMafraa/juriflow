@@ -20,7 +20,7 @@ import { AuthCardComponent } from './auth-card.component';
     AuthCardComponent,
   ],
   template: `
-    <jf-auth-card title="Recuperar acesso">
+    <jf-auth-card title="Recuperar acesso" subtitle="Informe seu e-mail e enviaremos um link de redefinição.">
       @if (sent()) {
         <p-message severity="success" styleClass="w-full">
           Se existir uma conta para esse e-mail, você receberá um link para redefinir a senha.
@@ -28,7 +28,6 @@ import { AuthCardComponent } from './auth-card.component';
         <a class="link" routerLink="/login">Voltar para o login</a>
       } @else {
         <form [formGroup]="form" (ngSubmit)="submit()" class="form">
-          <p class="hint">Informe seu e-mail e enviaremos um link de redefinição.</p>
           <div class="field">
             <label for="email">E-mail</label>
             <input
@@ -51,11 +50,6 @@ import { AuthCardComponent } from './auth-card.component';
         display: flex;
         flex-direction: column;
         gap: 1rem;
-      }
-      .hint {
-        margin: 0;
-        font-size: 0.85rem;
-        color: var(--jf-text-muted, #64748b);
       }
       .link {
         text-align: center;
