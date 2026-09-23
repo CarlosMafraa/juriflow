@@ -18,6 +18,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Processos', path: '/processos', icon: '⚖', permission: 'space.view' },
   { label: 'Clientes', path: '/clientes', icon: '🧑', permission: 'space.view' },
   { label: 'Tribunais', path: '/tribunais', icon: '🏛' },
+  { label: 'Meu perfil', path: '/perfil', icon: '👤' },
   {
     label: 'Regras de notificação',
     path: '/configuracoes/regras',

@@ -85,6 +85,12 @@ export const routes: Routes = [
           import('./features/courts/court-list.component').then((m) => m.CourtListComponent),
       },
       {
+        // Sem permissionGuard: qualquer usuário autenticado edita o próprio perfil.
+        path: 'perfil',
+        loadComponent: () =>
+          import('./features/profile/profile.component').then((m) => m.ProfileComponent),
+      },
+      {
         path: 'configuracoes/regras',
         canActivate: [permissionGuard('space.manage')],
         data: { title: 'Regras de notificação', note: 'Fase de Notificações.' },
