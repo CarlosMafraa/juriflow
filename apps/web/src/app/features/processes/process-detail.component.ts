@@ -6,6 +6,7 @@ import {
   ProcessService,
   type HistoryRow,
   type LinkedClient,
+  type MovementRow,
   type ProcessDetail,
 } from './process.service';
 import { ClientService } from '../clients/client.service';
@@ -107,6 +108,32 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
             </div>
           }
         </form>
+      </jf-card>
+
+      <jf-card title="Movimentações">
+        @if (movementsLoading()) {
+          <div class="center"><jf-spinner [showLabel]="true" /></div>
+        } @else if (movements().length === 0) {
+          <jf-empty-state
+            title="Nenhuma movimentação coletada"
+            message="A coleta automática roda diariamente. Movimentações aparecem aqui assim que forem encontradas."
+          />
+        } @else {
+          <ol class="movements">
+            @for (m of movements(); track m.id) {
+              <li>
+                <div class="movements__meta">
+                  <span class="movements__date">{{
+                    m.occurredAt ? fmt(m.occurredAt) : 'Sem data'
+                  }}</span>
+                  <jf-badge tone="neutral">{{ sourceLabel(m.sourceKind) }}</jf-badge>
+                </div>
+                <p class="movements__desc">{{ m.description }}</p>
+                <span class="movements__collected">coletado em {{ fmt(m.collectedAt) }}</span>
+              </li>
+            }
+          </ol>
+        }
       </jf-card>
 
       <jf-card title="Clientes vinculados">
@@ -355,6 +382,40 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         align-items: center;
         flex-wrap: wrap;
       }
+      .movements {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+      }
+      .movements li {
+        padding-bottom: 0.9rem;
+        border-bottom: 1px solid var(--jf-border, #e2e8f0);
+      }
+      .movements li:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+      }
+      .movements__meta {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .movements__date {
+        font-size: 0.8125rem;
+        font-weight: 600;
+      }
+      .movements__desc {
+        margin: 0.4rem 0 0.2rem;
+        font-size: 0.9rem;
+      }
+      .movements__collected {
+        font-size: 0.75rem;
+        color: var(--jf-text-muted, #64748b);
+      }
       .attach {
         margin-top: 0.85rem;
       }
@@ -431,6 +492,8 @@ export class ProcessDetailComponent {
   protected readonly loading = signal(true);
   protected readonly process = signal<ProcessDetail | null>(null);
   protected readonly clients = signal<LinkedClient[]>([]);
+  protected readonly movements = signal<MovementRow[]>([]);
+  protected readonly movementsLoading = signal(true);
   protected readonly history = signal<HistoryRow[]>([]);
   protected readonly members = signal<SpaceMemberOption[]>([]);
   protected readonly savingCore = signal(false);
@@ -464,6 +527,10 @@ export class ProcessDetailComponent {
     return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('pt-BR');
   }
 
+  protected sourceLabel(sourceKind: string): string {
+    return sourceKind === 'projudi_tjam' ? 'Projudi/TJAM' : sourceKind;
+  }
+
   protected readonly isAdmin = (): boolean => this.permissions.can('space.manage');
   protected readonly canEdit = computed(() => {
     const p = this.process();
@@ -493,6 +560,10 @@ export class ProcessDetailComponent {
       this.coreForm.patchValue({ cnjNumber: p.cnjNumber ?? '', internalRef: p.internalRef ?? '' });
       const tasks: Promise<unknown>[] = [
         this.service.listClients(p.id).then((c) => this.clients.set(c)),
+        this.service
+          .movements(p.id)
+          .then((m) => this.movements.set(m))
+          .finally(() => this.movementsLoading.set(false)),
       ];
       if (this.isAdmin()) {
         const spaceId = this.activeSpace.activeSpaceId();

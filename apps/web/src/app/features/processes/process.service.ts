@@ -56,6 +56,14 @@ export interface LinkedClient {
   document: string | null;
 }
 
+export interface MovementRow {
+  id: string;
+  description: string;
+  occurredAt: string | null;
+  collectedAt: string;
+  sourceKind: string;
+}
+
 export interface HistoryRow {
   id: string;
   responsibleId: string;
@@ -69,7 +77,10 @@ export interface HistoryRow {
 const SELECT_NAMES =
   '*, courts(name), assigned:profiles!processes_assigned_user_id_fkey(full_name,email), creator:profiles!processes_created_by_fkey(full_name,email)';
 
-type NameRef = { full_name: string | null; email: string } | { full_name: string | null; email: string }[] | null;
+type NameRef =
+  | { full_name: string | null; email: string }
+  | { full_name: string | null; email: string }[]
+  | null;
 const displayName = (n: NameRef): string => {
   const p = Array.isArray(n) ? n[0] : n;
   return p?.full_name || p?.email || '—';
@@ -138,7 +149,11 @@ export class ProcessService {
   }
 
   async getById(id: string): Promise<ProcessDetail | null> {
-    const { data, error } = await this.supabase.from('processes').select(SELECT_NAMES).eq('id', id).maybeSingle();
+    const { data, error } = await this.supabase
+      .from('processes')
+      .select(SELECT_NAMES)
+      .eq('id', id)
+      .maybeSingle();
     if (error) throw error;
     if (!data) return null;
     const r = data as Record<string, unknown>;
@@ -175,7 +190,10 @@ export class ProcessService {
     return { id: (data as { id: string }).id };
   }
 
-  async updateCore(id: string, patch: { cnjNumber?: string | null; internalRef?: string | null }): Promise<void> {
+  async updateCore(
+    id: string,
+    patch: { cnjNumber?: string | null; internalRef?: string | null },
+  ): Promise<void> {
     const row: Record<string, unknown> = {};
     if (patch.cnjNumber !== undefined) row['cnj_number'] = patch.cnjNumber?.trim() || null;
     if (patch.internalRef !== undefined) row['internal_ref'] = patch.internalRef?.trim() || null;
@@ -184,7 +202,10 @@ export class ProcessService {
   }
 
   async setCourt(id: string, courtId: string): Promise<void> {
-    const { error } = await this.supabase.from('processes').update({ court_id: courtId }).eq('id', id);
+    const { error } = await this.supabase
+      .from('processes')
+      .update({ court_id: courtId })
+      .eq('id', id);
     if (error) throw error;
   }
 
@@ -215,8 +236,7 @@ export class ProcessService {
     if (error) throw error;
     return (data ?? []).map((r: Record<string, unknown>) => {
       const c = (Array.isArray(r['clients']) ? r['clients'][0] : r['clients']) as
-        | { name: string; type: 'PF' | 'PJ'; document: string | null }
-        | undefined;
+        { name: string; type: 'PF' | 'PJ'; document: string | null } | undefined;
       return {
         linkId: r['id'] as string,
         clientId: r['client_id'] as string,
@@ -240,6 +260,25 @@ export class ProcessService {
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', linkId);
     if (error) throw error;
+  }
+
+  /** RN seção 46: mais recente primeiro, distinguindo quando ocorreu de quando foi coletada. */
+  async movements(processId: string): Promise<MovementRow[]> {
+    const { data, error } = await this.supabase
+      .from('process_movements')
+      .select('id, description, occurred_at, collected_at, source_kind')
+      .eq('process_id', processId)
+      .order('occurred_at', { ascending: false, nullsFirst: false })
+      .order('collected_at', { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    return (data ?? []).map((r: Record<string, unknown>) => ({
+      id: r['id'] as string,
+      description: r['description'] as string,
+      occurredAt: (r['occurred_at'] as string) ?? null,
+      collectedAt: r['collected_at'] as string,
+      sourceKind: r['source_kind'] as string,
+    }));
   }
 
   async history(processId: string): Promise<HistoryRow[]> {
