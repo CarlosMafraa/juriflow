@@ -135,22 +135,43 @@ import { CardModule } from 'primeng/card';
         width: 100%;
         max-width: 26rem;
         box-shadow: var(--jf-shadow-card);
-        border-radius: var(--jf-radius-lg);
+        border-radius: 1rem;
+        /* Campos/botões desta tela usam as métricas do protótipo (shadcn Input/Button:
+           h-9, px-3, rounded-md) via os tokens compartilhados do PrimeNG. */
+        --p-form-field-padding-x: 0.75rem;
+        --p-form-field-padding-y: 0.375rem;
+        --p-form-field-border-radius: 0.625rem;
+        --p-button-padding-x: 1rem;
+        --p-button-padding-y: 0.375rem;
       }
       .panel__header {
         margin-bottom: 1.25rem;
       }
       .panel__header h1 {
         font-family: var(--jf-font-display);
-        font-size: 1.4rem;
+        font-size: 1.5rem;
         font-weight: 600;
-        letter-spacing: -0.01em;
+        letter-spacing: -0.015em;
         margin: 0 0 0.35rem;
       }
       .panel__header p {
         margin: 0;
-        font-size: 0.85rem;
+        font-size: 0.875rem;
         color: var(--jf-text-muted, #64748b);
+      }
+      /* Campos: mesma tipografia/altura do Input do protótipo (h-9, text-sm). */
+      :host ::ng-deep .panel__card .field {
+        gap: 0.5rem;
+      }
+      :host ::ng-deep .panel__card .field > label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--jf-text, #0f172a);
+      }
+      :host ::ng-deep .panel__card input.p-inputtext {
+        height: 2.25rem;
+        font-size: 0.875rem;
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 5%);
       }
       /* Cor de marca só nestas telas — não é o tema global do PrimeNG. */
       :host ::ng-deep .panel__card .p-button:not(.p-button-outlined):not(.p-button-text) {
@@ -160,6 +181,11 @@ import { CardModule } from 'primeng/card';
       :host ::ng-deep .panel__card .p-button:not(.p-button-outlined):not(.p-button-text):not(:disabled):hover {
         background: oklch(0.28 0.07 258);
         border-color: oklch(0.28 0.07 258);
+      }
+      :host ::ng-deep .panel__card .p-button {
+        height: 2.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
       }
     `,
   ],
