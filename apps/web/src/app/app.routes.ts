@@ -93,19 +93,17 @@ export const routes: Routes = [
       {
         path: 'configuracoes/regras',
         canActivate: [permissionGuard('space.manage')],
-        data: { title: 'Regras de notificação', note: 'Fase de Notificações.' },
         loadComponent: () =>
-          import('./features/placeholder/placeholder.component').then(
-            (m) => m.PlaceholderComponent,
+          import('./features/settings/notification-settings.component').then(
+            (m) => m.NotificationSettingsComponent,
           ),
       },
       {
         path: 'configuracoes/templates',
         canActivate: [permissionGuard('space.manage')],
-        data: { title: 'Templates de mensagem', note: 'Fase de Notificações.' },
         loadComponent: () =>
-          import('./features/placeholder/placeholder.component').then(
-            (m) => m.PlaceholderComponent,
+          import('./features/settings/template-list.component').then(
+            (m) => m.TemplateListComponent,
           ),
       },
       {

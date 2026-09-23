@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import type { Client } from '@juriflow/shared-types';
+import type { Client, MessageTemplate } from '@juriflow/shared-types';
 import {
   ProcessService,
   type HistoryRow,
@@ -9,6 +9,8 @@ import {
   type ProcessDetail,
 } from './process.service';
 import { ClientService } from '../clients/client.service';
+import { NotificationConfigService } from '../settings/notification-config.service';
+import { TemplateService } from '../settings/template.service';
 import { SpaceMembersService, type SpaceMemberOption } from '../../core/data/space-members.service';
 import { ActiveSpaceService } from '../../core/authorization/active-space.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -40,9 +42,14 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
     @if (loading()) {
       <div class="center"><jf-spinner [showLabel]="true" /></div>
     } @else if (!process()) {
-      <jf-empty-state title="Processo não encontrado" message="Ele pode ter sido transferido, arquivado ou você não tem acesso.">
+      <jf-empty-state
+        title="Processo não encontrado"
+        message="Ele pode ter sido transferido, arquivado ou você não tem acesso."
+      >
         <span empty-icon>🔒</span>
-        <a empty-action routerLink="/processos"><jf-button variant="secondary">Voltar</jf-button></a>
+        <a empty-action routerLink="/processos"
+          ><jf-button variant="secondary">Voltar</jf-button></a
+        >
       </jf-empty-state>
     } @else {
       <header class="head">
@@ -85,9 +92,15 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
             <span>Referência interna</span>
             <input formControlName="internalRef" [readonly]="!canEdit()" placeholder="—" />
           </label>
-          <div class="ro"><span>Tribunal</span><strong>{{ process()!.courtName }}</strong></div>
-          <div class="ro"><span>Responsável atual</span><strong>{{ process()!.assignedName }}</strong></div>
-          <div class="ro"><span>Cadastrado por</span><strong>{{ process()!.creatorName }}</strong></div>
+          <div class="ro">
+            <span>Tribunal</span><strong>{{ process()!.courtName }}</strong>
+          </div>
+          <div class="ro">
+            <span>Responsável atual</span><strong>{{ process()!.assignedName }}</strong>
+          </div>
+          <div class="ro">
+            <span>Cadastrado por</span><strong>{{ process()!.creatorName }}</strong>
+          </div>
           @if (canEdit()) {
             <div class="core-actions">
               <jf-button type="submit" size="sm" [loading]="savingCore()">Salvar dados</jf-button>
@@ -114,12 +127,19 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         }
         @if (canEdit()) {
           <div class="attach">
-            <input type="text" placeholder="Buscar cliente por nome" [value]="term()" (input)="onSearch($event)" />
+            <input
+              type="text"
+              placeholder="Buscar cliente por nome"
+              [value]="term()"
+              (input)="onSearch($event)"
+            />
             @if (results().length) {
               <ul class="results">
                 @for (r of results(); track r.id) {
                   <li>
-                    <span>{{ r.name }} <small class="muted">{{ r.type }}</small></span>
+                    <span
+                      >{{ r.name }} <small class="muted">{{ r.type }}</small></span
+                    >
                     <jf-button size="sm" variant="ghost" (click)="attach(r)">Vincular</jf-button>
                   </li>
                 }
@@ -129,10 +149,83 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         }
       </jf-card>
 
+      @if (canEdit()) {
+        <jf-card title="Notificações deste processo">
+          @if (notifLoading()) {
+            <div class="center"><jf-spinner [showLabel]="true" /></div>
+          } @else if (!notifOverride()) {
+            <p class="muted">Este processo usa a configuração geral do espaço.</p>
+            <jf-button size="sm" variant="secondary" (click)="enableNotifOverride()"
+              >Personalizar</jf-button
+            >
+          } @else {
+            <div class="notif-row">
+              <label class="chk">
+                <input
+                  type="checkbox"
+                  [checked]="notifResponsible()"
+                  (change)="notifResponsible.set($any($event.target).checked)"
+                />
+                Notificar o responsável
+              </label>
+              <select
+                class="f"
+                [disabled]="!notifResponsible()"
+                (change)="notifResponsibleTemplateId.set($any($event.target).value)"
+              >
+                <option value="" [selected]="notifResponsibleTemplateId() === ''">
+                  Mensagem genérica embutida
+                </option>
+                @for (t of notifResponsibleTemplates(); track t.id) {
+                  <option [value]="t.id" [selected]="t.id === notifResponsibleTemplateId()">
+                    {{ t.name }}
+                  </option>
+                }
+              </select>
+            </div>
+            <div class="notif-row">
+              <label class="chk">
+                <input
+                  type="checkbox"
+                  [checked]="notifClients()"
+                  (change)="notifClients.set($any($event.target).checked)"
+                />
+                Notificar os clientes
+              </label>
+              <select
+                class="f"
+                [disabled]="!notifClients()"
+                (change)="notifClientTemplateId.set($any($event.target).value)"
+              >
+                <option value="" [selected]="notifClientTemplateId() === ''">
+                  Mensagem genérica embutida
+                </option>
+                @for (t of notifClientTemplates(); track t.id) {
+                  <option [value]="t.id" [selected]="t.id === notifClientTemplateId()">
+                    {{ t.name }}
+                  </option>
+                }
+              </select>
+            </div>
+            <div class="core-actions">
+              <jf-button size="sm" [loading]="notifSaving()" (click)="saveNotifOverride()"
+                >Salvar</jf-button
+              >
+              <jf-button size="sm" variant="ghost" (click)="removeNotifOverride()"
+                >Voltar ao padrão do espaço</jf-button
+              >
+            </div>
+          }
+        </jf-card>
+      }
+
       @if (isAdmin()) {
         <jf-card title="Transferência de responsabilidade">
           <div class="transfer">
-            <select [value]="transferTarget()" (change)="transferTarget.set($any($event.target).value)">
+            <select
+              [value]="transferTarget()"
+              (change)="transferTarget.set($any($event.target).value)"
+            >
               <option value="">Selecione o novo responsável…</option>
               @for (m of members(); track m.profileId) {
                 @if (m.profileId !== process()!.assignedUserId) {
@@ -140,10 +233,16 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
                 }
               }
             </select>
-            <jf-button [disabled]="!transferTarget()" [loading]="transferring()" (click)="transfer()">Transferir</jf-button>
+            <jf-button
+              [disabled]="!transferTarget()"
+              [loading]="transferring()"
+              (click)="transfer()"
+              >Transferir</jf-button
+            >
           </div>
           <p class="muted small">
-            O responsável anterior perde o acesso ao processo imediatamente. O histórico é preservado.
+            O responsável anterior perde o acesso ao processo imediatamente. O histórico é
+            preservado.
           </p>
         </jf-card>
 
@@ -154,7 +253,13 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Responsável</th><th>Motivo</th><th>Início</th><th>Fim</th><th>Atribuído por</th></tr>
+                  <tr>
+                    <th>Responsável</th>
+                    <th>Motivo</th>
+                    <th>Início</th>
+                    <th>Fim</th>
+                    <th>Atribuído por</th>
+                  </tr>
                 </thead>
                 <tbody>
                   @for (h of history(); track h.id) {
@@ -268,6 +373,28 @@ import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
         align-items: center;
         flex-wrap: wrap;
       }
+      .notif-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.6rem 0;
+        border-bottom: 1px solid var(--jf-border, #e2e8f0);
+      }
+      .chk {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        min-width: 14rem;
+      }
+      .notif-row .f {
+        font: inherit;
+        padding: 0.4rem 0.6rem;
+        border: 1px solid var(--jf-border, #cbd5e1);
+        border-radius: var(--jf-radius, 8px);
+        min-width: 14rem;
+      }
       .table-wrap {
         overflow-x: auto;
       }
@@ -298,6 +425,8 @@ export class ProcessDetailComponent {
   private readonly dialog = inject(DialogService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly notifConfigService = inject(NotificationConfigService);
+  private readonly templateService = inject(TemplateService);
 
   protected readonly loading = signal(true);
   protected readonly process = signal<ProcessDetail | null>(null);
@@ -309,7 +438,24 @@ export class ProcessDetailComponent {
   protected readonly transferTarget = signal('');
   protected readonly term = signal('');
   protected readonly results = signal<Client[]>([]);
-  protected readonly msg = signal<{ tone: 'danger' | 'success' | 'warning'; text: string } | null>(null);
+  protected readonly msg = signal<{ tone: 'danger' | 'success' | 'warning'; text: string } | null>(
+    null,
+  );
+
+  protected readonly notifLoading = signal(true);
+  protected readonly notifOverride = signal(false);
+  protected readonly notifSaving = signal(false);
+  protected readonly notifResponsible = signal(true);
+  protected readonly notifClients = signal(true);
+  protected readonly notifResponsibleTemplateId = signal('');
+  protected readonly notifClientTemplateId = signal('');
+  private readonly notifTemplates = signal<MessageTemplate[]>([]);
+  protected readonly notifResponsibleTemplates = computed(() =>
+    this.notifTemplates().filter((t) => t.audience === 'responsible'),
+  );
+  protected readonly notifClientTemplates = computed(() =>
+    this.notifTemplates().filter((t) => t.audience === 'client'),
+  );
 
   protected readonly coreForm = this.fb.nonNullable.group({ cnjNumber: '', internalRef: '' });
 
@@ -351,13 +497,72 @@ export class ProcessDetailComponent {
       if (this.isAdmin()) {
         const spaceId = this.activeSpace.activeSpaceId();
         tasks.push(this.service.history(p.id).then((h) => this.history.set(h)));
-        if (spaceId) tasks.push(this.membersService.listActive(spaceId).then((m) => this.members.set(m)));
+        if (spaceId)
+          tasks.push(this.membersService.listActive(spaceId).then((m) => this.members.set(m)));
       }
+      if (this.canEdit()) tasks.push(this.loadNotifConfig(p.id));
       await Promise.all(tasks);
     } catch {
       this.toast.error('Não foi possível carregar o processo.');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  private async loadNotifConfig(processId: string): Promise<void> {
+    this.notifLoading.set(true);
+    try {
+      const [config, templates] = await Promise.all([
+        this.notifConfigService.getForProcess(processId),
+        this.templateService.list(),
+      ]);
+      this.notifTemplates.set(templates);
+      this.notifOverride.set(config !== null);
+      if (config) {
+        this.notifResponsible.set(config.notifyResponsible ?? true);
+        this.notifClients.set(config.notifyClients ?? true);
+        this.notifResponsibleTemplateId.set(config.responsibleTemplateId ?? '');
+        this.notifClientTemplateId.set(config.clientTemplateId ?? '');
+      }
+    } catch {
+      this.toast.error('Não foi possível carregar as notificações do processo.');
+    } finally {
+      this.notifLoading.set(false);
+    }
+  }
+
+  protected enableNotifOverride(): void {
+    this.notifOverride.set(true);
+  }
+
+  protected async saveNotifOverride(): Promise<void> {
+    const p = this.process();
+    if (!p) return;
+    this.notifSaving.set(true);
+    try {
+      await this.notifConfigService.upsertForProcess(p.id, {
+        notifyResponsible: this.notifResponsible(),
+        notifyClients: this.notifClients(),
+        responsibleTemplateId: this.notifResponsibleTemplateId() || null,
+        clientTemplateId: this.notifClientTemplateId() || null,
+      });
+      this.toast.success('Notificações do processo atualizadas.');
+    } catch {
+      this.toast.error('Não foi possível salvar as notificações do processo.');
+    } finally {
+      this.notifSaving.set(false);
+    }
+  }
+
+  protected async removeNotifOverride(): Promise<void> {
+    const p = this.process();
+    if (!p) return;
+    try {
+      await this.notifConfigService.clearProcessOverride(p.id);
+      this.notifOverride.set(false);
+      this.toast.success('Processo voltou a usar o padrão do espaço.');
+    } catch {
+      this.toast.error('Não foi possível remover a personalização.');
     }
   }
 
@@ -393,7 +598,8 @@ export class ProcessDetailComponent {
   protected async transfer(): Promise<void> {
     const target = this.transferTarget();
     if (!target) return;
-    const name = this.members().find((m) => m.profileId === target)?.fullName ?? 'o usuário selecionado';
+    const name =
+      this.members().find((m) => m.profileId === target)?.fullName ?? 'o usuário selecionado';
     const ok = await this.dialog.confirm({
       title: 'Transferir processo',
       message: `Transferir a responsabilidade para ${name}? O responsável atual perde o acesso imediatamente.`,
@@ -416,7 +622,8 @@ export class ProcessDetailComponent {
   protected async remove(): Promise<void> {
     const ok = await this.dialog.confirm({
       title: 'Excluir processo',
-      message: 'O processo deixará de aparecer nas listagens. O histórico e a auditoria são preservados.',
+      message:
+        'O processo deixará de aparecer nas listagens. O histórico e a auditoria são preservados.',
       confirmLabel: 'Excluir',
       tone: 'danger',
     });
@@ -478,12 +685,16 @@ export class ProcessDetailComponent {
 
   private humanize(err: unknown): string {
     const m = (err as { message?: string })?.message ?? '';
-    if (m.includes('Encerrar ou reabrir')) return 'Encerrar ou reabrir um processo é ação de ADMIN.';
-    if (m.includes('Transferência de responsável é ação de ADMIN')) return 'Só ADMIN transfere processos.';
+    if (m.includes('Encerrar ou reabrir'))
+      return 'Encerrar ou reabrir um processo é ação de ADMIN.';
+    if (m.includes('Transferência de responsável é ação de ADMIN'))
+      return 'Só ADMIN transfere processos.';
     if (m.includes('Alterar o tribunal')) return 'Só ADMIN altera o tribunal do processo.';
-    if (m.includes('novo responsável deve ser um membro ativo')) return 'O novo responsável precisa ser membro ativo do espaço.';
+    if (m.includes('novo responsável deve ser um membro ativo'))
+      return 'O novo responsável precisa ser membro ativo do espaço.';
     if (m.includes('já é o responsável atual')) return 'Esse usuário já é o responsável atual.';
-    if (m.includes('processes_cnj_uniq')) return 'Já existe um processo com esse número CNJ neste espaço.';
+    if (m.includes('processes_cnj_uniq'))
+      return 'Já existe um processo com esse número CNJ neste espaço.';
     if (m.includes('row-level security') || m.includes('permissão') || m.includes('permission'))
       return 'Você não tem permissão para esta ação.';
     return 'Não foi possível concluir a operação.';

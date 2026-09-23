@@ -6,13 +6,17 @@
 -- ---------------------------------------------------------------------------
 -- Fase 3: catálogo mínimo de tribunais para desenvolvimento local.
 -- NÃO é a sincronização com o DataJud (fase futura) — apenas alguns registros
--- para o app ser utilizável. Idempotente por (name, jurisdiction).
+-- para o app ser utilizável.
+-- `courts` não tem unique constraint em (name, jurisdiction) — "on conflict do
+-- nothing" aqui só protege contra o datajud_code (sempre nulo nestas linhas),
+-- não evita duplicata real. Por isso o TJAM NÃO está listado abaixo: já é
+-- inserido pela migration 0017 (com tracking_source_kind='projudi_tjam');
+-- repetir aqui duplicaria a linha a cada `db reset`.
 -- ---------------------------------------------------------------------------
 insert into public.courts (name, type, jurisdiction) values
   ('Supremo Tribunal Federal', 'STF', 'nacional'),
   ('Superior Tribunal de Justiça', 'STJ', 'nacional'),
   ('Tribunal Superior do Trabalho', 'TST', 'trabalhista'),
-  ('Tribunal de Justiça do Amazonas', 'TJ', 'AM'),
   ('Tribunal de Justiça de São Paulo', 'TJ', 'SP'),
   ('Tribunal de Justiça do Rio de Janeiro', 'TJ', 'RJ'),
   ('Tribunal Regional Federal da 1ª Região', 'TRF', 'federal'),

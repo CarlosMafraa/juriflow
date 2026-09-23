@@ -1,12 +1,14 @@
 import type { RawMovement, SourceRegistry } from '@juriflow/collectors-core';
 import type { Logger } from '../infra/logger.js';
 import { computeMovementContentHash, computeStateHash } from '../domain/hashing.js';
-import type { MessageTemplate } from '../domain/message-template.js';
+import { PlaceholderMovementTemplate, type MessageTemplate } from '../domain/message-template.js';
+import type { NotificationConfigResolver } from '../ports/notification-config.port.js';
 import type { NotificationLog } from '../ports/notification-log.port.js';
 import type { Notifier } from '../ports/notifier.port.js';
 import type { MovementRepository, StoredMovement } from '../ports/movement-repository.port.js';
 import type { ProcessRepository, TrackableProcess } from '../ports/process-repository.port.js';
 import type { RecipientResolver } from '../ports/recipient-resolver.port.js';
+import type { TemplateRepository } from '../ports/template-repository.port.js';
 
 export interface TrackProcessResult {
   readonly processId: string;
@@ -17,7 +19,8 @@ export interface TrackProcessResult {
 
 /**
  * Orquestrador único do pipeline (RN seção 21):
- *   fonte → normaliza (hash) → histórico → detector de mudança → destinatários → notifica → estado.
+ *   fonte → normaliza (hash) → histórico → detector de mudança → config de
+ *   notificação → destinatários elegíveis → template → notifica → estado.
  *
  * Depende só de portas (SourceRegistry do collectors-core + as ports locais).
  * Nenhuma classe aqui sabe o que é Postgres, Playwright ou WAHA — isso é
@@ -29,9 +32,12 @@ export class TrackProcessUseCase {
     private readonly processRepository: ProcessRepository,
     private readonly movementRepository: MovementRepository,
     private readonly recipientResolver: RecipientResolver,
+    private readonly notificationConfigResolver: NotificationConfigResolver,
+    private readonly templateRepository: TemplateRepository,
     private readonly notifier: Notifier,
     private readonly notificationLog: NotificationLog,
-    private readonly messageTemplate: MessageTemplate,
+    /** Fallback quando espaço/processo não têm template próprio configurado. */
+    private readonly defaultTemplate: MessageTemplate,
     private readonly logger: Logger,
   ) {}
 
@@ -112,8 +118,16 @@ export class TrackProcessUseCase {
     process: TrackableProcess,
     insertedMovements: readonly StoredMovement[],
   ): Promise<{ sent: number; failed: number }> {
-    const recipients = await this.recipientResolver.resolveRecipients(process.id);
+    const config = await this.notificationConfigResolver.resolve(process.id, process.spaceId);
+
+    const allRecipients = await this.recipientResolver.resolveRecipients(process.id);
+    const recipients = allRecipients.filter((r) =>
+      r.type === 'responsible' ? config.notifyResponsible : config.notifyClients,
+    );
     if (recipients.length === 0) return { sent: 0, failed: 0 };
+
+    const responsibleTemplate = await this.resolveTemplate(config.responsibleTemplateId);
+    const clientTemplate = await this.resolveTemplate(config.clientTemplateId);
 
     let sent = 0;
     let failed = 0;
@@ -126,7 +140,8 @@ export class TrackProcessUseCase {
         );
         if (alreadySent) continue;
 
-        const message = this.messageTemplate.render({ cnjNumber: process.cnjNumber, movement });
+        const template = recipient.type === 'responsible' ? responsibleTemplate : clientTemplate;
+        const message = template.render({ cnjNumber: process.cnjNumber, movement });
         try {
           await this.notifier.sendText(recipient.phone, message);
           await this.notificationLog.recordSent({
@@ -154,5 +169,11 @@ export class TrackProcessUseCase {
       }
     }
     return { sent, failed };
+  }
+
+  private async resolveTemplate(templateId: string | null): Promise<MessageTemplate> {
+    if (!templateId) return this.defaultTemplate;
+    const body = await this.templateRepository.getBodyById(templateId);
+    return body ? new PlaceholderMovementTemplate(body) : this.defaultTemplate;
   }
 }

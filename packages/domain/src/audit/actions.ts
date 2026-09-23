@@ -49,6 +49,16 @@ export const AUDIT_ACTIONS = {
   processMovementCollected: 'process.movement.collected',
   notificationDeliverySent: 'notification.delivery.sent',
   notificationDeliveryFailed: 'notification.delivery.failed',
+
+  // Motor de notificações configurável — templates + config geral/por processo
+  templateCreate: 'template.create',
+  templateUpdate: 'template.update',
+  templateDelete: 'template.delete',
+  spaceNotificationConfigCreate: 'notification_config.space.create',
+  spaceNotificationConfigUpdate: 'notification_config.space.update',
+  processNotificationConfigCreate: 'notification_config.process.create',
+  processNotificationConfigUpdate: 'notification_config.process.update',
+  processNotificationConfigDelete: 'notification_config.process.delete',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

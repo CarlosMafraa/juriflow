@@ -6,6 +6,8 @@ import { createSupabaseClient } from './infra/supabase-client.js';
 import { SupabaseProcessRepository } from './infra/supabase-process.repository.js';
 import { SupabaseMovementRepository } from './infra/supabase-movement.repository.js';
 import { SupabaseRecipientResolver } from './infra/supabase-recipient-resolver.js';
+import { SupabaseNotificationConfigResolver } from './infra/supabase-notification-config-resolver.js';
+import { SupabaseTemplateRepository } from './infra/supabase-template.repository.js';
 import { SupabaseNotificationLog } from './infra/supabase-notification-log.js';
 import { WahaNotifier } from './infra/waha-notifier.js';
 import { GeneralMovementTemplate } from './domain/message-template.js';
@@ -28,9 +30,11 @@ async function main(): Promise<void> {
   const processRepository = new SupabaseProcessRepository(supabase);
   const movementRepository = new SupabaseMovementRepository(supabase);
   const recipientResolver = new SupabaseRecipientResolver(supabase);
+  const notificationConfigResolver = new SupabaseNotificationConfigResolver(supabase);
+  const templateRepository = new SupabaseTemplateRepository(supabase);
   const notificationLog = new SupabaseNotificationLog(supabase);
   const notifier = new WahaNotifier(config.wahaBaseUrl, config.wahaApiKey, config.wahaSession);
-  const messageTemplate = new GeneralMovementTemplate();
+  const defaultTemplate = new GeneralMovementTemplate();
 
   const tjamAdapter = new TjamProjudiAdapter({
     baseUrl: config.tjamProjudiBaseUrl,
@@ -47,9 +51,11 @@ async function main(): Promise<void> {
     processRepository,
     movementRepository,
     recipientResolver,
+    notificationConfigResolver,
+    templateRepository,
     notifier,
     notificationLog,
-    messageTemplate,
+    defaultTemplate,
     logger,
   );
 

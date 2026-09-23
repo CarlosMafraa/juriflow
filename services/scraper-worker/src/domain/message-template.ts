@@ -7,9 +7,11 @@ export interface MovementMessageInput {
 }
 
 /**
- * Porta de template — hoje só existe `GeneralMovementTemplate` (RN seção 11:
- * "1 template geral" no MVP). Templates por status/destinatário (Fase 10)
- * entram como novas implementações desta interface, sem tocar no pipeline.
+ * Porta de template. `GeneralMovementTemplate` é o fallback embutido (RN seção
+ * 11) usado quando o espaço/processo não tem template próprio configurado;
+ * `PlaceholderMovementTemplate` renderiza o texto que o ADMIN cadastrou em
+ * `message_templates`. O pipeline (TrackProcessUseCase) não sabe qual delas
+ * está em uso — só chama `render()`.
  */
 export interface MessageTemplate {
   render(input: MovementMessageInput): string;
@@ -25,5 +27,23 @@ export class GeneralMovementTemplate implements MessageTemplate {
       `Data: ${date}\n` +
       `Movimentação: ${movement.description}`
     );
+  }
+}
+
+/**
+ * Template configurável pelo ADMIN (tabela `message_templates`). Placeholders
+ * suportados: `{{numero_processo}}`, `{{movimentacao}}`, `{{data}}`.
+ */
+export class PlaceholderMovementTemplate implements MessageTemplate {
+  constructor(private readonly body: string) {}
+
+  render({ cnjNumber, movement }: MovementMessageInput): string {
+    const date = movement.occurredAt
+      ? new Date(movement.occurredAt).toLocaleDateString('pt-BR')
+      : 'data não informada';
+    return this.body
+      .replaceAll('{{numero_processo}}', cnjNumber)
+      .replaceAll('{{movimentacao}}', movement.description)
+      .replaceAll('{{data}}', date);
   }
 }

@@ -11,7 +11,10 @@ export interface SpaceMemberOption {
 interface Row {
   profile_id: string;
   role: SpaceRole;
-  profiles: { full_name: string | null; email: string } | { full_name: string | null; email: string }[] | null;
+  profiles:
+    | { full_name: string | null; email: string }
+    | { full_name: string | null; email: string }[]
+    | null;
 }
 
 /** Membros ativos de um espaço — para selecionar responsável e transferir processos. */
@@ -20,9 +23,11 @@ export class SpaceMembersService {
   private readonly supabase = inject(SUPABASE_CLIENT);
 
   async listActive(spaceId: string): Promise<SpaceMemberOption[]> {
+    // `profiles!space_members_profile_id_fkey` desambigua: space_members tem
+    // 2 FKs para profiles (profile_id e invited_by) — embed simples é ambíguo.
     const { data, error } = await this.supabase
       .from('space_members')
-      .select('profile_id, role, profiles(full_name, email)')
+      .select('profile_id, role, profiles!space_members_profile_id_fkey(full_name, email)')
       .eq('space_id', spaceId)
       .eq('status', 'active');
     if (error) throw error;
