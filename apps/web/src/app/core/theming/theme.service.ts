@@ -62,6 +62,14 @@ export class ThemeService {
   /**
    * Sobrescreve só os tokens de botão do PrimeNG (nunca `surface`, usado em
    * cards/tabelas/bordas — mudar isso afetaria a UI inteira, não só botões).
+   *
+   * Achado testando no navegador: nas variantes outlined/text, o PrimeNG NÃO
+   * troca a cor do texto no hover (só o fundo) — `hoverColor`/`activeColor`
+   * são ignorados nelas. Por isso o texto fica FIXO num tom com contraste
+   * garantido contra o fundo do card (escuro no claro, claro no escuro — a
+   * cor crua escolhida pode ser clara, tipo amarelo, e sozinha não contrasta
+   * com nada), e o hover usa um tom que contrasta com ESSE texto fixo, não
+   * tenta recolorir o texto.
    */
   private applyButtonPalette(secondaryHex: string): void {
     const pal = generatePalette(secondaryHex);
@@ -70,32 +78,25 @@ export class ThemeService {
       hoverColor: secondaryHex,
       activeColor: secondaryHex,
     };
-    // Todo estado (normal/hover/active) definido explicitamente — nada fica
-    // "sem valor" pra herdar o cinza quase-branco padrão do PrimeNG, que se
-    // perdia contra o fundo branco do card.
     const secondaryLight = {
       background: 'transparent',
       hoverBackground: pal['100'],
       activeBackground: pal['200'],
-      borderColor: secondaryHex,
+      borderColor: pal['700'],
       hoverBorderColor: pal['700'],
       activeBorderColor: pal['800'],
-      color: secondaryHex,
-      hoverColor: pal['700'],
-      activeColor: pal['800'],
-      focusRing: { color: secondaryHex, shadow: 'none' },
+      color: pal['700'],
+      focusRing: { color: pal['700'], shadow: 'none' },
     };
     const secondaryDark = {
       background: 'transparent',
       hoverBackground: pal['800'],
       activeBackground: pal['700'],
-      borderColor: secondaryHex,
+      borderColor: pal['300'],
       hoverBorderColor: pal['300'],
       activeBorderColor: pal['200'],
-      color: secondaryHex,
-      hoverColor: pal['300'],
-      activeColor: pal['200'],
-      focusRing: { color: secondaryHex, shadow: 'none' },
+      color: pal['300'],
+      focusRing: { color: pal['300'], shadow: 'none' },
     };
     updatePreset({
       components: {
