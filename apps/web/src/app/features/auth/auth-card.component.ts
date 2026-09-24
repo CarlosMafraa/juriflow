@@ -137,6 +137,11 @@ import { CardModule } from 'primeng/card';
         width: 100%;
         max-width: 26rem;
       }
+      /*
+       * Mobile/tablet (sem o painel de marca ao lado): o card é a única peça
+       * visual da tela, então o box branco com sombra faz sentido — é o
+       * padrão comum de tela de auth em coluna única.
+       */
       :host ::ng-deep .panel__card {
         width: 100%;
         box-shadow: var(--jf-shadow-card);
@@ -148,6 +153,22 @@ import { CardModule } from 'primeng/card';
         --p-form-field-border-radius: 0.625rem;
         --p-button-padding-x: 1rem;
         --p-button-padding-y: 0.375rem;
+      }
+      /*
+       * Desktop (painel de marca visível ao lado): a coluna já é a "moldura"
+       * da tela — colocar mais um box branco com sombra dentro dela vira uma
+       * caixa dentro de caixa e parece um diálogo flutuando num vão vazio.
+       * O formulário passa a ficar solto direto no fundo da coluna.
+       */
+      @media (min-width: 1024px) {
+        .panel__card-wrap {
+          max-width: 24rem;
+        }
+        :host ::ng-deep .panel__card {
+          background: transparent;
+          box-shadow: none;
+          border-radius: 0;
+        }
       }
       .panel__header {
         margin-bottom: 1.25rem;
