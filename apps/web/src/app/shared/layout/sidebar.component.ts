@@ -65,18 +65,14 @@ import { NAV_ITEMS, visibleNavItems } from './nav';
         background: var(--jf-surface-muted, #f1f5f9);
       }
       .sidebar__link--active {
-        /* Primária: cor dominante do sistema, aplicada no fundo (o "em volta"). */
+        /* Mesma regra dos botões: fundo primário, letra E ícone na secundária. */
         background: var(--jf-primary, #2563eb);
-        color: #fff;
+        color: var(--jf-secondary, #fff);
       }
       .sidebar__icon {
         width: 1.25rem;
         text-align: center;
         font-size: 1rem;
-      }
-      /* Secundária: acento pontual dentro do item ativo (o "interior"), não uma área grande. */
-      .sidebar__link--active .sidebar__icon {
-        color: var(--jf-secondary, #fff);
       }
     `,
   ],

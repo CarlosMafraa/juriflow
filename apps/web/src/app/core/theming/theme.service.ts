@@ -70,21 +70,51 @@ export class ThemeService {
       hoverColor: secondaryHex,
       activeColor: secondaryHex,
     };
-    const boldSecondary = {
+    // Todo estado (normal/hover/active) definido explicitamente — nada fica
+    // "sem valor" pra herdar o cinza quase-branco padrão do PrimeNG, que se
+    // perdia contra o fundo branco do card.
+    const secondaryLight = {
+      background: 'transparent',
+      hoverBackground: pal['100'],
+      activeBackground: pal['200'],
       borderColor: secondaryHex,
-      hoverBorderColor: pal['600'],
-      activeBorderColor: pal['700'],
+      hoverBorderColor: pal['700'],
+      activeBorderColor: pal['800'],
       color: secondaryHex,
-      hoverColor: pal['600'],
-      activeColor: pal['700'],
+      hoverColor: pal['700'],
+      activeColor: pal['800'],
       focusRing: { color: secondaryHex, shadow: 'none' },
     };
-    const colorScheme = {
-      root: { primary: secondaryOnPrimary, secondary: { ...boldSecondary, background: 'transparent' } },
-      outlined: { secondary: boldSecondary },
-      text: { secondary: boldSecondary },
+    const secondaryDark = {
+      background: 'transparent',
+      hoverBackground: pal['800'],
+      activeBackground: pal['700'],
+      borderColor: secondaryHex,
+      hoverBorderColor: pal['300'],
+      activeBorderColor: pal['200'],
+      color: secondaryHex,
+      hoverColor: pal['300'],
+      activeColor: pal['200'],
+      focusRing: { color: secondaryHex, shadow: 'none' },
     };
-    updatePreset({ components: { button: { colorScheme: { light: colorScheme, dark: colorScheme } } } });
+    updatePreset({
+      components: {
+        button: {
+          colorScheme: {
+            light: {
+              root: { primary: secondaryOnPrimary, secondary: secondaryLight },
+              outlined: { secondary: secondaryLight },
+              text: { secondary: secondaryLight },
+            },
+            dark: {
+              root: { primary: secondaryOnPrimary, secondary: secondaryDark },
+              outlined: { secondary: secondaryDark },
+              text: { secondary: secondaryDark },
+            },
+          },
+        },
+      },
+    });
   }
 
   private applyDarkClass(isDark: boolean): void {

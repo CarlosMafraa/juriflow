@@ -92,13 +92,14 @@ function initialOf(name: string): string {
       .layout {
         display: flex;
         flex-direction: column;
-        min-height: 100vh;
+        height: 100vh;
         background: var(--jf-bg, #f8fafc);
       }
       .topbar {
         display: flex;
         align-items: center;
         gap: 0.75rem;
+        flex: none;
         padding: 0.6rem 1rem;
         background: var(--jf-surface, #fff);
         border-bottom: 1px solid var(--jf-border, #e2e8f0);
@@ -147,11 +148,15 @@ function initialOf(name: string): string {
         flex: 1;
         display: flex;
         position: relative;
+        /* Sem isso um flex item cresce pelo conteúdo em vez de respeitar a
+           altura do pai — aí quem rola é a página inteira, não só o main. */
+        min-height: 0;
       }
       .drawer {
         width: 15rem;
         background: var(--jf-surface, #fff);
         border-right: 1px solid var(--jf-border, #e2e8f0);
+        overflow-y: auto;
       }
       .drawer--overlay {
         position: fixed;
@@ -173,6 +178,7 @@ function initialOf(name: string): string {
         max-width: 72rem;
         margin: 0 auto;
         width: 100%;
+        overflow-y: auto;
       }
       @media (min-width: 1024px) {
         .main {
