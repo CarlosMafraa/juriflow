@@ -51,12 +51,12 @@ function initialOf(name: string): string {
 
         <!-- Identidade do usuário — Meu perfil / Sair. -->
         <button type="button" class="identity identity--btn" (click)="userMenu.toggle($event)" aria-label="Menu do usuário">
+          <span class="identity__name">{{ userDisplayName() }}</span>
           @if (avatarUrl()) {
             <p-avatar [image]="avatarUrl()!" shape="circle" size="normal" />
           } @else {
             <p-avatar [label]="userInitial()" shape="circle" size="normal" />
           }
-          <span class="identity__name">{{ userDisplayName() }}</span>
           <i class="pi pi-chevron-down identity__chevron" aria-hidden="true"></i>
         </button>
         <p-menu #userMenu [model]="userMenuItems" [popup]="true" />
