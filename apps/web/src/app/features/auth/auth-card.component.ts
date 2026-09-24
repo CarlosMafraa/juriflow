@@ -33,15 +33,17 @@ import { CardModule } from 'primeng/card';
           <span class="brand__name">JuriFlow</span>
         </div>
 
-        <p-card styleClass="panel__card">
-          <header class="panel__header">
-            <h1>{{ title }}</h1>
-            @if (subtitle) {
-              <p>{{ subtitle }}</p>
-            }
-          </header>
-          <ng-content />
-        </p-card>
+        <div class="panel__card-wrap">
+          <p-card styleClass="panel__card">
+            <header class="panel__header">
+              <h1>{{ title }}</h1>
+              @if (subtitle) {
+                <p>{{ subtitle }}</p>
+              }
+            </header>
+            <ng-content />
+          </p-card>
+        </div>
       </div>
     </div>
   `,
@@ -131,9 +133,12 @@ import { CardModule } from 'primeng/card';
           display: none;
         }
       }
-      :host ::ng-deep .panel__card {
+      .panel__card-wrap {
         width: 100%;
         max-width: 26rem;
+      }
+      :host ::ng-deep .panel__card {
+        width: 100%;
         box-shadow: var(--jf-shadow-card);
         border-radius: 1rem;
         /* Campos/botões desta tela usam as métricas do protótipo (shadcn Input/Button:
