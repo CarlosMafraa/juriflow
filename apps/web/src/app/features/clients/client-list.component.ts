@@ -11,6 +11,8 @@ import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToastService } from '../../shared/feedback/toast.service';
+import { PageHeaderActionsDirective } from '../../shared/layout/page-header-actions.directive';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 @Component({
   selector: 'jf-client-list',
@@ -26,12 +28,12 @@ import { ToastService } from '../../shared/feedback/toast.service';
     SelectModule,
     TableModule,
     TagModule,
+    PageHeaderActionsDirective,
   ],
   template: `
-    <header class="head">
-      <h1>Clientes</h1>
-      <a routerLink="/clientes/novo"><p-button icon="pi pi-plus" label="Novo cliente" /></a>
-    </header>
+    <ng-template jfPageHeaderActions>
+      <a routerLink="/clientes/novo"><p-button size="small" icon="pi pi-plus" label="Novo cliente" /></a>
+    </ng-template>
 
     <p-card styleClass="section">
       <form class="filters" [formGroup]="form" (ngSubmit)="apply()">
@@ -98,18 +100,10 @@ import { ToastService } from '../../shared/feedback/toast.service';
   `,
   styles: [
     `
-      .head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1rem;
-      }
-      .head h1 {
-        margin: 0;
-        font-size: 1.35rem;
-      }
-      .section {
+      /* styleClass do p-card cai num div interno do template do PrimeNG, fora
+         do encapsulamento deste componente — precisa de ::ng-deep, senão a
+         regra nunca é aplicada (bug real: filtro colava na tabela, gap 0). */
+      :host ::ng-deep .section {
         display: block;
         margin-bottom: 1rem;
       }
@@ -152,6 +146,7 @@ export class ClientListComponent {
   private readonly service = inject(ClientService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly loading = signal(true);
   protected readonly page = signal<Page<Client> | null>(null);
@@ -173,6 +168,7 @@ export class ClientListComponent {
   private current = 1;
 
   constructor() {
+    this.pageHeader.set('Clientes', 'Todos os clientes do espaço');
     void this.load();
   }
 

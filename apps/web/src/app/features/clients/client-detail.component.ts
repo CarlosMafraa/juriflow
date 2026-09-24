@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import type { Client } from '@juriflow/shared-types';
 import { ButtonModule } from 'primeng/button';
@@ -11,30 +11,36 @@ import { PermissionService } from '../../core/authorization/permission.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { DialogService } from '../../shared/ui/dialog.service';
 import { ToastService } from '../../shared/feedback/toast.service';
+import { PageHeaderActionsDirective } from '../../shared/layout/page-header-actions.directive';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 @Component({
   selector: 'jf-client-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ButtonModule, CardModule, ProgressSpinnerModule, TagModule],
+  imports: [
+    RouterLink,
+    ButtonModule,
+    CardModule,
+    ProgressSpinnerModule,
+    TagModule,
+    PageHeaderActionsDirective,
+  ],
   template: `
+    <ng-template jfPageHeaderActions>
+      @if (canEdit() && client(); as c) {
+        <a [routerLink]="['/clientes', c.id, 'editar']">
+          <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-pencil" label="Editar" />
+        </a>
+        <p-button size="small" severity="danger" icon="pi pi-trash" label="Excluir" (onClick)="remove()" />
+      }
+    </ng-template>
+
     @if (loading()) {
       <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
     } @else if (!client()) {
       <p class="muted">Cliente não encontrado.</p>
     } @else {
-      <header class="head">
-        <h1>{{ client()!.name }} <p-tag severity="secondary" [value]="client()!.type" /></h1>
-        <div class="acts">
-          @if (canEdit()) {
-            <a [routerLink]="['/clientes', client()!.id, 'editar']">
-              <p-button severity="secondary" [outlined]="true" icon="pi pi-pencil" label="Editar" />
-            </a>
-            <p-button severity="danger" icon="pi pi-trash" label="Excluir" (onClick)="remove()" />
-          }
-        </div>
-      </header>
-
       <p-card header="Dados" styleClass="section">
         <dl class="grid">
           <dt>Documento</dt><dd>{{ client()!.document || '—' }}</dd>
@@ -75,25 +81,6 @@ import { ToastService } from '../../shared/feedback/toast.service';
         width: 2.5rem;
         height: 2.5rem;
       }
-      .head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-        flex-wrap: wrap;
-        margin-bottom: 1rem;
-      }
-      .head h1 {
-        margin: 0;
-        font-size: 1.3rem;
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-      }
-      .acts {
-        display: flex;
-        gap: 0.5rem;
-      }
       .grid {
         display: grid;
         grid-template-columns: max-content 1fr;
@@ -124,7 +111,10 @@ import { ToastService } from '../../shared/feedback/toast.service';
         gap: 0.6rem;
         align-items: center;
       }
-      .section {
+      /* styleClass do p-card cai num div interno do template do PrimeNG, fora
+         do encapsulamento deste componente — precisa de ::ng-deep, senão a
+         regra nunca é aplicada. */
+      :host ::ng-deep .section {
         display: block;
         margin-bottom: 1rem;
       }
@@ -141,12 +131,17 @@ export class ClientDetailComponent {
   private readonly dialog = inject(DialogService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly loading = signal(true);
   protected readonly client = signal<Client | null>(null);
   protected readonly processes = signal<ProcessListRow[]>([]);
 
   constructor() {
+    effect(() => {
+      const c = this.client();
+      this.pageHeader.set(c?.name ?? 'Cliente', c ? (c.type === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física') : undefined);
+    });
     queueMicrotask(() => void this.load());
   }
 

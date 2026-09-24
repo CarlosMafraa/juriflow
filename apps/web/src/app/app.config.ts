@@ -24,7 +24,7 @@ export const appConfig: ApplicationConfig = {
       theme: {
         preset: Aura,
         options: {
-          // Modo escuro tentado e removido — não ficou bom. Tema fixo (claro).
+          // Sem modo escuro — tema fixo (ver ThemeService).
           darkModeSelector: false,
         },
       },

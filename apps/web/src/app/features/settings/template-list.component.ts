@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   NOTIFICATION_AUDIENCES,
@@ -16,6 +17,7 @@ import { TextareaModule } from 'primeng/textarea';
 import { TemplateService } from './template.service';
 import { DialogService } from '../../shared/ui/dialog.service';
 import { ToastService } from '../../shared/feedback/toast.service';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
   responsible: 'Responsável',
@@ -38,37 +40,60 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
     TextareaModule,
   ],
   template: `
-    <header class="head"><h1>Templates de mensagem</h1></header>
     <p class="hint">
       Placeholders disponíveis: <code>{{ '{{numero_processo}}' }}</code>,
       <code>{{ '{{movimentacao}}' }}</code>, <code>{{ '{{data}}' }}</code>.
     </p>
 
-    <p-card [header]="editingId() ? 'Editar template' : 'Novo template'" styleClass="section">
-      <form class="form" [formGroup]="form" (ngSubmit)="save()">
-        <input pInputText class="f" placeholder="Nome do template" formControlName="name" />
-        <p-select class="f" [options]="audienceOptions" formControlName="audience" />
-        <textarea
-          pTextarea
-          class="body"
-          rows="4"
-          placeholder="Olá! Houve uma nova movimentação no processo {{ '{{numero_processo}}' }}: {{ '{{movimentacao}}' }} (em {{ '{{data}}' }})."
-          formControlName="body"
-        ></textarea>
-        <div class="actions">
-          <p-button
-            type="submit"
-            size="small"
-            [icon]="editingId() ? 'pi pi-check' : 'pi pi-plus'"
-            [loading]="saving()"
-            [label]="editingId() ? 'Salvar' : 'Criar template'"
-          />
-          @if (editingId()) {
-            <p-button type="button" size="small" severity="secondary" [text]="true" icon="pi pi-times" label="Cancelar" (onClick)="resetForm()" />
+    <div class="editor-grid">
+      <p-card [header]="editingId() ? 'Editar template' : 'Novo template'" styleClass="template-card">
+        <form class="form" [formGroup]="form" (ngSubmit)="save()">
+          <input pInputText class="f" placeholder="Nome do template" formControlName="name" />
+          <p-select class="f" [options]="audienceOptions" formControlName="audience" />
+          <textarea
+            pTextarea
+            class="body"
+            rows="8"
+            placeholder="Olá! Houve uma nova movimentação no processo {{ '{{numero_processo}}' }}: {{ '{{movimentacao}}' }} (em {{ '{{data}}' }})."
+            formControlName="body"
+          ></textarea>
+          <div class="actions">
+            <p-button
+              type="submit"
+              size="small"
+              [icon]="editingId() ? 'pi pi-check' : 'pi pi-plus'"
+              [loading]="saving()"
+              [label]="editingId() ? 'Salvar' : 'Criar template'"
+            />
+            @if (editingId()) {
+              <p-button type="button" size="small" severity="secondary" [text]="true" icon="pi pi-times" label="Cancelar" (onClick)="resetForm()" />
+            }
+          </div>
+        </form>
+      </p-card>
+
+      <!-- Preview: como a mensagem chega no WhatsApp, com os placeholders já
+           substituídos por um exemplo — não é envio real, só visual. -->
+      <div class="wa-preview">
+        <div class="wa-preview__header">
+          <span class="wa-preview__avatar"><i class="pi pi-user" aria-hidden="true"></i></span>
+          <p class="wa-preview__name">{{ previewAudienceLabel() }}</p>
+        </div>
+        <div class="wa-preview__chat">
+          @if (previewText().trim()) {
+            <div class="wa-bubble">
+              <p>{{ previewText() }}</p>
+              <span class="wa-bubble__meta">
+                09:41
+                <i class="pi pi-check" aria-hidden="true"></i><i class="pi pi-check" aria-hidden="true"></i>
+              </span>
+            </div>
+          } @else {
+            <p class="wa-preview__empty">Digite a mensagem para ver como ela vai aparecer no WhatsApp.</p>
           }
         </div>
-      </form>
-    </p-card>
+      </div>
+    </div>
 
     @if (loading()) {
       <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
@@ -103,10 +128,6 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
   `,
   styles: [
     `
-      .head h1 {
-        margin: 0 0 0.35rem;
-        font-size: 1.35rem;
-      }
       .hint {
         margin: 0 0 1rem;
         font-size: 0.8125rem;
@@ -117,15 +138,30 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
         padding: 0.1rem 0.35rem;
         border-radius: 4px;
       }
-      .section {
-        display: block;
+      /* As 2 colunas somam 100% da largura sempre (minmax(0,1fr) em vez de
+         max-width fixo) — com max-width, formulário+preview não chegavam
+         nem perto do fim da tela e sobrava um vão vazio enorme do lado. */
+      .editor-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 1.25rem;
         margin-bottom: 1rem;
+      }
+      @media (max-width: 40rem) {
+        .editor-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      /* styleClass do p-card cai num div interno do template do PrimeNG, fora
+         do encapsulamento deste componente — precisa de ::ng-deep. */
+      :host ::ng-deep .template-card {
+        display: block;
+        height: 100%;
       }
       .form {
         display: flex;
         flex-direction: column;
         gap: 0.6rem;
-        max-width: 34rem;
       }
       .body {
         resize: vertical;
@@ -154,6 +190,83 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
         gap: 0.25rem;
         white-space: nowrap;
       }
+      /* Preview do WhatsApp: só decorativo (não envia nada), pra dar a
+         mesma ideia de like/aparência de um chat real. */
+      .wa-preview {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        border-radius: 1rem;
+        overflow: hidden;
+        box-shadow: var(--jf-shadow-card);
+      }
+      .wa-preview__header {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.6rem 0.9rem;
+        background: var(--jf-primary, #1f385d);
+        color: #fff;
+      }
+      .wa-preview__avatar {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 999px;
+        background: rgb(255 255 255 / 20%);
+        display: grid;
+        place-items: center;
+        font-size: 0.9rem;
+      }
+      .wa-preview__name {
+        margin: 0;
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+      .wa-preview__chat {
+        flex: 1;
+        min-height: 14rem;
+        background: #e5ddd5;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+      }
+      .wa-preview__empty {
+        margin: 0;
+        font-size: 0.8rem;
+        color: #667781;
+        text-align: center;
+      }
+      .wa-bubble {
+        align-self: flex-end;
+        max-width: 88%;
+        background: #dcf8c6;
+        border-radius: 0.5rem;
+        padding: 0.45rem 0.55rem 0.35rem;
+        box-shadow: 0 1px 1px rgb(0 0 0 / 10%);
+      }
+      .wa-bubble p {
+        margin: 0;
+        font-size: 0.85rem;
+        white-space: pre-wrap;
+        color: #111b21;
+      }
+      .wa-bubble__meta {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0;
+        margin-top: 0.15rem;
+        font-size: 0.68rem;
+        color: #667781;
+      }
+      .wa-bubble__meta .pi-check {
+        font-size: 0.65rem;
+        color: #53bdeb;
+      }
+      .wa-bubble__meta .pi-check + .pi-check {
+        margin-left: -0.4rem;
+      }
     `,
   ],
 })
@@ -162,6 +275,7 @@ export class TemplateListComponent {
   private readonly service = inject(TemplateService);
   private readonly dialogs = inject(DialogService);
   private readonly toast = inject(ToastService);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly audiences = NOTIFICATION_AUDIENCES;
   protected readonly audienceOptions = NOTIFICATION_AUDIENCES.map((a) => ({
@@ -179,7 +293,24 @@ export class TemplateListComponent {
     body: ['', [Validators.required]],
   });
 
+  /** Corpo/audiência como signal só pra alimentar o preview reativamente —
+      o form em si continua Reactive Forms de verdade (validação, submit). */
+  private readonly bodyValue = toSignal(this.form.controls.body.valueChanges, {
+    initialValue: this.form.controls.body.value,
+  });
+  private readonly audienceValue = toSignal(this.form.controls.audience.valueChanges, {
+    initialValue: this.form.controls.audience.value,
+  });
+  protected readonly previewAudienceLabel = computed(() => AUDIENCE_LABEL[this.audienceValue()]);
+  protected readonly previewText = computed(() =>
+    this.bodyValue()
+      .replaceAll('{{numero_processo}}', '0001234-56.2026.8.04.0001')
+      .replaceAll('{{movimentacao}}', 'Juntada de petição pelo autor.')
+      .replaceAll('{{data}}', '24/09/2026'),
+  );
+
   constructor() {
+    this.pageHeader.set('Templates de mensagem');
     void this.load();
   }
 

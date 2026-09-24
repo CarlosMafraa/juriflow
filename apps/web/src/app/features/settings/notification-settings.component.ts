@@ -10,6 +10,7 @@ import { SelectModule } from 'primeng/select';
 import { NotificationConfigService } from './notification-config.service';
 import { TemplateService } from './template.service';
 import { ToastService } from '../../shared/feedback/toast.service';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 const NO_TEMPLATE = '';
 
@@ -27,7 +28,6 @@ const NO_TEMPLATE = '';
     SelectModule,
   ],
   template: `
-    <header class="head"><h1>Regras de notificação</h1></header>
     <p class="hint">
       Padrão para todos os processos do espaço. Um processo pode ter uma configuração própria que
       prevalece sobre esta — veja a aba de notificações no detalhe do processo. Gerencie o texto das
@@ -81,17 +81,13 @@ const NO_TEMPLATE = '';
         </div>
 
         <div class="actions">
-          <p-button icon="pi pi-check" (onClick)="save()" [loading]="saving()" label="Salvar" />
+          <p-button size="small" icon="pi pi-check" (onClick)="save()" [loading]="saving()" label="Salvar" />
         </div>
       </p-card>
     }
   `,
   styles: [
     `
-      .head h1 {
-        margin: 0 0 0.35rem;
-        font-size: 1.35rem;
-      }
       .hint {
         margin: 0 0 1rem;
         font-size: 0.8125rem;
@@ -107,6 +103,8 @@ const NO_TEMPLATE = '';
         width: 2.5rem;
         height: 2.5rem;
       }
+      /* Página de uma seção só — o card é o painel da própria página, sem
+         disputar espaço com outros cards ao lado, então vai até o final. */
       .row {
         display: flex;
         flex-wrap: wrap;
@@ -123,7 +121,9 @@ const NO_TEMPLATE = '';
         min-width: 16rem;
       }
       .f {
+        flex: 1;
         min-width: 14rem;
+        max-width: 28rem;
       }
       .actions {
         display: flex;
@@ -137,6 +137,7 @@ export class NotificationSettingsComponent {
   private readonly configService = inject(NotificationConfigService);
   private readonly templateService = inject(TemplateService);
   private readonly toast = inject(ToastService);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly noTemplate = NO_TEMPLATE;
   protected readonly loading = signal(true);
@@ -164,6 +165,7 @@ export class NotificationSettingsComponent {
   ]);
 
   constructor() {
+    this.pageHeader.set('Regras de notificação');
     void this.load();
   }
 

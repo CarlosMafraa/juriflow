@@ -15,7 +15,7 @@ import { CardModule } from 'primeng/card';
           <i class="pi pi-compass" aria-hidden="true"></i>
           <h1>Página não encontrada</h1>
           <p>O endereço acessado não existe.</p>
-          <a routerLink="/"><p-button severity="secondary" [outlined]="true" icon="pi pi-arrow-left" label="Voltar ao início" /></a>
+          <a routerLink="/"><p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-arrow-left" label="Voltar ao início" /></a>
         </div>
       </p-card>
     </div>

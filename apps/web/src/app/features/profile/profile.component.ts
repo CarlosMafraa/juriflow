@@ -6,6 +6,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { AuthService } from '../../core/auth/auth.service';
 import { ToastService } from '../../shared/feedback/toast.service';
 import { ProfileService } from './profile.service';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
 
@@ -15,8 +16,6 @@ const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, ButtonModule, CardModule, InputTextModule],
   template: `
-    <header class="head"><h1>Meu perfil</h1></header>
-
     <div class="grid">
       <p-card header="Dados pessoais">
         <div class="avatar-row">
@@ -70,7 +69,7 @@ const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
             <small class="field__hint">Não pode ser alterado por aqui.</small>
           </div>
           <div class="actions">
-            <p-button type="submit" icon="pi pi-check" label="Salvar alterações" [loading]="savingProfile()" />
+            <p-button size="small" type="submit" icon="pi pi-check" label="Salvar alterações" [loading]="savingProfile()" />
           </div>
         </form>
       </p-card>
@@ -92,7 +91,7 @@ const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
             }
           </div>
           <div class="actions">
-            <p-button type="submit" severity="secondary" [outlined]="true" icon="pi pi-key" [loading]="changingPassword()" label="Alterar senha" />
+            <p-button size="small" type="submit" severity="secondary" [outlined]="true" icon="pi pi-key" [loading]="changingPassword()" label="Alterar senha" />
           </div>
         </form>
       </p-card>
@@ -100,14 +99,12 @@ const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
   `,
   styles: [
     `
-      .head h1 {
-        margin: 0 0 1rem;
-        font-size: 1.35rem;
-      }
+      /* Sem max-width — os 2 cards enchem o main inteiro (não sobra vão vazio
+         do lado em monitor largo); os inputs em si é que ficam num tamanho
+         confortável de leitura (não esticam pra caber a largura do card). */
       .grid {
         display: grid;
         gap: 1rem;
-        max-width: 60rem;
       }
       @media (min-width: 900px) {
         .grid {
@@ -119,6 +116,9 @@ const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
         display: flex;
         flex-direction: column;
         gap: 1rem;
+      }
+      .form input {
+        max-width: 28rem;
       }
       .actions {
         display: flex;
@@ -153,6 +153,7 @@ export class ProfileComponent {
   private readonly auth = inject(AuthService);
   private readonly profileService = inject(ProfileService);
   private readonly toast = inject(ToastService);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly savingProfile = signal(false);
   protected readonly changingPassword = signal(false);
@@ -171,6 +172,7 @@ export class ProfileComponent {
   });
 
   constructor() {
+    this.pageHeader.set('Meu perfil');
     const profile = this.auth.context()?.profile;
     this.profileForm.setValue({
       fullName: profile?.fullName ?? '',

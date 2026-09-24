@@ -5,11 +5,10 @@
    Design tokens do JuriFlow. Componentes referenciam via var(--jf-*).
    ========================================================================= */
 :root {
-  /* Tema fixo do app — azul/dourado do login (ThemeService aplica de novo em
-     JS no bootstrap; os valores aqui são só o fallback antes disso rodar). */
+  /* Tema fixo do app inteiro — azul/dourado do login, sem modo escuro e sem
+     customização por espaço (já tentamos os dois, não ficou bom). */
   --jf-primary: #1f385d;
   --jf-primary-strong: #11284b;
-  --jf-secondary: #d7a040;
   --jf-danger: #dc2626;
   --jf-success: #16a34a;
   --jf-warning: #d97706;
@@ -24,6 +23,13 @@
 
   --jf-radius: 8px;
   --jf-radius-lg: 12px;
+
+  /* Menu lateral: painel navy fixo — é a identidade visual do menu, não do
+     conteúdo. */
+  --jf-sidebar-bg: #152741;
+  --jf-sidebar-accent: #243857;
+  --jf-sidebar-text: #717d90;
+  --jf-sidebar-text-active: #eaf0f5;
 
   /* Identidade de marca (telas de autenticação) — ver litigio-link-main/src/styles.css */
   --jf-font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;

@@ -8,6 +8,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TagModule } from 'primeng/tag';
 import { ToastService } from '../../shared/feedback/toast.service';
 import { WhatsappService } from './whatsapp.service';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 const POLL_MS = 2500;
 
@@ -30,12 +31,6 @@ const STATUS_VIEW: Record<WhatsappSessionStatus, StatusView> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DatePipe, ButtonModule, CardModule, MessageModule, ProgressSpinnerModule, TagModule],
   template: `
-    <header class="head"><h1>Integração WhatsApp</h1></header>
-    <p class="hint">
-      Cada espaço conecta seu próprio número. Só o ADMIN do espaço pode conectar ou desconectar — o
-      número é usado para enviar as notificações de movimentação aos responsáveis e clientes.
-    </p>
-
     @if (loading()) {
       <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
     } @else {
@@ -61,9 +56,10 @@ const STATUS_VIEW: Record<WhatsappSessionStatus, StatusView> = {
 
         <div class="actions">
           @if (!s || s.status === 'disconnected' || s.status === 'failed') {
-            <p-button icon="pi pi-link" label="Conectar" [loading]="acting()" (onClick)="connect()" />
+            <p-button size="small" icon="pi pi-link" label="Conectar" [loading]="acting()" (onClick)="connect()" />
           } @else {
             <p-button
+              size="small"
               icon="pi pi-times-circle"
               label="Desconectar"
               severity="secondary"
@@ -79,16 +75,6 @@ const STATUS_VIEW: Record<WhatsappSessionStatus, StatusView> = {
   `,
   styles: [
     `
-      .head h1 {
-        margin: 0 0 0.35rem;
-        font-size: 1.35rem;
-      }
-      .hint {
-        margin: 0 0 1rem;
-        font-size: 0.8125rem;
-        color: var(--jf-text-muted, #64748b);
-        max-width: 40rem;
-      }
       .center {
         display: flex;
         justify-content: center;
@@ -98,6 +84,8 @@ const STATUS_VIEW: Record<WhatsappSessionStatus, StatusView> = {
         width: 2.5rem;
         height: 2.5rem;
       }
+      /* Página de uma seção só — o card é o painel da própria página, sem
+         disputar espaço com outros cards ao lado, então vai até o final. */
       .status-row {
         display: flex;
         align-items: center;
@@ -139,6 +127,7 @@ const STATUS_VIEW: Record<WhatsappSessionStatus, StatusView> = {
 export class WhatsappSettingsComponent implements OnDestroy {
   private readonly service = inject(WhatsappService);
   private readonly toast = inject(ToastService);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly loading = signal(true);
   protected readonly acting = signal(false);
@@ -147,6 +136,10 @@ export class WhatsappSettingsComponent implements OnDestroy {
   private pollHandle: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
+    this.pageHeader.set(
+      'Integração WhatsApp',
+      'Cada espaço conecta seu próprio número, usado para notificações de movimentação.',
+    );
     void this.load();
   }
 

@@ -15,6 +15,8 @@ import { CourtService } from '../courts/court.service';
 import { SpaceMembersService, type SpaceMemberOption } from '../../core/data/space-members.service';
 import { ActiveSpaceService } from '../../core/authorization/active-space.service';
 import { ToastService } from '../../shared/feedback/toast.service';
+import { PageHeaderActionsDirective } from '../../shared/layout/page-header-actions.directive';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 @Component({
   selector: 'jf-process-list',
@@ -30,12 +32,12 @@ import { ToastService } from '../../shared/feedback/toast.service';
     SelectModule,
     TableModule,
     TagModule,
+    PageHeaderActionsDirective,
   ],
   template: `
-    <header class="head">
-      <h1>Processos</h1>
-      <a routerLink="/processos/novo"><p-button icon="pi pi-plus" label="Novo processo" /></a>
-    </header>
+    <ng-template jfPageHeaderActions>
+      <a routerLink="/processos/novo"><p-button size="small" icon="pi pi-plus" label="Novo processo" /></a>
+    </ng-template>
 
     <p-card styleClass="section">
       <form class="filters" [formGroup]="form" (ngSubmit)="apply()">
@@ -107,18 +109,10 @@ import { ToastService } from '../../shared/feedback/toast.service';
   `,
   styles: [
     `
-      .head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1rem;
-      }
-      .head h1 {
-        margin: 0;
-        font-size: 1.35rem;
-      }
-      .section {
+      /* styleClass do p-card cai num div interno do template do PrimeNG, fora
+         do encapsulamento deste componente — precisa de ::ng-deep, senão a
+         regra nunca é aplicada (bug real: filtro colava na tabela, gap 0). */
+      :host ::ng-deep .section {
         display: block;
         margin-bottom: 1rem;
       }
@@ -163,6 +157,7 @@ export class ProcessListComponent {
   private readonly membersService = inject(SpaceMembersService);
   private readonly activeSpace = inject(ActiveSpaceService);
   private readonly toast = inject(ToastService);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly loading = signal(true);
   protected readonly page = signal<Page<ProcessListRow> | null>(null);
@@ -195,6 +190,7 @@ export class ProcessListComponent {
   private current = 1;
 
   constructor() {
+    this.pageHeader.set('Processos', 'Todos os processos do espaço');
     void this.bootstrap();
   }
 

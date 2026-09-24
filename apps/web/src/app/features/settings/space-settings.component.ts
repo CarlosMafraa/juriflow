@@ -7,6 +7,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { AuthService } from '../../core/auth/auth.service';
 import { ToastService } from '../../shared/feedback/toast.service';
 import { SpaceSettingsService } from './space-settings.service';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 @Component({
   selector: 'jf-space-settings',
@@ -14,9 +15,6 @@ import { SpaceSettingsService } from './space-settings.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, ButtonModule, CardModule, InputTextModule, ProgressSpinnerModule],
   template: `
-    <header class="head"><h1>Dados do espaço</h1></header>
-    <p class="hint">Nome do espaço, visível no topo da tela.</p>
-
     @if (loading()) {
       <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
     } @else {
@@ -27,23 +25,13 @@ import { SpaceSettingsService } from './space-settings.service';
         </div>
 
         <div class="actions">
-          <p-button icon="pi pi-check" (onClick)="save()" [loading]="saving()" label="Salvar" />
+          <p-button size="small" icon="pi pi-check" (onClick)="save()" [loading]="saving()" label="Salvar" />
         </div>
       </p-card>
     }
   `,
   styles: [
     `
-      .head h1 {
-        margin: 0 0 0.35rem;
-        font-size: 1.35rem;
-      }
-      .hint {
-        margin: 0 0 1rem;
-        font-size: 0.8125rem;
-        color: var(--jf-text-muted, #64748b);
-        max-width: 34rem;
-      }
       .center {
         display: flex;
         justify-content: center;
@@ -53,10 +41,14 @@ import { SpaceSettingsService } from './space-settings.service';
         width: 2.5rem;
         height: 2.5rem;
       }
+      /* O card do PrimeNG por padrão ocupa 100% do container — sem isso ele
+         fica bem mais largo que o campo, com um vão vazio do lado. */
+      :host ::ng-deep .p-card {
+        max-width: 24rem;
+      }
       .field {
         display: grid;
         gap: 0.35rem;
-        max-width: 24rem;
         margin-bottom: 1rem;
       }
       .field label {
@@ -75,12 +67,14 @@ export class SpaceSettingsComponent {
   private readonly service = inject(SpaceSettingsService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly name = signal('');
 
   constructor() {
+    this.pageHeader.set('Dados do espaço', 'Nome do espaço.');
     void this.load();
   }
 

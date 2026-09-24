@@ -14,6 +14,8 @@ import { PermissionService } from '../../core/authorization/permission.service';
 import { ToastService } from '../../shared/feedback/toast.service';
 import { DialogService } from '../../shared/ui/dialog.service';
 import { TeamService, type TeamMember } from './team.service';
+import { PageHeaderActionsDirective } from '../../shared/layout/page-header-actions.directive';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 const ROLE_OPTIONS = [
   { value: 'COLABORADOR', label: 'Colaborador — acessa só os processos sob sua responsabilidade' },
@@ -34,10 +36,10 @@ const ROLE_OPTIONS = [
     ProgressSpinnerModule,
     SelectModule,
     TagModule,
+    PageHeaderActionsDirective,
   ],
   template: `
-    <header class="head">
-      <h1>Equipe</h1>
+    <ng-template jfPageHeaderActions>
       @if (hasActiveSpace() && isAdmin()) {
         <p-button
           size="small"
@@ -46,7 +48,7 @@ const ROLE_OPTIONS = [
           (onClick)="toggleInviteForm()"
         />
       }
-    </header>
+    </ng-template>
 
     @if (loading()) {
       <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
@@ -86,7 +88,9 @@ const ROLE_OPTIONS = [
               <label for="invite-role">Papel</label>
               <p-select inputId="invite-role" [options]="roleOptions" formControlName="role" />
             </div>
-            <p-button type="submit" icon="pi pi-send" [loading]="inviting()" label="Enviar convite" />
+            <div class="field--full">
+              <p-button size="small" type="submit" icon="pi pi-send" [loading]="inviting()" label="Enviar convite" />
+            </div>
           </form>
         </p-card>
       }
@@ -183,17 +187,6 @@ const ROLE_OPTIONS = [
   `,
   styles: [
     `
-      .head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1rem;
-      }
-      .head h1 {
-        margin: 0;
-        font-size: 1.35rem;
-      }
       .center {
         display: flex;
         justify-content: center;
@@ -203,14 +196,25 @@ const ROLE_OPTIONS = [
         width: 2.5rem;
         height: 2.5rem;
       }
-      .section {
+      /* styleClass do p-card cai num div interno do template do PrimeNG, fora
+         do encapsulamento deste componente — precisa de ::ng-deep, senão a
+         regra nunca é aplicada. */
+      :host ::ng-deep .section {
         display: block;
         margin-bottom: 1rem;
       }
       .invite-form {
         display: grid;
-        gap: 1rem;
-        max-width: 28rem;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem 1.25rem;
+      }
+      @media (max-width: 32rem) {
+        .invite-form {
+          grid-template-columns: 1fr;
+        }
+      }
+      .field--full {
+        grid-column: 1 / -1;
       }
       .list {
         list-style: none;
@@ -266,6 +270,7 @@ export class TeamListComponent {
   private readonly auth = inject(AuthService);
   private readonly permissions = inject(PermissionService);
   private readonly activeSpace = inject(ActiveSpaceService);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly roleOptions = ROLE_OPTIONS;
   protected readonly currentUserId = this.auth.userId;
@@ -290,6 +295,7 @@ export class TeamListComponent {
   );
 
   constructor() {
+    this.pageHeader.set('Equipe');
     void this.load();
   }
 

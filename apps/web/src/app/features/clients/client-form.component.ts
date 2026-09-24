@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { isValidClientDocument } from '@juriflow/domain';
@@ -11,6 +11,7 @@ import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { ClientService } from './client.service';
 import { ToastService } from '../../shared/feedback/toast.service';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 @Component({
   selector: 'jf-client-form',
@@ -26,11 +27,10 @@ import { ToastService } from '../../shared/feedback/toast.service';
     SelectModule,
   ],
   template: `
-    <header class="head"><h1>{{ id() ? 'Editar cliente' : 'Novo cliente' }}</h1></header>
     <p-card>
       <form [formGroup]="form" (ngSubmit)="submit()" class="form">
         @if (error()) {
-          <p-message severity="error" [text]="error()" styleClass="w-full" />
+          <p-message class="field--full" severity="error" [text]="error()" styleClass="w-full" />
         }
 
         <div class="field">
@@ -74,29 +74,38 @@ import { ToastService } from '../../shared/feedback/toast.service';
           </div>
         }
 
-        <label class="chk" for="notificationOptIn">
+        <label class="chk field--full" for="notificationOptIn">
           <p-checkbox inputId="notificationOptIn" [binary]="true" formControlName="notificationOptIn" />
           <span>Cliente consente em receber notificações por WhatsApp</span>
         </label>
 
-        <div class="actions">
-          <p-button type="button" severity="secondary" [outlined]="true" icon="pi pi-times" label="Cancelar" (onClick)="cancel()" />
-          <p-button type="submit" icon="pi pi-check" label="Salvar" [loading]="saving()" />
+        <div class="actions field--full">
+          <p-button size="small" type="button" severity="secondary" [outlined]="true" icon="pi pi-times" label="Cancelar" (onClick)="cancel()" />
+          <p-button size="small" type="submit" icon="pi pi-check" label="Salvar" [loading]="saving()" />
         </div>
       </form>
     </p-card>
   `,
   styles: [
     `
-      .head h1 {
-        margin: 0 0 1rem;
-        font-size: 1.35rem;
-      }
+      /* Página de um form só — o card é o painel da própria página, sem
+         disputar espaço com outros cards ao lado, então vai até o final.
+         2 colunas fixas (6 campos = 3 linhas cheias, sem sobra na última
+         linha) — auto-fit deixava a última linha capenga quando o número
+         de campos não fecha certo com o número de colunas. */
       .form {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        max-width: 32rem;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem 1.25rem;
+        align-items: start;
+      }
+      @media (max-width: 32rem) {
+        .form {
+          grid-template-columns: 1fr;
+        }
+      }
+      .field--full {
+        grid-column: 1 / -1;
       }
       .chk {
         display: flex;
@@ -122,6 +131,7 @@ export class ClientFormComponent {
   private readonly service = inject(ClientService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly saving = signal(false);
   protected readonly error = signal('');
@@ -142,6 +152,7 @@ export class ClientFormComponent {
   });
 
   constructor() {
+    effect(() => this.pageHeader.set(this.id() ? 'Editar cliente' : 'Novo cliente'));
     queueMicrotask(() => void this.maybeLoad());
   }
 

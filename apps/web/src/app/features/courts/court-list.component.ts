@@ -12,6 +12,7 @@ import { TagModule } from 'primeng/tag';
 import { CourtService } from './court.service';
 import { PermissionService } from '../../core/authorization/permission.service';
 import { ToastService } from '../../shared/feedback/toast.service';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 @Component({
   selector: 'jf-court-list',
@@ -30,8 +31,6 @@ import { ToastService } from '../../shared/feedback/toast.service';
     TagModule,
   ],
   template: `
-    <header class="head"><h1>Tribunais</h1></header>
-
     @if (canManage()) {
       <p-card [header]="editingId() ? 'Editar tribunal' : 'Cadastrar tribunal'" styleClass="section">
         <form class="form" [formGroup]="form" (ngSubmit)="save()">
@@ -110,11 +109,10 @@ import { ToastService } from '../../shared/feedback/toast.service';
   `,
   styles: [
     `
-      .head h1 {
-        margin: 0 0 1rem;
-        font-size: 1.35rem;
-      }
-      .section {
+      /* styleClass do p-card cai num div interno do template do PrimeNG, fora
+         do encapsulamento deste componente — precisa de ::ng-deep, senão a
+         regra nunca é aplicada. */
+      :host ::ng-deep .section {
         display: block;
         margin-bottom: 1rem;
       }
@@ -158,6 +156,7 @@ export class CourtListComponent {
   private readonly service = inject(CourtService);
   private readonly permissions = inject(PermissionService);
   private readonly toast = inject(ToastService);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly types: CourtType[] = [...COURT_TYPES];
   protected readonly loading = signal(true);
@@ -176,6 +175,7 @@ export class CourtListComponent {
   });
 
   constructor() {
+    this.pageHeader.set('Tribunais');
     void this.load();
   }
 

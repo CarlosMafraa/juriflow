@@ -12,6 +12,7 @@ import { TagModule } from 'primeng/tag';
 import { AuditService, type AuditLogEntry } from './audit.service';
 import type { Page } from '../clients/client.service';
 import { ToastService } from '../../shared/feedback/toast.service';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 const ACTION_OPTIONS = [
   { label: 'Ação (todas)', value: '' },
@@ -36,9 +37,6 @@ const ACTION_OPTIONS = [
     TagModule,
   ],
   template: `
-    <header class="head"><h1>Auditoria</h1></header>
-    <p class="hint">Trilha de eventos do espaço — imutável, não editável.</p>
-
     <p-card styleClass="section">
       <form class="filters" [formGroup]="form" (ngSubmit)="apply()">
         <p-select class="f" [options]="actionOptions" formControlName="action" placeholder="Ação (todas)" />
@@ -97,16 +95,10 @@ const ACTION_OPTIONS = [
   `,
   styles: [
     `
-      .head h1 {
-        margin: 0 0 0.35rem;
-        font-size: 1.35rem;
-      }
-      .hint {
-        margin: 0 0 1rem;
-        font-size: 0.8125rem;
-        color: var(--jf-text-muted, #64748b);
-      }
-      .section {
+      /* styleClass do p-card cai num div interno do template do PrimeNG, fora
+         do encapsulamento deste componente — precisa de ::ng-deep, senão a
+         regra nunca é aplicada. */
+      :host ::ng-deep .section {
         display: block;
         margin-bottom: 1rem;
       }
@@ -145,6 +137,7 @@ export class AuditListComponent {
   private readonly fb = inject(FormBuilder);
   private readonly service = inject(AuditService);
   private readonly toast = inject(ToastService);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly actionOptions = ACTION_OPTIONS;
   protected readonly loading = signal(true);
@@ -158,6 +151,7 @@ export class AuditListComponent {
   private current = 1;
 
   constructor() {
+    this.pageHeader.set('Auditoria', 'Trilha de eventos do espaço — imutável, não editável.');
     void this.load();
   }
 

@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import type { Client, MessageTemplate } from '@juriflow/shared-types';
@@ -27,6 +35,8 @@ import { AuthService } from '../../core/auth/auth.service';
 import { PermissionService } from '../../core/authorization/permission.service';
 import { DialogService } from '../../shared/ui/dialog.service';
 import { ToastService } from '../../shared/feedback/toast.service';
+import { PageHeaderActionsDirective } from '../../shared/layout/page-header-actions.directive';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 @Component({
   selector: 'jf-process-detail',
@@ -45,42 +55,39 @@ import { ToastService } from '../../shared/feedback/toast.service';
     SelectModule,
     TableModule,
     TagModule,
+    PageHeaderActionsDirective,
   ],
   template: `
+    <ng-template jfPageHeaderActions>
+      @if (process(); as p) {
+        @if (canEdit() && p.status !== 'closed') {
+          @if (p.status === 'active') {
+            <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-inbox" label="Arquivar" (onClick)="setStatus('archived')" />
+          } @else {
+            <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-refresh" label="Reativar" (onClick)="setStatus('active')" />
+          }
+        }
+        @if (isAdmin()) {
+          @if (p.status !== 'closed') {
+            <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-lock" label="Encerrar" (onClick)="setStatus('closed')" />
+          } @else {
+            <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-lock-open" label="Reabrir" (onClick)="setStatus('active')" />
+          }
+        }
+        @if (canEdit()) {
+          <p-button size="small" severity="danger" icon="pi pi-trash" label="Excluir" (onClick)="remove()" />
+        }
+      }
+    </ng-template>
+
     @if (loading()) {
       <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
     } @else if (!process()) {
       <p-message severity="warn" styleClass="w-full">
         Processo não encontrado. Ele pode ter sido transferido, arquivado ou você não tem acesso.
       </p-message>
-      <a routerLink="/processos"><p-button severity="secondary" [outlined]="true" icon="pi pi-arrow-left" label="Voltar" styleClass="back-btn" /></a>
+      <a routerLink="/processos"><p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-arrow-left" label="Voltar" styleClass="back-btn" /></a>
     } @else {
-      <header class="head">
-        <div>
-          <h1>{{ process()!.cnjNumber || process()!.internalRef || 'Processo' }}</h1>
-          <p-tag [severity]="statusTone()" [value]="process()!.status" />
-        </div>
-        <div class="acts">
-          @if (canEdit() && process()!.status !== 'closed') {
-            @if (process()!.status === 'active') {
-              <p-button severity="secondary" [outlined]="true" icon="pi pi-inbox" label="Arquivar" (onClick)="setStatus('archived')" />
-            } @else {
-              <p-button severity="secondary" [outlined]="true" icon="pi pi-refresh" label="Reativar" (onClick)="setStatus('active')" />
-            }
-          }
-          @if (isAdmin()) {
-            @if (process()!.status !== 'closed') {
-              <p-button severity="secondary" [outlined]="true" icon="pi pi-lock" label="Encerrar" (onClick)="setStatus('closed')" />
-            } @else {
-              <p-button severity="secondary" [outlined]="true" icon="pi pi-lock-open" label="Reabrir" (onClick)="setStatus('active')" />
-            }
-          }
-          @if (canEdit()) {
-            <p-button severity="danger" icon="pi pi-trash" label="Excluir" (onClick)="remove()" />
-          }
-        </div>
-      </header>
-
       @if (msg()) {
         <p-message [severity]="msg()!.tone" [text]="msg()!.text" styleClass="w-full section" />
       }
@@ -105,7 +112,7 @@ import { ToastService } from '../../shared/feedback/toast.service';
             <span>Cadastrado por</span><strong>{{ process()!.creatorName }}</strong>
           </div>
           @if (canEdit()) {
-            <div class="core-actions">
+            <div class="core-actions field--full">
               <p-button type="submit" size="small" icon="pi pi-check" label="Salvar dados" [loading]="savingCore()" />
             </div>
           }
@@ -249,6 +256,7 @@ import { ToastService } from '../../shared/feedback/toast.service';
               placeholder="Selecione o novo responsável…"
             />
             <p-button
+              size="small"
               icon="pi pi-arrow-right-arrow-left"
               [disabled]="!transferTarget()"
               [loading]="transferring()"
@@ -302,35 +310,31 @@ import { ToastService } from '../../shared/feedback/toast.service';
         width: 2.5rem;
         height: 2.5rem;
       }
-      .head {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 1rem;
-        flex-wrap: wrap;
-        margin-bottom: 1rem;
-      }
-      .head h1 {
-        margin: 0 0 0.35rem;
-        font-size: 1.3rem;
-      }
-      .acts {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-      }
-      .section {
+      /* styleClass do p-card cai num div interno do template do PrimeNG, fora
+         do encapsulamento deste componente — precisa de ::ng-deep, senão a
+         regra nunca é aplicada. */
+      :host ::ng-deep .section {
         display: block;
         margin-bottom: 1rem;
       }
       :host ::ng-deep .back-btn {
         display: inline-block;
       }
+      /* 2 colunas fixas — igual ao resto do app: sem isso, um form com poucos
+         campos afunda num cantinho do card e sobra vão vazio do lado. */
       .core {
-        display: flex;
-        flex-direction: column;
-        gap: 0.85rem;
-        max-width: 30rem;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.85rem 1.25rem;
+        align-items: start;
+      }
+      @media (max-width: 32rem) {
+        .core {
+          grid-template-columns: 1fr;
+        }
+      }
+      .field--full {
+        grid-column: 1 / -1;
       }
       .ro {
         display: flex;
@@ -452,6 +456,7 @@ export class ProcessDetailComponent {
   private readonly router = inject(Router);
   private readonly notifConfigService = inject(NotificationConfigService);
   private readonly templateService = inject(TemplateService);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly loading = signal(true);
   protected readonly process = signal<ProcessDetail | null>(null);
@@ -522,10 +527,22 @@ export class ProcessDetailComponent {
     const s = this.process()?.status;
     return s === 'active' ? 'success' : s === 'closed' ? 'secondary' : 'warn';
   };
+  private readonly statusLabel: Record<string, string> = {
+    active: 'Ativo',
+    archived: 'Arquivado',
+    closed: 'Encerrado',
+  };
 
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
+    effect(() => {
+      const p = this.process();
+      this.pageHeader.set(
+        p?.cnjNumber || p?.internalRef || 'Processo',
+        p ? this.statusLabel[p.status] : undefined,
+      );
+    });
     queueMicrotask(() => void this.load());
   }
 

@@ -17,6 +17,7 @@ import { ActiveSpaceService } from '../../core/authorization/active-space.servic
 import { AuthService } from '../../core/auth/auth.service';
 import { PermissionService } from '../../core/authorization/permission.service';
 import { ToastService } from '../../shared/feedback/toast.service';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 @Component({
   selector: 'jf-process-form',
@@ -32,11 +33,10 @@ import { ToastService } from '../../shared/feedback/toast.service';
     SelectModule,
   ],
   template: `
-    <header class="head"><h1>Novo processo</h1></header>
     <p-card>
       <form [formGroup]="form" (ngSubmit)="submit()" class="form">
         @if (error()) {
-          <p-message severity="error" [text]="error()" styleClass="w-full" />
+          <p-message class="field--full" severity="error" [text]="error()" styleClass="w-full" />
         }
 
         <div class="field">
@@ -81,7 +81,7 @@ import { ToastService } from '../../shared/feedback/toast.service';
           }
         </div>
 
-        <fieldset class="clients">
+        <fieldset class="clients field--full">
           <legend>Clientes (opcional)</legend>
           <div class="search">
             <input pInputText type="text" placeholder="Buscar cliente por nome" [value]="term()" (input)="onSearch($event)" />
@@ -105,24 +105,33 @@ import { ToastService } from '../../shared/feedback/toast.service';
           }
         </fieldset>
 
-        <div class="actions">
-          <p-button type="button" severity="secondary" [outlined]="true" icon="pi pi-times" label="Cancelar" (onClick)="cancel()" />
-          <p-button type="submit" icon="pi pi-plus" label="Cadastrar" [loading]="saving()" />
+        <div class="actions field--full">
+          <p-button size="small" type="button" severity="secondary" [outlined]="true" icon="pi pi-times" label="Cancelar" (onClick)="cancel()" />
+          <p-button size="small" type="submit" icon="pi pi-plus" label="Cadastrar" [loading]="saving()" />
         </div>
       </form>
     </p-card>
   `,
   styles: [
     `
-      .head h1 {
-        margin: 0 0 1rem;
-        font-size: 1.35rem;
-      }
+      /* Página de um form só — o card é o painel da própria página, sem
+         disputar espaço com outros cards ao lado, então vai até o final.
+         2 colunas fixas (4 campos = 2 linhas cheias) — auto-fit deixava a
+         última linha capenga quando o número de campos não fecha certo com
+         o número de colunas. */
       .form {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        max-width: 34rem;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem 1.25rem;
+        align-items: start;
+      }
+      @media (max-width: 32rem) {
+        .form {
+          grid-template-columns: 1fr;
+        }
+      }
+      .field--full {
+        grid-column: 1 / -1;
       }
       .muted {
         color: var(--jf-text-muted, #64748b);
@@ -182,6 +191,7 @@ export class ProcessFormComponent {
   private readonly permissions = inject(PermissionService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly saving = signal(false);
   protected readonly error = signal('');
@@ -209,6 +219,7 @@ export class ProcessFormComponent {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
+    this.pageHeader.set('Novo processo');
     void this.bootstrap();
   }
 

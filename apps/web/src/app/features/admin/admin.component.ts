@@ -12,6 +12,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { ToastService } from '../../shared/feedback/toast.service';
 import { DialogService } from '../../shared/ui/dialog.service';
 import { PlatformAdminService } from './platform-admin.service';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 @Component({
   selector: 'jf-admin',
@@ -28,12 +29,6 @@ import { PlatformAdminService } from './platform-admin.service';
     TagModule,
   ],
   template: `
-    <header class="head"><h1>Administração da plataforma</h1></header>
-    <p class="hint">
-      Área do SUPER_ADMIN — opera espaços e usuários da plataforma, sem acesso ao conteúdo
-      operacional de cada espaço (processos, clientes, notificações).
-    </p>
-
     @if (loading()) {
       <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
     } @else {
@@ -123,16 +118,6 @@ import { PlatformAdminService } from './platform-admin.service';
   `,
   styles: [
     `
-      .head h1 {
-        margin: 0 0 0.35rem;
-        font-size: 1.35rem;
-      }
-      .hint {
-        margin: 0 0 1rem;
-        font-size: 0.8125rem;
-        color: var(--jf-text-muted, #64748b);
-        max-width: 44rem;
-      }
       .center {
         display: flex;
         justify-content: center;
@@ -142,7 +127,10 @@ import { PlatformAdminService } from './platform-admin.service';
         width: 2.5rem;
         height: 2.5rem;
       }
-      .section {
+      /* styleClass do p-card cai num div interno do template do PrimeNG, fora
+         do encapsulamento deste componente — precisa de ::ng-deep, senão a
+         regra nunca é aplicada. */
+      :host ::ng-deep .section {
         display: block;
         margin-bottom: 1rem;
       }
@@ -172,6 +160,7 @@ export class AdminComponent {
   private readonly toast = inject(ToastService);
   private readonly dialogs = inject(DialogService);
   private readonly auth = inject(AuthService);
+  private readonly pageHeader = inject(PageHeaderService);
 
   protected readonly currentUserId = this.auth.userId;
   protected readonly loading = signal(true);
@@ -186,6 +175,10 @@ export class AdminComponent {
   });
 
   constructor() {
+    this.pageHeader.set(
+      'Administração da plataforma',
+      'Área do SUPER_ADMIN — opera espaços e usuários da plataforma, sem acesso ao conteúdo operacional de cada espaço.',
+    );
     void this.load();
   }
 
