@@ -81,7 +81,7 @@ const NO_TEMPLATE = '';
         </div>
 
         <div class="actions">
-          <p-button (onClick)="save()" [loading]="saving()" label="Salvar" />
+          <p-button icon="pi pi-check" (onClick)="save()" [loading]="saving()" label="Salvar" />
         </div>
       </p-card>
     }

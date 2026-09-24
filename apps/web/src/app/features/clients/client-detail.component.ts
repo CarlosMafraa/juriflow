@@ -28,9 +28,9 @@ import { ToastService } from '../../shared/feedback/toast.service';
         <div class="acts">
           @if (canEdit()) {
             <a [routerLink]="['/clientes', client()!.id, 'editar']">
-              <p-button severity="secondary" [outlined]="true" label="Editar" />
+              <p-button severity="secondary" [outlined]="true" icon="pi pi-pencil" label="Editar" />
             </a>
-            <p-button severity="danger" label="Excluir" (onClick)="remove()" />
+            <p-button severity="danger" icon="pi pi-trash" label="Excluir" (onClick)="remove()" />
           }
         </div>
       </header>

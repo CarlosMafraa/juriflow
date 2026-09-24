@@ -9,7 +9,8 @@ import { AuthService } from '../../core/auth/auth.service';
 import { ToastService } from '../../shared/feedback/toast.service';
 import { SpaceSettingsService } from './space-settings.service';
 
-const DEFAULT_COLOR = '2563eb';
+const DEFAULT_PRIMARY = '2563eb';
+const DEFAULT_SECONDARY = '64748b';
 
 @Component({
   selector: 'jf-space-settings',
@@ -18,7 +19,11 @@ const DEFAULT_COLOR = '2563eb';
   imports: [FormsModule, ButtonModule, CardModule, ColorPickerModule, InputTextModule, ProgressSpinnerModule],
   template: `
     <header class="head"><h1>Dados do espaço</h1></header>
-    <p class="hint">Nome e cor de identificação do espaço, visíveis no seletor no topo da tela.</p>
+    <p class="hint">
+      Nome do espaço e as cores que definem o tema do app para todo mundo do espaço: a primária
+      vira a cor dos botões e links, a secundária dá o acento nos destaques (ex.: item ativo do
+      menu).
+    </p>
 
     @if (loading()) {
       <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
@@ -30,7 +35,7 @@ const DEFAULT_COLOR = '2563eb';
         </div>
 
         <div class="field">
-          <label for="space-color">Cor</label>
+          <label for="space-color">Cor primária</label>
           <div class="color-row">
             <p-colorPicker inputId="space-color" [ngModel]="color()" (ngModelChange)="onColorChange($event)" />
             <span class="preview-dot" [style.background]="'#' + color()"></span>
@@ -38,8 +43,21 @@ const DEFAULT_COLOR = '2563eb';
           </div>
         </div>
 
+        <div class="field">
+          <label for="space-secondary-color">Cor secundária</label>
+          <div class="color-row">
+            <p-colorPicker
+              inputId="space-secondary-color"
+              [ngModel]="secondaryColor()"
+              (ngModelChange)="onSecondaryColorChange($event)"
+            />
+            <span class="preview-dot" [style.background]="'#' + secondaryColor()"></span>
+            <span class="muted">#{{ secondaryColor() }}</span>
+          </div>
+        </div>
+
         <div class="actions">
-          <p-button (onClick)="save()" [loading]="saving()" label="Salvar" />
+          <p-button icon="pi pi-check" (onClick)="save()" [loading]="saving()" label="Salvar" />
         </div>
       </p-card>
     }
@@ -54,7 +72,7 @@ const DEFAULT_COLOR = '2563eb';
         margin: 0 0 1rem;
         font-size: 0.8125rem;
         color: var(--jf-text-muted, #64748b);
-        max-width: 32rem;
+        max-width: 34rem;
       }
       .center {
         display: flex;
@@ -106,7 +124,8 @@ export class SpaceSettingsComponent {
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly name = signal('');
-  protected readonly color = signal(DEFAULT_COLOR);
+  protected readonly color = signal(DEFAULT_PRIMARY);
+  protected readonly secondaryColor = signal(DEFAULT_SECONDARY);
 
   constructor() {
     void this.load();
@@ -117,6 +136,10 @@ export class SpaceSettingsComponent {
     this.color.set(value.replace(/^#/, ''));
   }
 
+  protected onSecondaryColorChange(value: string): void {
+    this.secondaryColor.set(value.replace(/^#/, ''));
+  }
+
   protected async save(): Promise<void> {
     if (!this.name().trim()) {
       this.toast.error('Informe o nome do espaço.');
@@ -124,8 +147,12 @@ export class SpaceSettingsComponent {
     }
     this.saving.set(true);
     try {
-      await this.service.update({ name: this.name(), color: `#${this.color()}` });
-      // Topbar/sidebar leem de AuthService.memberships(), que não se atualiza
+      await this.service.update({
+        name: this.name(),
+        color: `#${this.color()}`,
+        secondaryColor: `#${this.secondaryColor()}`,
+      });
+      // Topbar/tema leem de AuthService.memberships(), que não se atualiza
       // sozinho após um update direto na tabela spaces.
       await this.auth.refreshContext();
       this.toast.success('Dados do espaço atualizados.');
@@ -142,6 +169,7 @@ export class SpaceSettingsComponent {
       const space = await this.service.get();
       this.name.set(space.name);
       this.color.set(space.color.replace('#', ''));
+      this.secondaryColor.set(space.secondaryColor.replace('#', ''));
     } catch {
       this.toast.error('Não foi possível carregar os dados do espaço.');
     } finally {

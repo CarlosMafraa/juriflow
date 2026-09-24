@@ -24,8 +24,9 @@ export const appConfig: ApplicationConfig = {
       theme: {
         preset: Aura,
         options: {
-          // Sem dark mode nesta fase — nenhuma tela do produto tem toggle ainda.
-          darkModeSelector: false,
+          // Classe alternada manualmente pelo ThemeService (topbar) — não segue
+          // o SO automaticamente, é uma preferência explícita do usuário.
+          darkModeSelector: '.app-dark',
         },
       },
     }),

@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ThemeService } from './core/theming/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -31,4 +32,8 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
     `,
   ],
 })
-export class AppComponent {}
+export class AppComponent {
+  // Injetado só para instanciar cedo (aplica a classe de modo escuro antes da
+  // 1ª tela renderizar) — o serviço não expõe nada que este componente use.
+  private readonly theme = inject(ThemeService);
+}

@@ -61,9 +61,10 @@ const STATUS_VIEW: Record<WhatsappSessionStatus, StatusView> = {
 
         <div class="actions">
           @if (!s || s.status === 'disconnected' || s.status === 'failed') {
-            <p-button label="Conectar" [loading]="acting()" (onClick)="connect()" />
+            <p-button icon="pi pi-link" label="Conectar" [loading]="acting()" (onClick)="connect()" />
           } @else {
             <p-button
+              icon="pi pi-times-circle"
               label="Desconectar"
               severity="secondary"
               [outlined]="true"

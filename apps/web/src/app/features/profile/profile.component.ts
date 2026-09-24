@@ -38,6 +38,7 @@ const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
               size="small"
               severity="secondary"
               [outlined]="true"
+              icon="pi pi-camera"
               [loading]="uploadingAvatar()"
               label="Alterar foto"
               (onClick)="fileInput.click()"
@@ -69,7 +70,7 @@ const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
             <small class="field__hint">Não pode ser alterado por aqui.</small>
           </div>
           <div class="actions">
-            <p-button type="submit" label="Salvar alterações" [loading]="savingProfile()" />
+            <p-button type="submit" icon="pi pi-check" label="Salvar alterações" [loading]="savingProfile()" />
           </div>
         </form>
       </p-card>
@@ -91,7 +92,7 @@ const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
             }
           </div>
           <div class="actions">
-            <p-button type="submit" severity="secondary" [outlined]="true" [loading]="changingPassword()" label="Alterar senha" />
+            <p-button type="submit" severity="secondary" [outlined]="true" icon="pi pi-key" [loading]="changingPassword()" label="Alterar senha" />
           </div>
         </form>
       </p-card>

@@ -18,7 +18,7 @@ import { CardModule } from 'primeng/card';
             Você não tem permissão para acessar esta área. Se acha que isto é um engano, fale com
             um administrador do seu espaço.
           </p>
-          <a routerLink="/"><p-button severity="secondary" [outlined]="true" label="Voltar ao início" /></a>
+          <a routerLink="/"><p-button severity="secondary" [outlined]="true" icon="pi pi-arrow-left" label="Voltar ao início" /></a>
         </div>
       </p-card>
     </div>

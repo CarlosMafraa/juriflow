@@ -91,7 +91,7 @@ import { ToastService } from '../../shared/feedback/toast.service';
               @for (c of results(); track c.id) {
                 <li>
                   <span>{{ c.name }} <small class="muted">{{ c.type }}</small></span>
-                  <p-button type="button" size="small" [text]="true" label="Adicionar" (onClick)="pick(c)" />
+                  <p-button type="button" size="small" [text]="true" icon="pi pi-plus" label="Adicionar" (onClick)="pick(c)" />
                 </li>
               }
             </ul>
@@ -106,8 +106,8 @@ import { ToastService } from '../../shared/feedback/toast.service';
         </fieldset>
 
         <div class="actions">
-          <p-button type="button" severity="secondary" [outlined]="true" label="Cancelar" (onClick)="cancel()" />
-          <p-button type="submit" label="Cadastrar" [loading]="saving()" />
+          <p-button type="button" severity="secondary" [outlined]="true" icon="pi pi-times" label="Cancelar" (onClick)="cancel()" />
+          <p-button type="submit" icon="pi pi-plus" label="Cadastrar" [loading]="saving()" />
         </div>
       </form>
     </p-card>

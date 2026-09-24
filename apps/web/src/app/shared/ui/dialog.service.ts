@@ -22,8 +22,11 @@ export class DialogService {
         message: data.message,
         acceptLabel: data.confirmLabel || 'Confirmar',
         rejectLabel: data.cancelLabel || 'Cancelar',
-        acceptButtonProps: { severity: data.tone === 'danger' ? 'danger' : 'primary' },
-        rejectButtonProps: { severity: 'secondary', outlined: true },
+        acceptButtonProps: {
+          severity: data.tone === 'danger' ? 'danger' : 'primary',
+          icon: data.tone === 'danger' ? 'pi pi-trash' : 'pi pi-check',
+        },
+        rejectButtonProps: { severity: 'secondary', outlined: true, icon: 'pi pi-times' },
         accept: () => resolve(true),
         reject: () => resolve(false),
       });

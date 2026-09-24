@@ -65,7 +65,7 @@ import { NAV_ITEMS, visibleNavItems } from './nav';
         background: var(--jf-surface-muted, #f1f5f9);
       }
       .sidebar__link--active {
-        background: var(--jf-primary, #2563eb);
+        background: var(--jf-secondary, var(--jf-primary, #2563eb));
         color: #fff;
       }
       .sidebar__icon {

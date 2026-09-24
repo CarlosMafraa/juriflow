@@ -54,6 +54,7 @@ import { AuthCardComponent } from './auth-card.component';
         </div>
         <p-button
           type="submit"
+          icon="pi pi-sign-in"
           label="Entrar"
           [loading]="loading()"
           [disabled]="loading()"

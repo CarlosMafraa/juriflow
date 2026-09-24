@@ -46,7 +46,7 @@ import { PlatformAdminService } from './platform-admin.service';
             formControlName="adminProfileId"
             placeholder="Administrador inicial"
           />
-          <p-button type="submit" size="small" [loading]="creatingSpace()" label="Criar espaço" />
+          <p-button type="submit" size="small" icon="pi pi-plus" [loading]="creatingSpace()" label="Criar espaço" />
         </form>
 
         <p-table [value]="spaces()" styleClass="p-datatable-sm">
@@ -68,6 +68,7 @@ import { PlatformAdminService } from './platform-admin.service';
                   size="small"
                   severity="secondary"
                   [outlined]="true"
+                  [icon]="s.status === 'active' ? 'pi pi-ban' : 'pi pi-refresh'"
                   [label]="s.status === 'active' ? 'Suspender' : 'Reativar'"
                   (onClick)="toggleSpaceStatus(s)"
                 />
@@ -109,6 +110,7 @@ import { PlatformAdminService } from './platform-admin.service';
                   severity="secondary"
                   [outlined]="true"
                   [disabled]="p.id === currentUserId()"
+                  [icon]="p.isSuperAdmin ? 'pi pi-user-minus' : 'pi pi-shield'"
                   [label]="p.isSuperAdmin ? 'Remover SUPER_ADMIN' : 'Tornar SUPER_ADMIN'"
                   (onClick)="toggleSuperAdmin(p)"
                 />

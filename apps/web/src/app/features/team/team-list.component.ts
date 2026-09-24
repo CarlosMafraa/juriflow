@@ -39,7 +39,12 @@ const ROLE_OPTIONS = [
     <header class="head">
       <h1>Equipe</h1>
       @if (hasActiveSpace() && isAdmin()) {
-        <p-button size="small" [label]="showInviteForm() ? 'Cancelar' : 'Convidar'" (onClick)="toggleInviteForm()" />
+        <p-button
+          size="small"
+          [icon]="showInviteForm() ? 'pi pi-times' : 'pi pi-user-plus'"
+          [label]="showInviteForm() ? 'Cancelar' : 'Convidar'"
+          (onClick)="toggleInviteForm()"
+        />
       }
     </header>
 
@@ -59,6 +64,7 @@ const ROLE_OPTIONS = [
                 </div>
                 <p-button
                   size="small"
+                  icon="pi pi-check"
                   [loading]="accepting() === invite.token"
                   label="Aceitar"
                   (onClick)="accept(invite)"
@@ -80,7 +86,7 @@ const ROLE_OPTIONS = [
               <label for="invite-role">Papel</label>
               <p-select inputId="invite-role" [options]="roleOptions" formControlName="role" />
             </div>
-            <p-button type="submit" [loading]="inviting()" label="Enviar convite" />
+            <p-button type="submit" icon="pi pi-send" [loading]="inviting()" label="Enviar convite" />
           </form>
         </p-card>
       }
@@ -132,6 +138,7 @@ const ROLE_OPTIONS = [
                         severity="secondary"
                         [outlined]="true"
                         [disabled]="isLastActiveAdmin(m)"
+                        [icon]="m.active ? 'pi pi-ban' : 'pi pi-refresh'"
                         [label]="m.active ? 'Desativar' : 'Reativar'"
                         (onClick)="toggleActive(m)"
                       />
@@ -160,7 +167,7 @@ const ROLE_OPTIONS = [
                         {{ invite.expiresAt | date: 'dd/MM/yyyy' }}
                       </p>
                     </div>
-                    <p-button size="small" [text]="true" label="Cancelar" (onClick)="cancelInvite(invite)" />
+                    <p-button size="small" icon="pi pi-times" [text]="true" label="Cancelar" (onClick)="cancelInvite(invite)" />
                   </li>
                 }
               </ul>

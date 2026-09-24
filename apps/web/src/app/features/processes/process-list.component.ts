@@ -34,7 +34,7 @@ import { ToastService } from '../../shared/feedback/toast.service';
   template: `
     <header class="head">
       <h1>Processos</h1>
-      <a routerLink="/processos/novo"><p-button label="Novo processo" /></a>
+      <a routerLink="/processos/novo"><p-button icon="pi pi-plus" label="Novo processo" /></a>
     </header>
 
     <p-card styleClass="section">
@@ -44,8 +44,8 @@ import { ToastService } from '../../shared/feedback/toast.service';
         <p-select class="f" [options]="courtOptions()" formControlName="courtId" placeholder="Tribunal (todos)" />
         <p-select class="f" [options]="memberOptions()" formControlName="assignedUserId" placeholder="Responsável (todos)" />
         <p-select class="f" [options]="statusOptions" formControlName="status" placeholder="Status (todos)" />
-        <p-button type="submit" size="small" label="Filtrar" />
-        <p-button type="button" size="small" severity="secondary" [text]="true" label="Limpar" (onClick)="clear()" />
+        <p-button type="submit" size="small" icon="pi pi-filter" label="Filtrar" />
+        <p-button type="button" size="small" severity="secondary" [text]="true" icon="pi pi-filter-slash" label="Limpar" (onClick)="clear()" />
       </form>
     </p-card>
 
@@ -76,7 +76,7 @@ import { ToastService } from '../../shared/feedback/toast.service';
             </td>
             <td class="actions">
               <a [routerLink]="['/processos', row.id]">
-                <p-button size="small" severity="secondary" [outlined]="true" label="Abrir" />
+                <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-arrow-right" label="Abrir" />
               </a>
             </td>
           </tr>
@@ -89,12 +89,14 @@ import { ToastService } from '../../shared/feedback/toast.service';
       </p-table>
       @if (p.rows.length > 0) {
         <div class="pager">
-          <p-button size="small" severity="secondary" [text]="true" label="Anterior" [disabled]="p.page <= 1" (onClick)="go(p.page - 1)" />
+          <p-button size="small" severity="secondary" [text]="true" icon="pi pi-chevron-left" label="Anterior" [disabled]="p.page <= 1" (onClick)="go(p.page - 1)" />
           <span>Página {{ p.page }} — {{ p.total }} processo(s)</span>
           <p-button
             size="small"
             severity="secondary"
             [text]="true"
+            icon="pi pi-chevron-right"
+            iconPos="right"
             label="Próxima"
             [disabled]="p.page * p.pageSize >= p.total"
             (onClick)="go(p.page + 1)"

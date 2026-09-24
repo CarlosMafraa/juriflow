@@ -56,9 +56,15 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
           formControlName="body"
         ></textarea>
         <div class="actions">
-          <p-button type="submit" size="small" [loading]="saving()" [label]="editingId() ? 'Salvar' : 'Criar template'" />
+          <p-button
+            type="submit"
+            size="small"
+            [icon]="editingId() ? 'pi pi-check' : 'pi pi-plus'"
+            [loading]="saving()"
+            [label]="editingId() ? 'Salvar' : 'Criar template'"
+          />
           @if (editingId()) {
-            <p-button type="button" size="small" severity="secondary" [text]="true" label="Cancelar" (onClick)="resetForm()" />
+            <p-button type="button" size="small" severity="secondary" [text]="true" icon="pi pi-times" label="Cancelar" (onClick)="resetForm()" />
           }
         </div>
       </form>
@@ -82,8 +88,8 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
             <td><p-tag severity="info" [value]="audienceLabel(t.audience)" /></td>
             <td class="body-cell">{{ t.body }}</td>
             <td class="actions-cell">
-              <p-button size="small" [text]="true" label="Editar" (onClick)="edit(t)" />
-              <p-button size="small" [text]="true" label="Excluir" (onClick)="remove(t)" />
+              <p-button size="small" [text]="true" icon="pi pi-pencil" label="Editar" (onClick)="edit(t)" />
+              <p-button size="small" [text]="true" icon="pi pi-trash" label="Excluir" (onClick)="remove(t)" />
             </td>
           </tr>
         </ng-template>

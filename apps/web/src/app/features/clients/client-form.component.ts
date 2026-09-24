@@ -80,8 +80,8 @@ import { ToastService } from '../../shared/feedback/toast.service';
         </label>
 
         <div class="actions">
-          <p-button type="button" severity="secondary" [outlined]="true" label="Cancelar" (onClick)="cancel()" />
-          <p-button type="submit" label="Salvar" [loading]="saving()" />
+          <p-button type="button" severity="secondary" [outlined]="true" icon="pi pi-times" label="Cancelar" (onClick)="cancel()" />
+          <p-button type="submit" icon="pi pi-check" label="Salvar" [loading]="saving()" />
         </div>
       </form>
     </p-card>

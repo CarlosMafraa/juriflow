@@ -46,7 +46,7 @@ import { AuthCardComponent } from './auth-card.component';
             <small class="field__error">As senhas não conferem.</small>
           }
         </div>
-        <p-button type="submit" label="Salvar senha" [loading]="loading()" styleClass="w-full" />
+        <p-button type="submit" icon="pi pi-key" label="Salvar senha" [loading]="loading()" styleClass="w-full" />
       </form>
     </jf-auth-card>
   `,

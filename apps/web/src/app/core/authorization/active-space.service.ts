@@ -1,5 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { AuthService } from '../auth/auth.service';
+import { ThemeService } from '../theming/theme.service';
 
 const STORAGE_KEY = 'juriflow.activeSpaceId';
 
@@ -10,6 +11,7 @@ const STORAGE_KEY = 'juriflow.activeSpaceId';
 @Injectable({ providedIn: 'root' })
 export class ActiveSpaceService {
   private readonly auth = inject(AuthService);
+  private readonly theme = inject(ThemeService);
   private readonly _activeSpaceId = signal<string | null>(this.readStored());
 
   readonly activeSpaceId = this._activeSpaceId.asReadonly();
@@ -23,6 +25,7 @@ export class ActiveSpaceService {
         id: m.spaceId,
         name: m.spaceName ?? m.spaceId,
         color: m.spaceColor ?? '#94a3b8',
+        secondaryColor: m.spaceSecondaryColor ?? null,
         role: m.role,
       })),
   );
@@ -49,6 +52,14 @@ export class ActiveSpaceService {
       },
       { allowSignalWrites: true },
     );
+
+    // Cor do espaço vira a cor primária/secundária do app (RN: cada espaço
+    // define o próprio tema); sem espaço ativo, volta à cor padrão.
+    effect(() => {
+      const space = this.activeSpace();
+      if (space) this.theme.applySpaceColors(space.color, space.secondaryColor);
+      else this.theme.resetSpaceColors();
+    });
   }
 
   setActiveSpace(spaceId: string | null): void {

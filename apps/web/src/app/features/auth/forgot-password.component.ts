@@ -38,7 +38,7 @@ import { AuthCardComponent } from './auth-card.component';
               formControlName="email"
             />
           </div>
-          <p-button type="submit" label="Enviar link" [loading]="loading()" styleClass="w-full" />
+          <p-button type="submit" icon="pi pi-send" label="Enviar link" [loading]="loading()" styleClass="w-full" />
           <a class="link" routerLink="/login">Voltar para o login</a>
         </form>
       }

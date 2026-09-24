@@ -44,9 +44,15 @@ import { ToastService } from '../../shared/feedback/toast.service';
           />
           <input pInputText class="f" placeholder="Jurisdição (UF ou federal…)" formControlName="jurisdiction" />
           <input pInputText class="f" placeholder="Código DataJud (opcional)" formControlName="datajudCode" />
-          <p-button type="submit" size="small" [label]="editingId() ? 'Salvar' : 'Cadastrar'" [loading]="saving()" />
+          <p-button
+            type="submit"
+            size="small"
+            [icon]="editingId() ? 'pi pi-check' : 'pi pi-plus'"
+            [label]="editingId() ? 'Salvar' : 'Cadastrar'"
+            [loading]="saving()"
+          />
           @if (editingId()) {
-            <p-button type="button" size="small" severity="secondary" [text]="true" label="Cancelar" (onClick)="resetForm()" />
+            <p-button type="button" size="small" severity="secondary" [text]="true" icon="pi pi-times" label="Cancelar" (onClick)="resetForm()" />
           }
         </form>
       </p-card>
@@ -82,8 +88,14 @@ import { ToastService } from '../../shared/feedback/toast.service';
             <td><p-tag [severity]="c.active ? 'success' : 'secondary'" [value]="c.active ? 'ativo' : 'inativo'" /></td>
             @if (canManage()) {
               <td class="actions">
-                <p-button size="small" [text]="true" label="Editar" (onClick)="edit(c)" />
-                <p-button size="small" [text]="true" [label]="c.active ? 'Desativar' : 'Ativar'" (onClick)="toggleActive(c)" />
+                <p-button size="small" [text]="true" icon="pi pi-pencil" label="Editar" (onClick)="edit(c)" />
+                <p-button
+                  size="small"
+                  [text]="true"
+                  [icon]="c.active ? 'pi pi-ban' : 'pi pi-check-circle'"
+                  [label]="c.active ? 'Desativar' : 'Ativar'"
+                  (onClick)="toggleActive(c)"
+                />
               </td>
             }
           </tr>

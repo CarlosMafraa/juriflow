@@ -53,7 +53,7 @@ import { ToastService } from '../../shared/feedback/toast.service';
       <p-message severity="warn" styleClass="w-full">
         Processo não encontrado. Ele pode ter sido transferido, arquivado ou você não tem acesso.
       </p-message>
-      <a routerLink="/processos"><p-button severity="secondary" [outlined]="true" label="Voltar" styleClass="back-btn" /></a>
+      <a routerLink="/processos"><p-button severity="secondary" [outlined]="true" icon="pi pi-arrow-left" label="Voltar" styleClass="back-btn" /></a>
     } @else {
       <header class="head">
         <div>
@@ -63,20 +63,20 @@ import { ToastService } from '../../shared/feedback/toast.service';
         <div class="acts">
           @if (canEdit() && process()!.status !== 'closed') {
             @if (process()!.status === 'active') {
-              <p-button severity="secondary" [outlined]="true" label="Arquivar" (onClick)="setStatus('archived')" />
+              <p-button severity="secondary" [outlined]="true" icon="pi pi-inbox" label="Arquivar" (onClick)="setStatus('archived')" />
             } @else {
-              <p-button severity="secondary" [outlined]="true" label="Reativar" (onClick)="setStatus('active')" />
+              <p-button severity="secondary" [outlined]="true" icon="pi pi-refresh" label="Reativar" (onClick)="setStatus('active')" />
             }
           }
           @if (isAdmin()) {
             @if (process()!.status !== 'closed') {
-              <p-button severity="secondary" [outlined]="true" label="Encerrar" (onClick)="setStatus('closed')" />
+              <p-button severity="secondary" [outlined]="true" icon="pi pi-lock" label="Encerrar" (onClick)="setStatus('closed')" />
             } @else {
-              <p-button severity="secondary" [outlined]="true" label="Reabrir" (onClick)="setStatus('active')" />
+              <p-button severity="secondary" [outlined]="true" icon="pi pi-lock-open" label="Reabrir" (onClick)="setStatus('active')" />
             }
           }
           @if (canEdit()) {
-            <p-button severity="danger" label="Excluir" (onClick)="remove()" />
+            <p-button severity="danger" icon="pi pi-trash" label="Excluir" (onClick)="remove()" />
           }
         </div>
       </header>
@@ -106,7 +106,7 @@ import { ToastService } from '../../shared/feedback/toast.service';
           </div>
           @if (canEdit()) {
             <div class="core-actions">
-              <p-button type="submit" size="small" label="Salvar dados" [loading]="savingCore()" />
+              <p-button type="submit" size="small" icon="pi pi-check" label="Salvar dados" [loading]="savingCore()" />
             </div>
           }
         </form>
@@ -148,7 +148,7 @@ import { ToastService } from '../../shared/feedback/toast.service';
                 <a [routerLink]="['/clientes', c.clientId]">{{ c.name }}</a>
                 <span class="muted">{{ c.type }} · {{ c.document || 's/ documento' }}</span>
                 @if (canEdit()) {
-                  <p-button size="small" [text]="true" label="Remover" (onClick)="detach(c)" />
+                  <p-button size="small" [text]="true" icon="pi pi-times" label="Remover" (onClick)="detach(c)" />
                 }
               </li>
             }
@@ -170,7 +170,7 @@ import { ToastService } from '../../shared/feedback/toast.service';
                     <span
                       >{{ r.name }} <small class="muted">{{ r.type }}</small></span
                     >
-                    <p-button size="small" [text]="true" label="Vincular" (onClick)="attach(r)" />
+                    <p-button size="small" [text]="true" icon="pi pi-link" label="Vincular" (onClick)="attach(r)" />
                   </li>
                 }
               </ul>
@@ -185,7 +185,7 @@ import { ToastService } from '../../shared/feedback/toast.service';
             <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
           } @else if (!notifOverride()) {
             <p class="muted">Este processo usa a configuração geral do espaço.</p>
-            <p-button size="small" severity="secondary" [outlined]="true" label="Personalizar" (onClick)="enableNotifOverride()" />
+            <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-sliders-h" label="Personalizar" (onClick)="enableNotifOverride()" />
           } @else {
             <div class="notif-row">
               <label class="chk" for="notifResponsible">
@@ -230,8 +230,8 @@ import { ToastService } from '../../shared/feedback/toast.service';
               />
             </div>
             <div class="core-actions">
-              <p-button size="small" label="Salvar" [loading]="notifSaving()" (onClick)="saveNotifOverride()" />
-              <p-button size="small" severity="secondary" [text]="true" label="Voltar ao padrão do espaço" (onClick)="removeNotifOverride()" />
+              <p-button size="small" icon="pi pi-check" label="Salvar" [loading]="notifSaving()" (onClick)="saveNotifOverride()" />
+              <p-button size="small" severity="secondary" [text]="true" icon="pi pi-undo" label="Voltar ao padrão do espaço" (onClick)="removeNotifOverride()" />
             </div>
           }
         </p-card>
@@ -249,6 +249,7 @@ import { ToastService } from '../../shared/feedback/toast.service';
               placeholder="Selecione o novo responsável…"
             />
             <p-button
+              icon="pi pi-arrow-right-arrow-left"
               [disabled]="!transferTarget()"
               [loading]="transferring()"
               label="Transferir"

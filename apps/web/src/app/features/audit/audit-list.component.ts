@@ -43,8 +43,8 @@ const ACTION_OPTIONS = [
       <form class="filters" [formGroup]="form" (ngSubmit)="apply()">
         <p-select class="f" [options]="actionOptions" formControlName="action" placeholder="Ação (todas)" />
         <input pInputText class="f" placeholder="Tipo de entidade (ex: process, client)" formControlName="entityType" />
-        <p-button type="submit" size="small" label="Filtrar" />
-        <p-button type="button" size="small" severity="secondary" [text]="true" label="Limpar" (onClick)="clear()" />
+        <p-button type="submit" size="small" icon="pi pi-filter" label="Filtrar" />
+        <p-button type="button" size="small" severity="secondary" [text]="true" icon="pi pi-filter-slash" label="Limpar" (onClick)="clear()" />
       </form>
     </p-card>
 
@@ -79,12 +79,14 @@ const ACTION_OPTIONS = [
       </p-table>
       @if (p.rows.length > 0) {
         <div class="pager">
-          <p-button size="small" severity="secondary" [text]="true" label="Anterior" [disabled]="p.page <= 1" (onClick)="go(p.page - 1)" />
+          <p-button size="small" severity="secondary" [text]="true" icon="pi pi-chevron-left" label="Anterior" [disabled]="p.page <= 1" (onClick)="go(p.page - 1)" />
           <span>Página {{ p.page }} — {{ p.total }} evento(s)</span>
           <p-button
             size="small"
             severity="secondary"
             [text]="true"
+            icon="pi pi-chevron-right"
+            iconPos="right"
             label="Próxima"
             [disabled]="p.page * p.pageSize >= p.total"
             (onClick)="go(p.page + 1)"
