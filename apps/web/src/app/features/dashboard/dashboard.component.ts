@@ -11,20 +11,18 @@ import { ActiveSpaceService } from '../../core/authorization/active-space.servic
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, CardModule, TagModule],
   template: `
-    <header class="page-head">
-      <h1>Olá{{ name() ? ', ' + name() : '' }}</h1>
-      <p class="muted">
-        @if (space()) {
-          Espaço ativo: <strong>{{ space()!.name }}</strong>
-          <p-tag severity="info" [value]="space()!.role" />
-        } @else if (isSuperAdmin()) {
-          <p-tag severity="info" value="SUPER_ADMIN" /> — você administra a plataforma.
-        } @else {
-          Você ainda não faz parte de nenhum espaço.
-          <a routerLink="/configuracoes/usuarios">Ver convites pendentes</a>
-        }
-      </p>
-    </header>
+    @if (!space()) {
+      <header class="page-head">
+        <p class="muted">
+          @if (isSuperAdmin()) {
+            <p-tag severity="info" value="SUPER_ADMIN" /> — você administra a plataforma.
+          } @else {
+            Você ainda não faz parte de nenhum espaço.
+            <a routerLink="/configuracoes/usuarios">Ver convites pendentes</a>
+          }
+        </p>
+      </header>
+    }
 
     <section class="grid">
       <p-card header="Processos">
@@ -43,10 +41,6 @@ import { ActiveSpaceService } from '../../core/authorization/active-space.servic
   `,
   styles: [
     `
-      .page-head h1 {
-        margin: 0 0 0.25rem;
-        font-size: 1.35rem;
-      }
       .muted {
         color: var(--jf-text-muted, #64748b);
         display: flex;
@@ -82,9 +76,6 @@ export class DashboardComponent {
   private readonly auth = inject(AuthService);
   private readonly activeSpace = inject(ActiveSpaceService);
 
-  protected readonly name = computed(
-    () => this.auth.context()?.profile?.fullName?.split(' ')[0] ?? '',
-  );
   protected readonly space = computed(() => this.activeSpace.activeSpace());
   protected readonly isSuperAdmin = computed(() => this.auth.authSubject()?.isSuperAdmin ?? false);
 }

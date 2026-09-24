@@ -3,9 +3,10 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterOutlet } from '@angular/router';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { map } from 'rxjs';
+import type { MenuItem } from 'primeng/api';
+import { AvatarModule } from 'primeng/avatar';
 import { ButtonModule } from 'primeng/button';
-import { SelectModule } from 'primeng/select';
-import { FormsModule } from '@angular/forms';
+import { MenuModule } from 'primeng/menu';
 import { AuthService } from '../../core/auth/auth.service';
 import { ActiveSpaceService } from '../../core/authorization/active-space.service';
 import { SidebarComponent } from './sidebar.component';
@@ -13,11 +14,15 @@ import { SidebarComponent } from './sidebar.component';
 /** Breakpoints do brief: Mobile <768, Tablet 768–1023, Desktop >=1024. */
 export const DESKTOP_QUERY = '(min-width: 1024px)';
 
+function initialOf(name: string): string {
+  return name.trim().charAt(0).toUpperCase() || '?';
+}
+
 @Component({
   selector: 'jf-auth-layout',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, SidebarComponent, ButtonModule, SelectModule, FormsModule],
+  imports: [RouterOutlet, SidebarComponent, AvatarModule, ButtonModule, MenuModule],
   template: `
     <div class="layout" [class.layout--desktop]="isDesktop()">
       <header class="topbar">
@@ -31,51 +36,36 @@ export const DESKTOP_QUERY = '(min-width: 1024px)';
             (onClick)="toggleDrawer()"
           />
         }
-        <span class="topbar__brand">JuriFlow</span>
+
+        <!-- Identidade do espaço ativo — troca de espaço quando há mais de um. -->
+        @if (activeSpace(); as s) {
+          @if (spaces().length > 1) {
+            <button type="button" class="identity identity--btn" (click)="spaceMenu.toggle($event)">
+              <p-avatar [label]="initialOf(s.name)" shape="circle" size="normal" [style]="{ background: s.color, color: '#fff' }" />
+              <span class="identity__name">{{ s.name }}</span>
+              <i class="pi pi-chevron-down identity__chevron" aria-hidden="true"></i>
+            </button>
+            <p-menu #spaceMenu [model]="spaceMenuItems()" [popup]="true" />
+          } @else {
+            <span class="identity">
+              <p-avatar [label]="initialOf(s.name)" shape="circle" size="normal" [style]="{ background: s.color, color: '#fff' }" />
+              <span class="identity__name">{{ s.name }}</span>
+            </span>
+          }
+        }
 
         <div class="topbar__spacer"></div>
 
-        @if (spaces().length > 1) {
-          <label class="topbar__space" for="active-space">
-            <span class="sr-only">Espaço ativo</span>
-            <p-select
-              inputId="active-space"
-              [options]="spaces()"
-              optionLabel="name"
-              optionValue="id"
-              [ngModel]="activeSpaceId()"
-              (ngModelChange)="onSpaceChange($event)"
-              ariaLabel="Espaço ativo"
-            >
-              <ng-template pTemplate="selectedItem" let-space>
-                <span class="space-option">
-                  <span class="dot" [style.background]="space.color"></span>
-                  {{ space.name }}
-                </span>
-              </ng-template>
-              <ng-template pTemplate="item" let-space>
-                <span class="space-option">
-                  <span class="dot" [style.background]="space.color"></span>
-                  {{ space.name }}
-                </span>
-              </ng-template>
-            </p-select>
-          </label>
-        } @else if (spaces().length === 1) {
-          <span class="topbar__space-name">
-            <span class="dot" [style.background]="spaces()[0].color"></span>
-            {{ spaces()[0].name }}
-          </span>
-        }
-
-        <p-button
-          label="Sair"
-          icon="pi pi-sign-out"
-          severity="secondary"
-          [outlined]="true"
-          size="small"
-          (onClick)="signOut()"
-        />
+        <!-- Identidade do usuário — Meu perfil / Sair. -->
+        <button type="button" class="identity identity--btn" (click)="userMenu.toggle($event)" aria-label="Menu do usuário">
+          @if (avatarUrl()) {
+            <p-avatar [image]="avatarUrl()!" shape="circle" size="normal" />
+          } @else {
+            <p-avatar [label]="userInitial()" shape="circle" size="normal" />
+          }
+          <i class="pi pi-chevron-down identity__chevron" aria-hidden="true"></i>
+        </button>
+        <p-menu #userMenu [model]="userMenuItems" [popup]="true" />
       </header>
 
       <div class="body">
@@ -113,30 +103,42 @@ export const DESKTOP_QUERY = '(min-width: 1024px)';
         top: 0;
         z-index: 20;
       }
-      .topbar__brand {
-        font-weight: 800;
-        letter-spacing: 0.02em;
-      }
       .topbar__spacer {
         flex: 1;
       }
-      .topbar__space-name {
+      .identity {
         display: inline-flex;
         align-items: center;
+        gap: 0.5rem;
         font-size: 0.85rem;
+        color: var(--jf-text, #0f172a);
+      }
+      .identity--btn {
+        border: none;
+        background: transparent;
+        padding: 0.25rem 0.4rem;
+        border-radius: var(--jf-radius, 8px);
+        cursor: pointer;
+        font: inherit;
+      }
+      .identity--btn:hover {
+        background: var(--jf-surface-muted, #f1f5f9);
+      }
+      .identity__name {
+        max-width: 10rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .identity__chevron {
+        font-size: 0.7rem;
         color: var(--jf-text-muted, #64748b);
       }
-      .space-option {
-        display: inline-flex;
-        align-items: center;
-      }
-      .dot {
-        display: inline-block;
-        width: 0.6rem;
-        height: 0.6rem;
-        border-radius: 999px;
-        margin-right: 0.4rem;
-        flex: none;
+      :host ::ng-deep .p-avatar {
+        background: var(--jf-primary, #2563eb);
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.8rem;
       }
       .body {
         flex: 1;
@@ -169,13 +171,6 @@ export const DESKTOP_QUERY = '(min-width: 1024px)';
         margin: 0 auto;
         width: 100%;
       }
-      .sr-only {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        clip: rect(0 0 0 0);
-      }
       @media (min-width: 1024px) {
         .main {
           padding: 1.75rem;
@@ -186,9 +181,11 @@ export const DESKTOP_QUERY = '(min-width: 1024px)';
 })
 export class AuthLayoutComponent {
   private readonly auth = inject(AuthService);
-  private readonly activeSpace = inject(ActiveSpaceService);
+  private readonly activeSpaceService = inject(ActiveSpaceService);
   private readonly router = inject(Router);
   private readonly breakpoints = inject(BreakpointObserver);
+
+  protected readonly initialOf = initialOf;
 
   protected readonly isDesktop = toSignal(
     this.breakpoints.observe(DESKTOP_QUERY).pipe(map((s) => s.matches)),
@@ -198,18 +195,34 @@ export class AuthLayoutComponent {
   private readonly _drawerOpen = signal(false);
   protected readonly drawerOpen = this._drawerOpen.asReadonly();
 
-  protected readonly spaces = computed(() => this.activeSpace.availableSpaces());
-  protected readonly activeSpaceId = this.activeSpace.activeSpaceId;
+  protected readonly spaces = computed(() => this.activeSpaceService.availableSpaces());
+  protected readonly activeSpace = this.activeSpaceService.activeSpace;
+
+  protected readonly spaceMenuItems = computed<MenuItem[]>(() =>
+    this.spaces().map((s) => ({
+      label: s.name,
+      icon: s.id === this.activeSpaceService.activeSpaceId() ? 'pi pi-check' : undefined,
+      command: () => this.activeSpaceService.setActiveSpace(s.id),
+    })),
+  );
+
+  protected readonly avatarUrl = computed(() => this.auth.context()?.profile?.avatarUrl ?? null);
+  protected readonly userInitial = computed(() => {
+    const profile = this.auth.context()?.profile;
+    return initialOf(profile?.fullName || profile?.email || '?');
+  });
+
+  protected readonly userMenuItems: MenuItem[] = [
+    { label: 'Meu perfil', icon: 'pi pi-user', routerLink: '/perfil' },
+    { separator: true },
+    { label: 'Sair', icon: 'pi pi-sign-out', command: () => void this.signOut() },
+  ];
 
   protected toggleDrawer(): void {
     this._drawerOpen.update((v) => !v);
   }
   protected closeDrawer(): void {
     this._drawerOpen.set(false);
-  }
-
-  protected onSpaceChange(spaceId: string | null): void {
-    this.activeSpace.setActiveSpace(spaceId || null);
   }
 
   protected async signOut(): Promise<void> {

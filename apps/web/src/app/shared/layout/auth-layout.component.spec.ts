@@ -17,11 +17,15 @@ function configure(isDesktop: boolean) {
         provide: BreakpointObserver,
         useValue: { observe: () => of({ matches: isDesktop, breakpoints: {} }) },
       },
-      { provide: AuthService, useValue: { signOut: () => Promise.resolve() } },
+      {
+        provide: AuthService,
+        useValue: { signOut: () => Promise.resolve(), context: signal(null) },
+      },
       {
         provide: ActiveSpaceService,
         useValue: {
           availableSpaces: signal([]),
+          activeSpace: signal(null),
           activeSpaceId: signal<string | null>(null),
           setActiveSpace: () => undefined,
         },
