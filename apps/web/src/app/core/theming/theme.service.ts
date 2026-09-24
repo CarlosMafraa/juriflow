@@ -36,20 +36,22 @@ export class ThemeService {
   }
 
   /**
-   * Padrão de mercado (Material Design, regra 60-30-10): primária é a cor
-   * dominante — aplicada em tudo via `updatePrimaryPalette` + `--jf-primary`,
-   * usado pelos componentes custom desta app. Secundária é o suporte — pinta
-   * os botões `severity="secondary"` do PrimeNG (Cancelar, Limpar etc., hoje
-   * cinza fixo) e acentos pontuais (ex.: ícone do item ativo da sidebar).
+   * Uso das cores, definido pelo cliente: no botão padrão (severity
+   * primária — "Salvar", "Criar", "Entrar"…), o FUNDO é a cor primária e a
+   * LETRA/ÍCONE é a cor secundária (ex.: botão azul com texto dourado). Nos
+   * botões de ação secundária (Cancelar, Limpar — severity="secondary"),
+   * texto/borda usam a cor secundária cheia (não um tom claro/apagado),
+   * sempre com contraste visível contra o fundo.
    */
   applySpaceColors(primary: string, secondary: string | null): void {
+    const secondaryHex = secondary || primary;
     const palette = generatePalette(primary);
     updatePrimaryPalette(palette);
     const root = document.documentElement.style;
     root.setProperty('--jf-primary', primary);
     root.setProperty('--jf-primary-strong', palette['700']);
-    root.setProperty('--jf-secondary', secondary || primary);
-    this.applySecondaryButtonPalette(secondary || primary);
+    root.setProperty('--jf-secondary', secondaryHex);
+    this.applyButtonPalette(secondaryHex);
   }
 
   /** Sem espaço ativo (ex.: SUPER_ADMIN) — volta à cor padrão da plataforma. */
@@ -58,84 +60,31 @@ export class ThemeService {
   }
 
   /**
-   * PrimeNG não tem um conceito de "cor secundária de marca" pronto — a
-   * severity="secondary" dos botões usa a paleta neutra `surface` fixa.
-   * Sobrescreve só os tokens de botão (root/outlined/text, claro/escuro)
-   * com uma escala derivada da cor secundária do espaço, sem tocar `surface`
-   * (usado em cards/tabelas/bordas — mudar isso afetaria a UI inteira).
+   * Sobrescreve só os tokens de botão do PrimeNG (nunca `surface`, usado em
+   * cards/tabelas/bordas — mudar isso afetaria a UI inteira, não só botões).
    */
-  private applySecondaryButtonPalette(secondaryHex: string): void {
+  private applyButtonPalette(secondaryHex: string): void {
     const pal = generatePalette(secondaryHex);
-    updatePreset({
-      components: {
-        button: {
-          colorScheme: {
-            light: {
-              root: {
-                secondary: {
-                  background: pal['100'],
-                  hoverBackground: pal['200'],
-                  activeBackground: pal['300'],
-                  borderColor: pal['100'],
-                  hoverBorderColor: pal['200'],
-                  activeBorderColor: pal['300'],
-                  color: pal['700'],
-                  hoverColor: pal['800'],
-                  activeColor: pal['900'],
-                  focusRing: { color: pal['600'], shadow: 'none' },
-                },
-              },
-              outlined: {
-                secondary: {
-                  hoverBackground: pal['50'],
-                  activeBackground: pal['100'],
-                  borderColor: pal['200'],
-                  color: pal['700'],
-                },
-              },
-              text: {
-                secondary: {
-                  hoverBackground: pal['50'],
-                  activeBackground: pal['100'],
-                  color: pal['700'],
-                },
-              },
-            },
-            dark: {
-              root: {
-                secondary: {
-                  background: pal['800'],
-                  hoverBackground: pal['700'],
-                  activeBackground: pal['600'],
-                  borderColor: pal['800'],
-                  hoverBorderColor: pal['700'],
-                  activeBorderColor: pal['600'],
-                  color: pal['200'],
-                  hoverColor: pal['100'],
-                  activeColor: pal['50'],
-                  focusRing: { color: pal['300'], shadow: 'none' },
-                },
-              },
-              outlined: {
-                secondary: {
-                  hoverBackground: 'rgba(255,255,255,0.04)',
-                  activeBackground: 'rgba(255,255,255,0.16)',
-                  borderColor: pal['600'],
-                  color: pal['300'],
-                },
-              },
-              text: {
-                secondary: {
-                  hoverBackground: pal['800'],
-                  activeBackground: pal['700'],
-                  color: pal['300'],
-                },
-              },
-            },
-          },
-        },
-      },
-    });
+    const secondaryOnPrimary = {
+      color: secondaryHex,
+      hoverColor: secondaryHex,
+      activeColor: secondaryHex,
+    };
+    const boldSecondary = {
+      borderColor: secondaryHex,
+      hoverBorderColor: pal['600'],
+      activeBorderColor: pal['700'],
+      color: secondaryHex,
+      hoverColor: pal['600'],
+      activeColor: pal['700'],
+      focusRing: { color: secondaryHex, shadow: 'none' },
+    };
+    const colorScheme = {
+      root: { primary: secondaryOnPrimary, secondary: { ...boldSecondary, background: 'transparent' } },
+      outlined: { secondary: boldSecondary },
+      text: { secondary: boldSecondary },
+    };
+    updatePreset({ components: { button: { colorScheme: { light: colorScheme, dark: colorScheme } } } });
   }
 
   private applyDarkClass(isDark: boolean): void {
