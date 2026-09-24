@@ -37,21 +37,14 @@ function initialOf(name: string): string {
           />
         }
 
-        <!-- Identidade do espaço ativo — troca de espaço quando há mais de um. -->
+        <!-- Identidade do espaço: um usuário pertence a um único espaço (MVP —
+             cada espaço é vendido a uma pessoa/e-mail), então é só exibição,
+             nunca um seletor de troca. -->
         @if (activeSpace(); as s) {
-          @if (spaces().length > 1) {
-            <button type="button" class="identity identity--btn" (click)="spaceMenu.toggle($event)">
-              <p-avatar [label]="initialOf(s.name)" shape="circle" size="normal" [style]="{ background: s.color, color: '#fff' }" />
-              <span class="identity__name">{{ s.name }}</span>
-              <i class="pi pi-chevron-down identity__chevron" aria-hidden="true"></i>
-            </button>
-            <p-menu #spaceMenu [model]="spaceMenuItems()" [popup]="true" />
-          } @else {
-            <span class="identity">
-              <p-avatar [label]="initialOf(s.name)" shape="circle" size="normal" [style]="{ background: s.color, color: '#fff' }" />
-              <span class="identity__name">{{ s.name }}</span>
-            </span>
-          }
+          <span class="identity">
+            <p-avatar [label]="initialOf(s.name)" shape="circle" size="normal" [style]="{ background: s.color, color: '#fff' }" />
+            <span class="identity__name">{{ s.name }}</span>
+          </span>
         }
 
         <div class="topbar__spacer"></div>
@@ -63,6 +56,7 @@ function initialOf(name: string): string {
           } @else {
             <p-avatar [label]="userInitial()" shape="circle" size="normal" />
           }
+          <span class="identity__name">{{ userDisplayName() }}</span>
           <i class="pi pi-chevron-down identity__chevron" aria-hidden="true"></i>
         </button>
         <p-menu #userMenu [model]="userMenuItems" [popup]="true" />
@@ -195,21 +189,17 @@ export class AuthLayoutComponent {
   private readonly _drawerOpen = signal(false);
   protected readonly drawerOpen = this._drawerOpen.asReadonly();
 
-  protected readonly spaces = computed(() => this.activeSpaceService.availableSpaces());
   protected readonly activeSpace = this.activeSpaceService.activeSpace;
-
-  protected readonly spaceMenuItems = computed<MenuItem[]>(() =>
-    this.spaces().map((s) => ({
-      label: s.name,
-      icon: s.id === this.activeSpaceService.activeSpaceId() ? 'pi pi-check' : undefined,
-      command: () => this.activeSpaceService.setActiveSpace(s.id),
-    })),
-  );
 
   protected readonly avatarUrl = computed(() => this.auth.context()?.profile?.avatarUrl ?? null);
   protected readonly userInitial = computed(() => {
     const profile = this.auth.context()?.profile;
     return initialOf(profile?.fullName || profile?.email || '?');
+  });
+  /** Nome do usuário; sem nome cadastrado, mostra as iniciais em vez do e-mail. */
+  protected readonly userDisplayName = computed(() => {
+    const profile = this.auth.context()?.profile;
+    return profile?.fullName?.trim() || this.userInitial();
   });
 
   protected readonly userMenuItems: MenuItem[] = [

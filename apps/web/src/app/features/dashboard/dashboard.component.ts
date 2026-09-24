@@ -11,8 +11,9 @@ import { ActiveSpaceService } from '../../core/authorization/active-space.servic
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, CardModule, TagModule],
   template: `
-    @if (!space()) {
-      <header class="page-head">
+    <header class="page-head">
+      <h1>Dashboard</h1>
+      @if (!space()) {
         <p class="muted">
           @if (isSuperAdmin()) {
             <p-tag severity="info" value="SUPER_ADMIN" /> — você administra a plataforma.
@@ -21,8 +22,8 @@ import { ActiveSpaceService } from '../../core/authorization/active-space.servic
             <a routerLink="/configuracoes/usuarios">Ver convites pendentes</a>
           }
         </p>
-      </header>
-    }
+      }
+    </header>
 
     <section class="grid">
       <p-card header="Processos">
@@ -41,6 +42,10 @@ import { ActiveSpaceService } from '../../core/authorization/active-space.servic
   `,
   styles: [
     `
+      .page-head h1 {
+        margin: 0 0 0.35rem;
+        font-size: 1.35rem;
+      }
       .muted {
         color: var(--jf-text-muted, #64748b);
         display: flex;

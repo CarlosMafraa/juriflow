@@ -38,7 +38,6 @@ describe('visibleNavItems', () => {
     expect(visibleNavItems(denyAll, NAV_ITEMS).map((i) => i.label)).toEqual([
       'Dashboard',
       'Tribunais',
-      'Meu perfil',
     ]);
   });
 });
