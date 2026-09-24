@@ -24,9 +24,8 @@ export const appConfig: ApplicationConfig = {
       theme: {
         preset: Aura,
         options: {
-          // Classe alternada manualmente pelo ThemeService (topbar) — não segue
-          // o SO automaticamente, é uma preferência explícita do usuário.
-          darkModeSelector: '.app-dark',
+          // Modo escuro tentado e removido — não ficou bom. Tema fixo (claro).
+          darkModeSelector: false,
         },
       },
     }),

@@ -170,25 +170,6 @@ import { CardModule } from 'primeng/card';
           border-radius: 0;
         }
       }
-      /*
-       * Modo escuro: o campo herdava o preto quase puro padrão do PrimeNG,
-       * que em cima do fundo navy do painel (sem card por trás, no desktop)
-       * ficava sem contraste nenhum — o formulário sumia visualmente. Usa a
-       * superfície do próprio app (mais clara que o fundo) para os campos.
-       */
-      :host-context(.app-dark) ::ng-deep .panel__card input.p-inputtext {
-        background: var(--jf-surface);
-        border-color: var(--jf-border);
-        color: var(--jf-text);
-      }
-      :host-context(.app-dark) ::ng-deep .panel__card {
-        background: var(--jf-surface);
-      }
-      @media (min-width: 1024px) {
-        :host-context(.app-dark) ::ng-deep .panel__card {
-          background: transparent;
-        }
-      }
       .panel__header {
         margin-bottom: 1.25rem;
       }
@@ -224,8 +205,8 @@ import { CardModule } from 'primeng/card';
         border-color: var(--jf-navy);
       }
       :host ::ng-deep .panel__card .p-button:not(.p-button-outlined):not(.p-button-text):not(:disabled):hover {
-        background: oklch(0.28 0.07 258);
-        border-color: oklch(0.28 0.07 258);
+        background: var(--jf-primary-strong, #11284b);
+        border-color: var(--jf-primary-strong, #11284b);
       }
       :host ::ng-deep .panel__card .p-button {
         height: 2.25rem;

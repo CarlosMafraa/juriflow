@@ -24,10 +24,6 @@ export interface Space {
   name: string;
   slug: string;
   status: 'active' | 'suspended';
-  /** Cor primária (hex) — dirige o tema do espaço (botões, links). */
-  color: string;
-  /** Cor secundária (hex) — acentos de UI (ex.: item ativo da sidebar). */
-  secondaryColor: string;
   createdBy: Uuid | null;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime | null;

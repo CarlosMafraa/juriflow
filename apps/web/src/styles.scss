@@ -5,8 +5,11 @@
    Design tokens do JuriFlow. Componentes referenciam via var(--jf-*).
    ========================================================================= */
 :root {
-  --jf-primary: #2563eb;
-  --jf-primary-strong: #1d4ed8;
+  /* Tema fixo do app — azul/dourado do login (ThemeService aplica de novo em
+     JS no bootstrap; os valores aqui são só o fallback antes disso rodar). */
+  --jf-primary: #1f385d;
+  --jf-primary-strong: #11284b;
+  --jf-secondary: #d7a040;
   --jf-danger: #dc2626;
   --jf-success: #16a34a;
   --jf-warning: #d97706;
@@ -41,29 +44,6 @@
   /* Breakpoints do brief (referência): mobile <768, tablet 768-1023, desktop >=1024 */
   --jf-bp-tablet: 768px;
   --jf-bp-desktop: 1024px;
-}
-
-/*
- * Modo escuro — classe alternada pelo ThemeService (topbar), nunca automática
- * pelo SO. --jf-primary/--jf-primary-strong/--jf-secondary NÃO entram aqui:
- * são escritos em JS (cor do espaço ativo) e sobrescrevem qualquer regra CSS.
- */
-.app-dark {
-  --jf-danger: #f87171;
-  --jf-success: #4ade80;
-  --jf-warning: #fbbf24;
-
-  --jf-bg: #0f172a;
-  --jf-surface: #1e293b;
-  --jf-surface-muted: #273549;
-  --jf-border: #334155;
-
-  --jf-text: #f1f5f9;
-  --jf-text-muted: #94a3b8;
-
-  --jf-shadow-card:
-    0 1px 2px rgb(0 0 0 / 30%),
-    0 8px 24px rgb(0 0 0 / 30%);
 }
 
 /* ------------------------------- reset ---------------------------------- */

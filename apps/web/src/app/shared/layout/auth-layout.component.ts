@@ -9,7 +9,6 @@ import { ButtonModule } from 'primeng/button';
 import { MenuModule } from 'primeng/menu';
 import { AuthService } from '../../core/auth/auth.service';
 import { ActiveSpaceService } from '../../core/authorization/active-space.service';
-import { ThemeService } from '../../core/theming/theme.service';
 import { SidebarComponent } from './sidebar.component';
 
 /** Breakpoints do brief: Mobile <768, Tablet 768–1023, Desktop >=1024. */
@@ -43,20 +42,12 @@ function initialOf(name: string): string {
              nunca um seletor de troca. -->
         @if (activeSpace(); as s) {
           <span class="identity">
-            <p-avatar [label]="initialOf(s.name)" shape="circle" size="normal" [style]="{ background: s.color, color: '#fff' }" />
+            <p-avatar [label]="initialOf(s.name)" shape="circle" size="normal" />
             <span class="identity__name">{{ s.name }}</span>
           </span>
         }
 
         <div class="topbar__spacer"></div>
-
-        <p-button
-          [icon]="isDark() ? 'pi pi-sun' : 'pi pi-moon'"
-          [text]="true"
-          severity="secondary"
-          [ariaLabel]="isDark() ? 'Ativar tema claro' : 'Ativar tema escuro'"
-          (onClick)="theme.toggleDark()"
-        />
 
         <!-- Identidade do usuário — Meu perfil / Sair. -->
         <button type="button" class="identity identity--btn" (click)="userMenu.toggle($event)" aria-label="Menu do usuário">
@@ -193,8 +184,6 @@ export class AuthLayoutComponent {
   private readonly activeSpaceService = inject(ActiveSpaceService);
   private readonly router = inject(Router);
   private readonly breakpoints = inject(BreakpointObserver);
-  protected readonly theme = inject(ThemeService);
-  protected readonly isDark = this.theme.isDark;
 
   protected readonly initialOf = initialOf;
 

@@ -33,7 +33,7 @@ import { ThemeService } from './core/theming/theme.service';
   ],
 })
 export class AppComponent {
-  // Injetado só para instanciar cedo (aplica a classe de modo escuro antes da
-  // 1ª tela renderizar) — o serviço não expõe nada que este componente use.
+  // Injetado só para instanciar cedo (aplica o tema fixo antes da 1ª tela
+  // renderizar) — o serviço não expõe nada que este componente use.
   private readonly theme = inject(ThemeService);
 }

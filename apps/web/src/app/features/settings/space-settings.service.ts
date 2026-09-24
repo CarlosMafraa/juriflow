@@ -8,8 +8,6 @@ interface SpaceRow {
   name: string;
   slug: string;
   status: Space['status'];
-  color: string;
-  secondary_color: string;
   created_by: string | null;
   created_at: string;
   updated_at: string | null;
@@ -21,15 +19,13 @@ function toSpace(r: SpaceRow): Space {
     name: r.name,
     slug: r.slug,
     status: r.status,
-    color: r.color,
-    secondaryColor: r.secondary_color,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
 }
 
-/** Dados do espaço ativo (nome, cor primária/secundária — define o tema) — edição é do ADMIN (RLS: spaces_update). */
+/** Dados do espaço ativo (nome) — edição é do ADMIN (RLS: spaces_update). */
 @Injectable({ providedIn: 'root' })
 export class SpaceSettingsService {
   private readonly supabase = inject(SUPABASE_CLIENT);
@@ -51,14 +47,10 @@ export class SpaceSettingsService {
     return toSpace(data as SpaceRow);
   }
 
-  async update(input: { name: string; color: string; secondaryColor: string }): Promise<void> {
+  async update(input: { name: string }): Promise<void> {
     const { error } = await this.supabase
       .from('spaces')
-      .update({
-        name: input.name.trim(),
-        color: input.color,
-        secondary_color: input.secondaryColor,
-      })
+      .update({ name: input.name.trim() })
       .eq('id', this.spaceId());
     if (error) throw error;
   }

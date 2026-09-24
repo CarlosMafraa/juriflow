@@ -9,10 +9,7 @@ interface MembershipRow {
   space_id: string;
   role: Membership['role'];
   status: Membership['status'];
-  spaces:
-    | { name: string; color: string; secondary_color: string }
-    | { name: string; color: string; secondary_color: string }[]
-    | null;
+  spaces: { name: string } | { name: string }[] | null;
 }
 
 /**
@@ -128,7 +125,7 @@ export class AuthService {
           .maybeSingle(),
         this.supabase
           .from('space_members')
-          .select('space_id, role, status, spaces(name, color, secondary_color)')
+          .select('space_id, role, status, spaces(name)')
           .eq('profile_id', userId),
       ]);
 
@@ -142,12 +139,6 @@ export class AuthService {
       spaceName: Array.isArray(row.spaces)
         ? (row.spaces[0]?.name ?? null)
         : (row.spaces?.name ?? null),
-      spaceColor: Array.isArray(row.spaces)
-        ? (row.spaces[0]?.color ?? null)
-        : (row.spaces?.color ?? null),
-      spaceSecondaryColor: Array.isArray(row.spaces)
-        ? (row.spaces[0]?.secondary_color ?? null)
-        : (row.spaces?.secondary_color ?? null),
     }));
 
     return {
