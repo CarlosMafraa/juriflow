@@ -25,6 +25,8 @@ export class WahaNotifier implements Notifier {
         'X-Api-Key': this.apiKey,
       },
       body: JSON.stringify({ session, chatId, text: message }),
+      // Sem timeout, um WAHA travado prende a coleta inteira no envio.
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (!response.ok) {

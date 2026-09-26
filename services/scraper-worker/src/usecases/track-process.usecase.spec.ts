@@ -70,8 +70,8 @@ function buildHarness(options: {
   movements?: RawMovement[];
 }): Harness {
   const recipients = options.recipients ?? [
-    { type: 'responsible', phone: '+5592900000001', clientId: null },
-    { type: 'client', phone: '+5592900000002', clientId: 'client-1' },
+    { type: 'responsible', phone: '+5592900000001', recipientId: 'profile-1' },
+    { type: 'client', phone: '+5592900000002', recipientId: 'client-1' },
   ];
 
   const registry = buildRegistry(options.movements ?? [NEW_MOVEMENT]);
@@ -80,6 +80,8 @@ function buildHarness(options: {
     listTrackableProcesses: async () => [PROCESS],
     findTrackableProcessById: async () => PROCESS,
     updateTrackingState: async () => {},
+    listCheckRequestedIds: async () => [],
+    clearCheckRequest: async () => {},
   };
 
   let storedIdSeq = 0;

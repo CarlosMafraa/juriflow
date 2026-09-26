@@ -1,6 +1,9 @@
 import type { Logger } from '../infra/logger.js';
 import type { WahaSessionGateway } from '../infra/waha-session-gateway.js';
-import type { WhatsappSessionRepository, WhatsappSessionRow } from '../ports/whatsapp-session-repository.port.js';
+import type {
+  WhatsappSessionRepository,
+  WhatsappSessionRow,
+} from '../ports/whatsapp-session-repository.port.js';
 
 /**
  * Polling do ciclo de vida das sessões WhatsApp por espaço (RN seção 22 /
@@ -8,6 +11,8 @@ import type { WhatsappSessionRepository, WhatsappSessionRow } from '../ports/wha
  * quem de fato fala com o WAHA e sincroniza status/QR de volta.
  */
 export class WhatsappSessionJob {
+  private running = false;
+
   constructor(
     private readonly gateway: WahaSessionGateway,
     private readonly repository: WhatsappSessionRepository,
@@ -15,15 +20,26 @@ export class WhatsappSessionJob {
   ) {}
 
   async tick(): Promise<void> {
-    const rows = await this.repository.listActionable();
-    for (const row of rows) {
-      try {
-        await this.processRow(row);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        this.logger.error('Falha ao processar sessão WhatsApp.', { spaceId: row.spaceId, error: message });
-        await this.repository.markFailed(row.spaceId, message);
+    // O intervalo é curto (5s) e o WAHA pode demorar: sem esta trava, dois
+    // ticks processariam a mesma linha (ex.: iniciar a sessão duas vezes).
+    if (this.running) return;
+    this.running = true;
+    try {
+      const rows = await this.repository.listActionable();
+      for (const row of rows) {
+        try {
+          await this.processRow(row);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          this.logger.error('Falha ao processar sessão WhatsApp.', {
+            spaceId: row.spaceId,
+            error: message,
+          });
+          await this.repository.markFailed(row.spaceId, message);
+        }
       }
+    } finally {
+      this.running = false;
     }
   }
 
@@ -48,7 +64,10 @@ export class WhatsappSessionJob {
       const qrCode = await this.gateway.getQrBase64(row.sessionName);
       await this.repository.markQrReady(row.spaceId, qrCode);
     } else if (status === 'FAILED' || status === null) {
-      await this.repository.markFailed(row.spaceId, `Sessão WAHA em estado inesperado: ${status ?? 'inexistente'}.`);
+      await this.repository.markFailed(
+        row.spaceId,
+        `Sessão WAHA em estado inesperado: ${status ?? 'inexistente'}.`,
+      );
     }
     // STARTING/STOPPED: ainda subindo — sem-op, próximo tick reavalia.
   }

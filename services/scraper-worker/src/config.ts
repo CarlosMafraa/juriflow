@@ -45,6 +45,10 @@ export interface WorkerConfig {
   readonly scraperThrottleMs: number;
 
   readonly dailyCheckCron: string;
+  /** Fuso do cron diário — o container roda em UTC; sem isso "08:00" vira 04:00 em Manaus. */
+  readonly dailyCheckTimezone: string;
+  /** Intervalo do polling de pedidos de "consultar agora" (processes.check_requested_at). */
+  readonly checkRequestPollMs: number;
   readonly httpPort: number;
   readonly logLevel: string;
 }
@@ -66,6 +70,8 @@ export function loadConfig(): WorkerConfig {
     scraperThrottleMs: optionalInt('SCRAPER_THROTTLE_MS', 4000),
 
     dailyCheckCron: optional('DAILY_CHECK_CRON', '0 8 * * *'),
+    dailyCheckTimezone: optional('DAILY_CHECK_TIMEZONE', 'America/Manaus'),
+    checkRequestPollMs: optionalInt('CHECK_REQUEST_POLL_MS', 10000),
     httpPort: optionalInt('HTTP_PORT', 3000),
     logLevel: optional('LOG_LEVEL', 'info'),
   };

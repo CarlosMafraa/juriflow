@@ -2,7 +2,10 @@ name: juriflow
 
 services:
   waha:
-    image: devlikeapro/waha:latest
+    # Versão fixa: `latest` muda a API sem aviso num `docker compose pull`.
+    # Precisa ser >= 2026.6.1 — a partir dela o WAHA Core (gratuito) tem
+    # sessões ilimitadas, necessárias para uma sessão por espaço.
+    image: devlikeapro/waha:${WAHA_IMAGE_TAG:-latest-2026.9.1}
     restart: unless-stopped
     environment:
       WHATSAPP_API_KEY: ${WAHA_API_KEY}

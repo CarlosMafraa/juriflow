@@ -136,7 +136,7 @@ export class TrackProcessUseCase {
         const alreadySent = await this.notificationLog.wasAlreadySent(
           movement.id,
           recipient.type,
-          recipient.clientId,
+          recipient.recipientId,
         );
         if (alreadySent) continue;
 
@@ -149,7 +149,7 @@ export class TrackProcessUseCase {
             processId: process.id,
             movementId: movement.id,
             recipientType: recipient.type,
-            recipientClientId: recipient.clientId,
+            recipientId: recipient.recipientId,
             phone: recipient.phone,
           });
           sent += 1;
@@ -160,7 +160,7 @@ export class TrackProcessUseCase {
             processId: process.id,
             movementId: movement.id,
             recipientType: recipient.type,
-            recipientClientId: recipient.clientId,
+            recipientId: recipient.recipientId,
             phone: recipient.phone,
             error: errorMessage,
           });

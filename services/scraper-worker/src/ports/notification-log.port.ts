@@ -10,7 +10,7 @@ export interface NotificationLog {
   wasAlreadySent(
     movementId: string,
     recipientType: RecipientType,
-    recipientClientId: string | null,
+    recipientId: string,
   ): Promise<boolean>;
 
   recordSent(input: {
@@ -18,7 +18,7 @@ export interface NotificationLog {
     processId: string;
     movementId: string;
     recipientType: RecipientType;
-    recipientClientId: string | null;
+    recipientId: string;
     phone: string;
   }): Promise<void>;
 
@@ -27,7 +27,7 @@ export interface NotificationLog {
     processId: string;
     movementId: string;
     recipientType: RecipientType;
-    recipientClientId: string | null;
+    recipientId: string;
     phone: string;
     error: string;
   }): Promise<void>;

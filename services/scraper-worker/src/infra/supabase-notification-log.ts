@@ -5,8 +5,14 @@ import type { RecipientType } from '../ports/recipient-resolver.port.js';
 interface DeliveryKey {
   movementId: string;
   recipientType: RecipientType;
-  recipientClientId: string | null;
+  /** Cliente (recipient_client_id) ou perfil do responsável (recipient_profile_id). */
+  recipientId: string;
 }
+
+const RECIPIENT_COLUMN: Record<RecipientType, string> = {
+  client: 'recipient_client_id',
+  responsible: 'recipient_profile_id',
+};
 
 interface DeliveryWrite extends DeliveryKey {
   spaceId: string;
@@ -26,9 +32,9 @@ export class SupabaseNotificationLog implements NotificationLog {
   async wasAlreadySent(
     movementId: string,
     recipientType: RecipientType,
-    recipientClientId: string | null,
+    recipientId: string,
   ): Promise<boolean> {
-    const existing = await this.findExisting({ movementId, recipientType, recipientClientId });
+    const existing = await this.findExisting({ movementId, recipientType, recipientId });
     return existing?.status === 'sent';
   }
 
@@ -37,7 +43,7 @@ export class SupabaseNotificationLog implements NotificationLog {
     processId: string;
     movementId: string;
     recipientType: RecipientType;
-    recipientClientId: string | null;
+    recipientId: string;
     phone: string;
   }): Promise<void> {
     await this.write(input, { status: 'sent', error: null, sentAt: new Date() });
@@ -48,7 +54,7 @@ export class SupabaseNotificationLog implements NotificationLog {
     processId: string;
     movementId: string;
     recipientType: RecipientType;
-    recipientClientId: string | null;
+    recipientId: string;
     phone: string;
     error: string;
   }): Promise<void> {
@@ -56,17 +62,13 @@ export class SupabaseNotificationLog implements NotificationLog {
   }
 
   private async findExisting(key: DeliveryKey): Promise<{ id: string; status: string } | null> {
-    let query = this.client
+    const { data, error } = await this.client
       .from('notification_deliveries')
       .select('id, status')
       .eq('movement_id', key.movementId)
-      .eq('recipient_type', key.recipientType);
-
-    query = key.recipientClientId
-      ? query.eq('recipient_client_id', key.recipientClientId)
-      : query.is('recipient_client_id', null);
-
-    const { data, error } = await query.maybeSingle<{ id: string; status: string }>();
+      .eq('recipient_type', key.recipientType)
+      .eq(RECIPIENT_COLUMN[key.recipientType], key.recipientId)
+      .maybeSingle<{ id: string; status: string }>();
     if (error) throw new Error(`Falha ao consultar notification_deliveries: ${error.message}`);
     return data;
   }
@@ -90,7 +92,7 @@ export class SupabaseNotificationLog implements NotificationLog {
           process_id: input.processId,
           movement_id: input.movementId,
           recipient_type: input.recipientType,
-          recipient_client_id: input.recipientClientId,
+          [RECIPIENT_COLUMN[input.recipientType]]: input.recipientId,
           ...payload,
         });
 

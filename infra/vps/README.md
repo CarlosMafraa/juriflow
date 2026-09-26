@@ -57,9 +57,12 @@ O banco (Supabase) fica na nuvem, fora desta VPS.
 ## Operação
 
 - Logs: `docker compose logs -f scraper-worker`
-- A rotina diária roda sozinha (cron dentro do próprio worker, `DAILY_CHECK_CRON`).
-- Para forçar uma coleta manual antes do frontend ter o botão: túnel SSH até a
-  porta do worker e `curl -X POST http://localhost:<porta>/check/<process-id>`.
+- A rotina diária roda sozinha (cron dentro do próprio worker, `DAILY_CHECK_CRON`
+  no fuso `DAILY_CHECK_TIMEZONE`, padrão `America/Manaus`).
+- "Consultar agora" no app grava o pedido em `processes.check_requested_at`; o
+  worker consome a fila a cada `CHECK_REQUEST_POLL_MS` (sem porta pública).
+  Para depuração avulsa ainda dá para usar o túnel SSH até a porta do worker e
+  `curl -X POST http://localhost:<porta>/check/<process-id>`.
 - Atualização de código: `git pull && docker compose up -d --build`.
 
 ## Fora do escopo desta fase
