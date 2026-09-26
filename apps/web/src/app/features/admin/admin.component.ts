@@ -1,19 +1,29 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import type { Profile, Space } from '@juriflow/shared-types';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { InputTextModule } from 'primeng/inputtext';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
-import { AuthService } from '../../core/auth/auth.service';
 import { ToastService } from '../../shared/feedback/toast.service';
 import { DialogService } from '../../shared/ui/dialog.service';
-import { PlatformAdminService } from './platform-admin.service';
 import { PageHeaderService } from '../../shared/layout/page-header.service';
+import { inviteStatus, type InviteStatusView } from '../team/invite-status';
+import { PlatformAdminService, type PlatformSpace } from './platform-admin.service';
 
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface PlanDraft {
+  maxProcesses: number;
+  maxTrackedProcesses: number;
+}
+
+/**
+ * Administração da plataforma. Responsabilidade do SUPER_ADMIN: criar
+ * escritórios (convidando o ADMIN de cada um), suspender/reativar e definir o
+ * plano. Do escritório ele só vê o que é "de fora".
+ */
 @Component({
   selector: 'jf-admin',
   standalone: true,
@@ -24,49 +34,77 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
     CardModule,
     InputTextModule,
     ProgressSpinnerModule,
-    SelectModule,
     TableModule,
     TagModule,
   ],
   template: `
-    @if (loading()) {
-      <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
-    } @else {
-      <p-card header="Espaços" styleClass="section">
-        <form class="create-form" [formGroup]="spaceForm" (ngSubmit)="createSpace()">
-          <input pInputText class="f" placeholder="Nome do espaço" formControlName="name" />
-          <p-select
-            class="f"
-            [options]="profileOptions()"
-            formControlName="adminProfileId"
-            placeholder="Administrador inicial"
+    <p-card header="Novo escritório" styleClass="section">
+      <form class="create-form" [formGroup]="form" (ngSubmit)="createOffice()">
+        <div class="field grow">
+          <label for="adminEmail">E-mail do administrador do escritório</label>
+          <input
+            pInputText
+            id="adminEmail"
+            type="email"
+            formControlName="adminEmail"
+            placeholder="advogado@escritorio.com.br"
           />
-          <p-button
-            type="submit"
-            size="small"
-            icon="pi pi-plus"
-            [loading]="creatingSpace()"
-            label="Criar espaço"
-          />
-        </form>
+        </div>
+        <p-button
+          type="submit"
+          size="small"
+          icon="pi pi-send"
+          [loading]="creating()"
+          label="Enviar convite"
+        />
+      </form>
+      <p class="muted small">
+        O escritório é criado aguardando configuração. O administrador recebe um link (vale 24
+        horas), completa os dados dele e do escritório e depois convida a própria equipe. Reenviar o
+        convite invalida o link anterior.
+      </p>
+    </p-card>
 
+    <p-card header="Escritórios" styleClass="section">
+      @if (loading()) {
+        <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
+      } @else {
         <p class="muted small">
-          A plataforma só enxerga que o espaço existe, o status e o plano — nada do conteúdo de cada
-          escritório. Plano novo nasce como Free (10 processos, 3 com sincronização).
+          A plataforma só vê que o escritório existe, o administrador convidado, o status e o plano
+          — nunca o conteúdo.
         </p>
         <p-table [value]="spaces()" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
-              <th>Nome</th>
+              <th>Escritório</th>
+              <th>Administrador</th>
               <th>Status</th>
               <th>Processos</th>
-              <th>Sincronização automática</th>
+              <th>Sincronizados</th>
               <th></th>
             </tr>
           </ng-template>
           <ng-template pTemplate="body" let-s>
             <tr>
-              <td>{{ s.name }}</td>
+              <td>
+                @if (s.setupCompletedAt) {
+                  <strong>{{ s.name }}</strong>
+                } @else {
+                  <p-tag severity="info" value="Aguardando configuração" />
+                }
+              </td>
+              <td>
+                <div class="admin">{{ s.adminEmail || '—' }}</div>
+                @if (!s.setupCompletedAt) {
+                  @let inv = invite(s);
+                  <div class="invite">
+                    <p-tag [severity]="inv.severity" [value]="inv.label" />
+                    @if (inv.detail) {
+                      <span class="muted small">{{ inv.detail }}</span>
+                    }
+                  </div>
+                }
+              </td>
               <td>
                 <p-tag
                   [severity]="s.status === 'active' ? 'success' : 'danger'"
@@ -79,7 +117,7 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
                   class="num"
                   type="number"
                   min="0"
-                  [attr.aria-label]="'Limite de processos de ' + s.name"
+                  [attr.aria-label]="'Limite de processos de ' + label(s)"
                   [value]="draft(s).maxProcesses"
                   (input)="setDraft(s, 'maxProcesses', $event)"
                 />
@@ -90,7 +128,7 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
                   class="num"
                   type="number"
                   min="0"
-                  [attr.aria-label]="'Limite de sincronizados de ' + s.name"
+                  [attr.aria-label]="'Limite de sincronizados de ' + label(s)"
                   [value]="draft(s).maxTrackedProcesses"
                   (input)="setDraft(s, 'maxTrackedProcesses', $event)"
                 />
@@ -104,126 +142,90 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
                   [loading]="savingPlan() === s.id"
                   (onClick)="savePlan(s)"
                 />
+                @if (!s.setupCompletedAt && s.inviteId && invite(s).canResend) {
+                  <p-button
+                    size="small"
+                    severity="secondary"
+                    [outlined]="true"
+                    icon="pi pi-refresh"
+                    label="Reenviar convite"
+                    [loading]="resending() === s.id"
+                    (onClick)="resend(s)"
+                  />
+                }
                 <p-button
                   size="small"
                   severity="secondary"
                   [outlined]="true"
                   [icon]="s.status === 'active' ? 'pi pi-ban' : 'pi pi-refresh'"
                   [label]="s.status === 'active' ? 'Suspender' : 'Reativar'"
-                  (onClick)="toggleSpaceStatus(s)"
+                  (onClick)="toggleStatus(s)"
                 />
               </td>
             </tr>
           </ng-template>
           <ng-template pTemplate="emptymessage">
             <tr>
-              <td colspan="4">Nenhum espaço cadastrado ainda.</td>
+              <td colspan="6">Nenhum escritório ainda. Convide o primeiro acima.</td>
             </tr>
           </ng-template>
         </p-table>
-      </p-card>
-
-      <p-card header="Usuários" styleClass="section">
-        <!-- Escritório novo: convida o futuro ADMIN por e-mail; a conta aparece
-             na lista abaixo e pode ser escolhida como administrador do espaço. -->
-        <form class="create-form" [formGroup]="inviteForm" (ngSubmit)="inviteUser()">
-          <input
-            pInputText
-            class="f"
-            type="email"
-            placeholder="E-mail do novo usuário"
-            formControlName="email"
-          />
-          <p-button
-            type="submit"
-            size="small"
-            icon="pi pi-send"
-            [loading]="invitingUser()"
-            label="Convidar usuário"
-          />
-        </form>
-
-        <p-table [value]="profiles()" styleClass="p-datatable-sm">
-          <ng-template pTemplate="header">
-            <tr>
-              <th>Nome</th>
-              <th>E-mail</th>
-              <th>Plataforma</th>
-              <th></th>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="body" let-p>
-            <tr>
-              <td>{{ p.fullName || '—' }}</td>
-              <td>{{ p.email }}</td>
-              <td>
-                @if (p.isSuperAdmin) {
-                  <p-tag severity="info" value="SUPER_ADMIN" />
-                } @else {
-                  <span class="muted">—</span>
-                }
-              </td>
-              <td class="actions">
-                <p-button
-                  size="small"
-                  severity="secondary"
-                  [outlined]="true"
-                  [disabled]="p.id === currentUserId()"
-                  [icon]="p.isSuperAdmin ? 'pi pi-user-minus' : 'pi pi-shield'"
-                  [label]="p.isSuperAdmin ? 'Remover SUPER_ADMIN' : 'Tornar SUPER_ADMIN'"
-                  (onClick)="toggleSuperAdmin(p)"
-                />
-              </td>
-            </tr>
-          </ng-template>
-        </p-table>
-      </p-card>
-    }
+      }
+    </p-card>
   `,
   styles: [
     `
-      .center {
-        display: flex;
-        justify-content: center;
-        padding: 2.5rem;
-      }
-      :host ::ng-deep .spinner-sm {
-        width: 2.5rem;
-        height: 2.5rem;
-      }
-      /* styleClass do p-card cai num div interno do template do PrimeNG, fora
-         do encapsulamento deste componente — precisa de ::ng-deep, senão a
-         regra nunca é aplicada. */
       :host ::ng-deep .section {
         display: block;
         margin-bottom: 1rem;
       }
       .create-form {
         display: flex;
+        align-items: flex-end;
+        gap: 0.75rem;
         flex-wrap: wrap;
-        gap: 0.5rem;
-        align-items: center;
-        margin-bottom: 1rem;
       }
-      .f {
-        min-width: 12rem;
-        flex: 1 1 12rem;
+      .grow {
+        flex: 1 1 18rem;
       }
-      .actions {
-        text-align: right;
+      .grow input {
+        width: 100%;
       }
       .muted {
         color: var(--jf-text-muted, #64748b);
       }
       .small {
         font-size: 0.8rem;
-        margin: 0 0 0.75rem;
+        margin: 0.75rem 0 0;
+      }
+      .center {
+        display: flex;
+        justify-content: center;
+        padding: 2rem;
+      }
+      :host ::ng-deep .spinner-sm {
+        width: 2.5rem;
+        height: 2.5rem;
+      }
+      .admin {
+        overflow-wrap: anywhere;
+      }
+      .invite {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        margin-top: 0.3rem;
+      }
+      .invite .small {
+        margin: 0;
       }
       .num {
-        width: 6rem;
+        width: 5.5rem;
       }
       .actions {
         white-space: nowrap;
+        text-align: right;
       }
       .actions p-button {
         margin-left: 0.35rem;
@@ -236,128 +238,102 @@ export class AdminComponent {
   private readonly service = inject(PlatformAdminService);
   private readonly toast = inject(ToastService);
   private readonly dialogs = inject(DialogService);
-  private readonly auth = inject(AuthService);
-  private readonly pageHeader = inject(PageHeaderService);
 
-  protected readonly currentUserId = this.auth.userId;
   protected readonly loading = signal(true);
-  protected readonly creatingSpace = signal(false);
-  protected readonly invitingUser = signal(false);
+  protected readonly creating = signal(false);
+  protected readonly resending = signal<string | null>(null);
   protected readonly savingPlan = signal<string | null>(null);
-  private readonly planDrafts = signal<
-    Record<string, { maxProcesses: number; maxTrackedProcesses: number }>
-  >({});
-  protected readonly spaces = signal<Space[]>([]);
-  protected readonly profiles = signal<Profile[]>([]);
-  protected readonly profileOptions = signal<{ label: string; value: string }[]>([]);
+  protected readonly spaces = signal<PlatformSpace[]>([]);
+  private readonly planDrafts = signal<Record<string, PlanDraft>>({});
 
-  protected readonly spaceForm = this.fb.nonNullable.group({
-    name: '',
-    adminProfileId: '',
-  });
-
-  protected readonly inviteForm = this.fb.nonNullable.group({ email: '' });
+  protected readonly form = this.fb.nonNullable.group({ adminEmail: '' });
 
   constructor() {
-    this.pageHeader.set(
+    inject(PageHeaderService).set(
       'Administração da plataforma',
-      'Área do SUPER_ADMIN — opera espaços e usuários da plataforma, sem acesso ao conteúdo operacional de cada espaço.',
+      'Escritórios, status e planos — sem acesso ao conteúdo de cada escritório.',
     );
     void this.load();
   }
 
-  protected async createSpace(): Promise<void> {
-    const { name, adminProfileId } = this.spaceForm.getRawValue();
-    if (!name.trim() || !adminProfileId) {
-      this.toast.error('Informe o nome do espaço e escolha o administrador inicial.');
-      return;
-    }
-    this.creatingSpace.set(true);
-    try {
-      await this.service.createSpace(name, adminProfileId);
-      this.toast.success('Espaço criado.');
-      this.spaceForm.reset({ name: '', adminProfileId: '' });
-      this.spaces.set(await this.service.listSpaces());
-    } catch (err) {
-      this.toast.error(err instanceof Error ? err.message : 'Não foi possível criar o espaço.');
-    } finally {
-      this.creatingSpace.set(false);
-    }
+  protected label(s: PlatformSpace): string {
+    return s.setupCompletedAt ? s.name : (s.adminEmail ?? 'escritório novo');
   }
 
-  protected async inviteUser(): Promise<void> {
-    const email = this.inviteForm.getRawValue().email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  protected invite(s: PlatformSpace): InviteStatusView {
+    return inviteStatus(s.inviteState, s.inviteSentAt, s.inviteExpiresAt, s.inviteOpenedAt);
+  }
+
+  protected async createOffice(): Promise<void> {
+    const email = this.form.getRawValue().adminEmail.trim().toLowerCase();
+    if (!EMAIL.test(email)) {
       this.toast.error('Informe um e-mail válido.');
       return;
     }
-    this.invitingUser.set(true);
+    this.creating.set(true);
     try {
-      const result = await this.service.inviteUser(email);
-      if (result === 'invited') {
-        this.toast.success('Convite enviado. A pessoa receberá um e-mail para criar a senha.');
-      } else if (result === 'existing_user') {
-        this.toast.info('Este e-mail já tem conta na plataforma.');
-      } else {
-        this.toast.error('Não foi possível enviar o convite.');
-        return;
-      }
-      this.inviteForm.reset({ email: '' });
-      await this.reloadProfiles();
+      const sent = await this.service.createOffice(email);
+      if (sent) this.toast.success(`Convite enviado para ${email}. O link vale 24 horas.`);
+      else
+        this.toast.warning(
+          'Escritório criado, mas o e-mail não saiu. Use "Reenviar convite" na lista.',
+        );
+      this.form.reset({ adminEmail: '' });
+      await this.load();
+    } catch (err) {
+      const message = (err as { message?: string })?.message ?? '';
+      this.toast.error(
+        message.includes('não pode ser ADMIN')
+          ? 'A conta da plataforma não pode ser administradora de um escritório.'
+          : 'Não foi possível criar o escritório.',
+      );
     } finally {
-      this.invitingUser.set(false);
+      this.creating.set(false);
     }
   }
 
-  /** Candidatos a ADMIN inicial: todos menos quem está operando a plataforma agora. */
-  private adminCandidates(profiles: Profile[]): { label: string; value: string }[] {
-    return profiles
-      .filter((p) => p.id !== this.currentUserId())
-      .map((p) => ({ label: p.fullName ? `${p.fullName} (${p.email})` : p.email, value: p.id }));
+  protected async resend(s: PlatformSpace): Promise<void> {
+    if (!s.inviteId) return;
+    this.resending.set(s.id);
+    try {
+      const sent = await this.service.resendOfficeInvite(s.inviteId);
+      if (sent) this.toast.success('Convite reenviado. O link anterior não funciona mais.');
+      else this.toast.warning('Convite renovado, mas o e-mail não saiu. Tente de novo.');
+      await this.load();
+    } catch {
+      this.toast.error('Não foi possível reenviar o convite.');
+    } finally {
+      this.resending.set(null);
+    }
   }
 
-  private async reloadProfiles(): Promise<void> {
-    const profiles = await this.service.listProfiles();
-    this.profiles.set(profiles);
-    this.profileOptions.set(this.adminCandidates(profiles));
-  }
-
-  protected draft(space: Space): { maxProcesses: number; maxTrackedProcesses: number } {
+  protected draft(s: PlatformSpace): PlanDraft {
     return (
-      this.planDrafts()[space.id] ?? {
-        maxProcesses: space.maxProcesses,
-        maxTrackedProcesses: space.maxTrackedProcesses,
+      this.planDrafts()[s.id] ?? {
+        maxProcesses: s.maxProcesses,
+        maxTrackedProcesses: s.maxTrackedProcesses,
       }
     );
   }
 
-  protected setDraft(
-    space: Space,
-    field: 'maxProcesses' | 'maxTrackedProcesses',
-    event: Event,
-  ): void {
+  protected setDraft(s: PlatformSpace, field: keyof PlanDraft, event: Event): void {
     const value = Math.max(0, Math.floor(Number((event.target as HTMLInputElement).value) || 0));
-    this.planDrafts.update((all) => ({
-      ...all,
-      [space.id]: { ...this.draft(space), [field]: value },
-    }));
+    this.planDrafts.update((all) => ({ ...all, [s.id]: { ...this.draft(s), [field]: value } }));
   }
 
-  protected planChanged(space: Space): boolean {
-    const d = this.draft(space);
-    return (
-      d.maxProcesses !== space.maxProcesses || d.maxTrackedProcesses !== space.maxTrackedProcesses
-    );
+  protected planChanged(s: PlatformSpace): boolean {
+    const d = this.draft(s);
+    return d.maxProcesses !== s.maxProcesses || d.maxTrackedProcesses !== s.maxTrackedProcesses;
   }
 
-  protected async savePlan(space: Space): Promise<void> {
-    const d = this.draft(space);
-    this.savingPlan.set(space.id);
+  protected async savePlan(s: PlatformSpace): Promise<void> {
+    const d = this.draft(s);
+    this.savingPlan.set(s.id);
     try {
-      await this.service.updatePlan(space.id, d.maxProcesses, d.maxTrackedProcesses);
-      this.toast.success(`Plano de "${space.name}" atualizado.`);
-      this.planDrafts.update(({ [space.id]: _, ...rest }) => rest);
-      this.spaces.set(await this.service.listSpaces());
+      await this.service.updatePlan(s.id, d.maxProcesses, d.maxTrackedProcesses);
+      this.toast.success(`Plano de "${this.label(s)}" atualizado.`);
+      this.planDrafts.update(({ [s.id]: _, ...rest }) => rest);
+      await this.load();
     } catch {
       this.toast.error('Não foi possível atualizar o plano.');
     } finally {
@@ -365,58 +341,31 @@ export class AdminComponent {
     }
   }
 
-  protected async toggleSpaceStatus(space: Space): Promise<void> {
-    const next = space.status === 'active' ? 'suspended' : 'active';
+  protected async toggleStatus(s: PlatformSpace): Promise<void> {
+    const next = s.status === 'active' ? 'suspended' : 'active';
     if (next === 'suspended') {
       const confirmed = await this.dialogs.confirm({
-        title: 'Suspender espaço',
-        message: `Ninguém do espaço "${space.name}" vai conseguir acessar o sistema até reativar. Confirma?`,
+        title: 'Suspender escritório',
+        message: `Ninguém de "${this.label(s)}" vai conseguir acessar o sistema e a coleta automática para até reativar. Confirma?`,
         confirmLabel: 'Suspender',
         tone: 'danger',
       });
       if (!confirmed) return;
     }
     try {
-      await this.service.setSpaceStatus(space.id, next);
+      await this.service.setSpaceStatus(s.id, next);
       this.toast.success(next === 'suspended' ? 'Espaço suspenso.' : 'Espaço reativado.');
-      this.spaces.set(await this.service.listSpaces());
+      await this.load();
     } catch {
-      this.toast.error('Não foi possível atualizar o status do espaço.');
-    }
-  }
-
-  protected async toggleSuperAdmin(profile: Profile): Promise<void> {
-    const next = !profile.isSuperAdmin;
-    const confirmed = await this.dialogs.confirm({
-      title: next ? 'Conceder SUPER_ADMIN' : 'Remover SUPER_ADMIN',
-      message: next
-        ? `${profile.fullName || profile.email} passará a operar a plataforma inteira.`
-        : `${profile.fullName || profile.email} perderá o acesso de plataforma.`,
-      confirmLabel: 'Confirmar',
-      tone: next ? 'primary' : 'danger',
-    });
-    if (!confirmed) return;
-    try {
-      await this.service.setSuperAdmin(profile.id, next);
-      this.toast.success('Acesso de plataforma atualizado.');
-      this.profiles.set(await this.service.listProfiles());
-    } catch {
-      this.toast.error('Não foi possível atualizar o acesso de plataforma.');
+      this.toast.error('Não foi possível atualizar o status do escritório.');
     }
   }
 
   private async load(): Promise<void> {
-    this.loading.set(true);
     try {
-      const [spaces, profiles] = await Promise.all([
-        this.service.listSpaces(),
-        this.service.listProfiles(),
-      ]);
-      this.spaces.set(spaces);
-      this.profiles.set(profiles);
-      this.profileOptions.set(this.adminCandidates(profiles));
+      this.spaces.set(await this.service.listSpaces());
     } catch {
-      this.toast.error('Não foi possível carregar os dados de administração.');
+      this.toast.error('Não foi possível carregar os escritórios.');
     } finally {
       this.loading.set(false);
     }

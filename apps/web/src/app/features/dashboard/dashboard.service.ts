@@ -4,6 +4,8 @@ import { SUPABASE_CLIENT } from '../../core/supabase/supabase-client';
 export interface PlatformMetrics {
   activeSpaces: number;
   suspendedSpaces: number;
+  /** Escritórios cujo ADMIN ainda não completou a configuração. */
+  pendingSetup: number;
   users: number;
 }
 
@@ -139,17 +141,14 @@ export class DashboardService {
 
   /** Visão da plataforma: só quantidades — nada de dentro dos espaços. */
   async platformMetrics(): Promise<PlatformMetrics> {
-    const [spaces, users] = await Promise.all([
-      this.supabase.from('spaces').select('status'),
-      this.supabase.from('profiles').select('id', { count: 'exact', head: true }),
-    ]);
-    if (spaces.error) throw spaces.error;
-    if (users.error) throw users.error;
-    const rows = (spaces.data ?? []) as { status: string }[];
+    const { data, error } = await this.supabase.rpc('platform_overview').single();
+    if (error) throw error;
+    const r = data as Record<string, number>;
     return {
-      activeSpaces: rows.filter((r) => r.status === 'active').length,
-      suspendedSpaces: rows.filter((r) => r.status === 'suspended').length,
-      users: users.count ?? 0,
+      activeSpaces: r['active_spaces'] ?? 0,
+      suspendedSpaces: r['suspended_spaces'] ?? 0,
+      pendingSetup: r['pending_setup'] ?? 0,
+      users: r['users'] ?? 0,
     };
   }
 

@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, guestGuard } from './core/auth/auth.guard';
-import { permissionGuard, usersAreaGuard } from './core/authorization/permission.guard';
+import { permissionGuard, setupGuard, usersAreaGuard } from './core/authorization/permission.guard';
 import { AuthLayoutComponent } from './shared/layout/auth-layout.component';
 
 export const routes: Routes = [
@@ -20,6 +20,14 @@ export const routes: Routes = [
     path: 'redefinir-senha',
     loadComponent: () =>
       import('./features/auth/reset-password.component').then((m) => m.ResetPasswordComponent),
+  },
+
+  // ---- Primeiro acesso (link do convite): dados da pessoa e, para o ADMIN de
+  // escritório novo, dados do escritório. Fora do shell (sem menu). ----
+  {
+    path: 'primeiro-acesso',
+    loadComponent: () =>
+      import('./features/auth/first-access.component').then((m) => m.FirstAccessComponent),
   },
 
   // ---- Públicas (LGPD) — acessíveis logado ou não ----
@@ -42,7 +50,7 @@ export const routes: Routes = [
   {
     path: '',
     component: AuthLayoutComponent,
-    canActivate: [authGuard],
+    canActivate: [authGuard, setupGuard],
     children: [
       {
         path: '',

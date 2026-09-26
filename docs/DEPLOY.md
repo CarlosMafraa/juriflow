@@ -17,9 +17,9 @@ versionar pelo repositório.
 - [ ] Região mais próxima dos usuários (ex.: `sa-east-1`, São Paulo).
 - [ ] Aplicar as migrations:
       `bash
-  npx supabase link --project-ref <ref>
-  npx supabase db push
-  `
+npx supabase link --project-ref <ref>
+npx supabase db push
+`
 - [ ] Rodar o seed só se quiser o catálogo de tribunais inicial
       (`supabase/seed.sql`) — ele não cria usuários.
 
@@ -39,8 +39,16 @@ Espelha o `supabase/config.toml` (que só vale para o ambiente local):
       (ex.: `https://app.juriflow.com.br`) e **Redirect URLs** =
       `https://app.juriflow.com.br/**`.
 - [ ] Emails → Templates: colar `supabase/templates/invite.html`
-      (assunto "Você foi convidado para o JuriFlow") e
+      (assunto "Você foi convidado para o JuriFlow"),
+      `supabase/templates/magic_link.html` (assunto "Você tem um convite no
+      JuriFlow" — convite para quem já tem conta) e
       `supabase/templates/recovery.html` (assunto "Redefinição de senha — JuriFlow").
+- [ ] Emails → **Email OTP Expiration = 86400** (24 h): o link de convite vale
+      24 horas (regra do produto). Reenviar um convite troca o token, e o link
+      anterior deixa de funcionar.
+- [ ] Rate limits de e-mail: o Supabase Cloud limita envios por endereço
+      (ex.: 1 a cada 60 s). Reenviar o mesmo convite em sequência rápida pode
+      ser recusado — a tela avisa e basta tentar de novo.
 - [ ] **SMTP próprio** (Resend, Amazon SES, Brevo...) em Authentication →
       Emails → SMTP Settings. O SMTP padrão do Supabase só entrega para
       membros da equipe do projeto e tem limite de poucos e-mails por hora —
@@ -66,8 +74,11 @@ Users → **Invite user** e, no SQL Editor:
 update public.profiles set is_super_admin = true where email = 'voce@dominio.com';
 ```
 
-A partir daí, escritórios novos são criados pelo app: `/admin` → **Convidar
-usuário** (futuro ADMIN) → **Criar espaço** escolhendo essa pessoa.
+A partir daí, escritórios novos são criados pelo app: `/admin` → **Novo
+escritório** com o e-mail do ADMIN. O escritório nasce "aguardando
+configuração"; o ADMIN abre o link (24 h), completa os dados dele e do
+escritório e convida a própria equipe. A conta da plataforma não pode ser
+ADMIN de escritório — para trabalhar num escritório, use outro e-mail.
 
 ## 2. Frontend (SPA)
 
@@ -113,10 +124,12 @@ produção:
 
 ## 4. Depois do deploy — smoke test
 
-1. Login do SUPER_ADMIN → `/admin` → convidar um e-mail real → o e-mail chega
-   e o link abre "Bem-vindo ao JuriFlow".
-2. Criar o espaço com essa pessoa como ADMIN; ela entra e vê o dashboard.
-3. `/configuracoes/whatsapp` → Conectar → QR aparece (worker + WAHA ok).
-4. Cadastrar um processo do TJAM com CNJ → "Consultar agora" → em até
+1. Login do SUPER_ADMIN → `/admin` → **Novo escritório** com um e-mail real →
+   o e-mail chega; na lista aparece "Não aberto".
+2. Abrir o link → "Bem-vindo ao JuriFlow" (na lista vira "Link aberto") →
+   completar nome do escritório, nome e senha → cai no dashboard do escritório.
+3. Reenviar um convite e abrir o link antigo → "Link inválido".
+4. `/configuracoes/whatsapp` → Conectar → QR aparece (worker + WAHA ok).
+5. Cadastrar um processo do TJAM com CNJ → "Consultar agora" → em até
    ~1 min a consulta conclui (ou mostra a falha da fonte).
-5. "Esqueci minha senha" → e-mail em português chega.
+6. "Esqueci minha senha" → e-mail em português chega.

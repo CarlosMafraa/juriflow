@@ -98,7 +98,13 @@ type View = 'platform' | 'admin' | 'collaborator' | 'suspended' | 'no-space';
               <p-card>
                 <p class="label">Espaços ativos</p>
                 <p class="metric">{{ pm.activeSpaces }}</p>
-                <p class="muted small">Escritórios usando a plataforma.</p>
+                <p class="muted small">
+                  @if (pm.pendingSetup > 0) {
+                    {{ pm.pendingSetup }} aguardando configuração pelo administrador.
+                  } @else {
+                    Escritórios usando a plataforma.
+                  }
+                </p>
               </p-card>
             </a>
             <a class="metric-link" routerLink="/admin">

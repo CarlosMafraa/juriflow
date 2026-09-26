@@ -61,7 +61,11 @@ export interface SpaceInvite {
   role: SpaceRole;
   status: SpaceInviteStatus;
   token?: Uuid;
+  /** Link vale 24 h a partir do envio. */
   expiresAt: IsoDateTime;
+  sentAt?: IsoDateTime;
+  /** Quando a pessoa abriu o link (null = ainda não abriu). */
+  openedAt?: IsoDateTime | null;
 }
 
 /** Registro imutável da trilha de auditoria. */

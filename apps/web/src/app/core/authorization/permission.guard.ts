@@ -40,3 +40,18 @@ export const usersAreaGuard: CanActivateFn = (): boolean | UrlTree => {
   if (!activeSpace.activeSpaceId()) return true;
   return permissions.canNow('member.view') ? true : router.createUrlTree(['/forbidden']);
 };
+
+/**
+ * Escritório criado pela plataforma e ainda não configurado: o ADMIN completa
+ * os dados (dele e do escritório) antes de usar o resto do sistema.
+ */
+export const setupGuard: CanActivateFn = (): boolean | UrlTree => {
+  const activeSpace = inject(ActiveSpaceService);
+  const router = inject(Router);
+  // Logo após o login o espaço ativo ainda não foi escolhido: usa o mesmo
+  // critério do ActiveSpaceService (o primeiro disponível).
+  const space = activeSpace.activeSpace() ?? activeSpace.availableSpaces()[0];
+  return space?.setupPending && space.role === 'ADMIN'
+    ? router.createUrlTree(['/primeiro-acesso'])
+    : true;
+};

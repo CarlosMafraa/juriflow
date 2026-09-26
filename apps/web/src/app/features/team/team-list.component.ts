@@ -14,6 +14,7 @@ import { PermissionService } from '../../core/authorization/permission.service';
 import { ToastService } from '../../shared/feedback/toast.service';
 import { DialogService } from '../../shared/ui/dialog.service';
 import { TeamService, type TeamMember } from './team.service';
+import { inviteStatus, pendingInviteState, type InviteStatusView } from './invite-status';
 import { PageHeaderActionsDirective } from '../../shared/layout/page-header-actions.directive';
 import { PageHeaderService } from '../../shared/layout/page-header.service';
 
@@ -179,20 +180,35 @@ const ROLE_OPTIONS = [
               <ul class="list">
                 @for (invite of pendingInvites(); track invite.id) {
                   <li class="row">
+                    @let st = inviteView(invite);
                     <div class="min0">
                       <p class="name">{{ invite.email }}</p>
-                      <p class="muted">
-                        {{ invite.role === 'ADMIN' ? 'Administrador' : 'Colaborador' }} · expira em
-                        {{ invite.expiresAt | date: 'dd/MM/yyyy' }}
+                      <p class="muted invite-line">
+                        {{ invite.role === 'ADMIN' ? 'Administrador' : 'Colaborador' }}
+                        <p-tag [severity]="st.severity" [value]="st.label" />
+                        @if (st.detail) {
+                          <span>{{ st.detail }}</span>
+                        }
                       </p>
                     </div>
-                    <p-button
-                      size="small"
-                      icon="pi pi-times"
-                      [text]="true"
-                      label="Cancelar"
-                      (onClick)="cancelInvite(invite)"
-                    />
+                    <div class="invite-actions">
+                      <p-button
+                        size="small"
+                        severity="secondary"
+                        [outlined]="true"
+                        icon="pi pi-refresh"
+                        label="Reenviar"
+                        [loading]="resending() === invite.id"
+                        (onClick)="resendInvite(invite)"
+                      />
+                      <p-button
+                        size="small"
+                        icon="pi pi-times"
+                        [text]="true"
+                        label="Cancelar"
+                        (onClick)="cancelInvite(invite)"
+                      />
+                    </div>
                   </li>
                 }
               </ul>
@@ -208,6 +224,17 @@ const ROLE_OPTIONS = [
   `,
   styles: [
     `
+      .invite-line {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+      }
+      .invite-actions {
+        display: flex;
+        gap: 0.25rem;
+        flex-wrap: wrap;
+      }
       .center {
         display: flex;
         justify-content: center;
@@ -305,6 +332,7 @@ export class TeamListComponent {
   protected readonly showInviteForm = signal(false);
   protected readonly inviting = signal(false);
   protected readonly accepting = signal<string | null>(null);
+  protected readonly resending = signal<string | null>(null);
 
   protected readonly inviteForm = this.fb.nonNullable.group({
     email: '',
@@ -337,14 +365,10 @@ export class TeamListComponent {
     this.inviting.set(true);
     try {
       const delivery = await this.service.invite(email, role);
-      if (delivery === 'invited') {
-        this.toast.success('Convite enviado. A pessoa receberá um e-mail para criar a senha.');
-      } else if (delivery === 'existing_user') {
-        this.toast.success('Convite criado. A pessoa já tem conta e verá o convite ao entrar.');
+      if (delivery === 'sent') {
+        this.toast.success('Convite enviado. O link vale 24 horas.');
       } else {
-        this.toast.warning(
-          'Convite criado, mas o e-mail não pôde ser enviado. A pessoa verá o convite ao entrar com este e-mail.',
-        );
+        this.toast.warning('Convite criado, mas o e-mail não saiu. Use "Reenviar" na lista.');
       }
       this.inviteForm.reset({ email: '', role: 'COLABORADOR' });
       this.showInviteForm.set(false);
@@ -353,6 +377,31 @@ export class TeamListComponent {
       this.toast.error(friendlyError(err, 'Não foi possível enviar o convite.'));
     } finally {
       this.inviting.set(false);
+    }
+  }
+
+  protected inviteView(invite: SpaceInvite): InviteStatusView {
+    return inviteStatus(
+      pendingInviteState(invite.expiresAt, invite.openedAt),
+      invite.sentAt,
+      invite.expiresAt,
+      invite.openedAt,
+    );
+  }
+
+  /** Reenvia: sai um link novo (24 h) e o anterior deixa de funcionar. */
+  protected async resendInvite(invite: SpaceInvite): Promise<void> {
+    this.resending.set(invite.id);
+    try {
+      const delivery = await this.service.resendInvite(invite.id);
+      if (delivery === 'sent')
+        this.toast.success('Convite reenviado. O link anterior não funciona mais.');
+      else this.toast.warning('Convite renovado, mas o e-mail não saiu. Tente de novo.');
+      this.pendingInvites.set(await this.service.listPendingInvites());
+    } catch (err) {
+      this.toast.error(friendlyError(err, 'Não foi possível reenviar o convite.'));
+    } finally {
+      this.resending.set(null);
     }
   }
 

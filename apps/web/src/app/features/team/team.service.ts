@@ -3,8 +3,19 @@ import type { SpaceInvite, SpaceRole } from '@juriflow/shared-types';
 import { SUPABASE_CLIENT } from '../../core/supabase/supabase-client';
 import { ActiveSpaceService } from '../../core/authorization/active-space.service';
 
-/** Resultado do envio: e-mail mandado, pessoa já tem conta, ou falha no envio. */
-export type InviteDelivery = 'invited' | 'existing_user' | 'email_failed';
+/** Resultado do envio do link do convite. */
+export type InviteDelivery = 'sent' | 'email_failed';
+
+/** Situação do link: enviado, aberto, expirado (24 h), substituído, aceito... */
+export type InviteState = 'sent' | 'opened' | 'expired' | 'superseded' | 'cancelled' | 'accepted';
+
+export interface InviteOpening {
+  state: InviteState;
+  role: SpaceRole;
+  spaceId: string;
+  spaceName: string;
+  setupPending: boolean;
+}
 
 export interface TeamMember {
   id: string;
@@ -32,6 +43,8 @@ interface InviteRow {
   role: SpaceRole;
   status: 'pending' | 'accepted' | 'cancelled' | 'expired';
   expires_at: string;
+  created_at: string;
+  opened_at: string | null;
 }
 
 interface MyPendingInviteRow {
@@ -63,6 +76,8 @@ function toInvite(r: InviteRow): SpaceInvite {
     role: r.role,
     status: r.status,
     expiresAt: r.expires_at,
+    sentAt: r.created_at,
+    openedAt: r.opened_at,
   };
 }
 
@@ -100,9 +115,10 @@ export class TeamService {
   async listPendingInvites(): Promise<SpaceInvite[]> {
     const { data, error } = await this.supabase
       .from('space_invites')
-      .select('id, space_id, email, role, status, expires_at')
+      .select('id, space_id, email, role, status, expires_at, created_at, opened_at')
       .eq('space_id', this.spaceId())
       .eq('status', 'pending')
+      .is('superseded_at', null)
       .order('expires_at', { ascending: true });
     if (error) throw error;
     return ((data ?? []) as InviteRow[]).map(toInvite);
@@ -124,9 +140,9 @@ export class TeamService {
   }
 
   /**
-   * Cria o convite (RPC) e pede à Edge Function `send-invite` o e-mail do Auth
-   * para quem ainda não tem conta. Falha no e-mail NÃO desfaz o convite: ele
-   * continua válido e aparece para a pessoa assim que ela tiver conta.
+   * Cria o convite (RPC) e pede à Edge Function `send-invite` o e-mail com o
+   * link (vale 24 h). Convidar de novo o mesmo e-mail substitui o convite
+   * anterior — só o link novo funciona.
    */
   async invite(email: string, role: SpaceRole): Promise<InviteDelivery> {
     const { data: inviteId, error } = await this.supabase.rpc('create_space_invite', {
@@ -138,7 +154,47 @@ export class TeamService {
     return this.sendInviteEmail({ inviteId: inviteId as string });
   }
 
-  async sendInviteEmail(body: { inviteId: string } | { email: string }): Promise<InviteDelivery> {
+  /** Reenvia: o convite atual fica substituído e sai um link novo. */
+  async resendInvite(inviteId: string): Promise<InviteDelivery> {
+    const { data, error } = await this.supabase.rpc('reissue_space_invite', {
+      p_invite_id: inviteId,
+    });
+    if (error) throw error;
+    return this.sendInviteEmail({ inviteId: data as string });
+  }
+
+  /** Quem recebeu o link: marca como aberto e diz em que situação está. */
+  async openInvite(inviteId: string): Promise<InviteOpening> {
+    const { data, error } = await this.supabase
+      .rpc('open_space_invite', { p_invite_id: inviteId })
+      .single();
+    if (error) throw error;
+    const r = data as Record<string, unknown>;
+    return {
+      state: r['state'] as InviteState,
+      role: r['role'] as SpaceRole,
+      spaceId: r['space_id'] as string,
+      spaceName: r['space_name'] as string,
+      setupPending: r['setup_pending'] as boolean,
+    };
+  }
+
+  async acceptInviteById(inviteId: string): Promise<void> {
+    const { error } = await this.supabase.rpc('accept_space_invite_by_id', {
+      p_invite_id: inviteId,
+    });
+    if (error) throw error;
+  }
+
+  async completeSpaceSetup(spaceId: string, name: string): Promise<void> {
+    const { error } = await this.supabase.rpc('complete_space_setup', {
+      p_space_id: spaceId,
+      p_name: name,
+    });
+    if (error) throw error;
+  }
+
+  async sendInviteEmail(body: { inviteId: string }): Promise<InviteDelivery> {
     const { data, error } = await this.supabase.functions.invoke<{ status: InviteDelivery }>(
       'send-invite',
       { body },

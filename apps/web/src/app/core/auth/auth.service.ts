@@ -8,6 +8,7 @@ import type { AuthContext, AuthStatus, Membership } from './auth.models';
 interface SpaceRef {
   name: string;
   status: 'active' | 'suspended';
+  setup_completed_at: string | null;
 }
 
 interface MembershipRow {
@@ -131,7 +132,7 @@ export class AuthService {
           .maybeSingle(),
         this.supabase
           .from('space_members')
-          .select('space_id, role, status, spaces(name, status)')
+          .select('space_id, role, status, spaces(name, status, setup_completed_at)')
           .eq('profile_id', userId),
       ]);
 
@@ -146,6 +147,7 @@ export class AuthService {
         status: row.status,
         spaceName: space?.name ?? null,
         spaceSuspended: space?.status === 'suspended',
+        spaceSetupPending: !!space && !space.setup_completed_at,
       };
     });
 
