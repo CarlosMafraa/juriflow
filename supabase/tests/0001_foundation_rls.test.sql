@@ -3,7 +3,7 @@
 -- Rode com: npm run db:test   (requer Docker + supabase start)
 -- =============================================================================
 begin;
-select plan(22);
+select plan(26);
 
 -- --- helper: define o "usuário logado" (claims do JWT). ----------------------
 -- A troca de ROLE é feita com `set local role` no próprio script (o runner
@@ -184,8 +184,34 @@ select is(
   'SUPER_ADMIN enxerga todos os perfis'
 );
 select lives_ok(
-  $$ insert into public.spaces (name, slug) values ('Escritorio C', 'escritorio-c') $$,
-  'SUPER_ADMIN cria espaço'
+  $$ select public.create_space_with_admin('Escritorio C', 'escritorio-c',
+       '00000000-0000-0000-0000-000000000003') $$,
+  'SUPER_ADMIN cria espaço já com o ADMIN inicial'
+);
+select throws_ok(
+  $$ select public.create_space_with_admin('Escritorio D', 'escritorio-d',
+       '00000000-0000-0000-0000-000000000001') $$,
+  '42501', null,
+  'SUPER_ADMIN não pode se nomear ADMIN do espaço que cria'
+);
+select throws_ok(
+  $$ insert into public.spaces (name, slug) values ('Direto', 'direto') $$,
+  '42501', null,
+  'Espaço só nasce pela RPC (INSERT direto bloqueado)'
+);
+-- (Neste roteiro o SUPER_ADMIN foi adicionado como colaborador do espaço A,
+-- então só os espaços B e C servem de prova.)
+select is(
+  (select count(*)::int from public.space_members
+   where space_id <> '10000000-0000-0000-0000-000000000001'),
+  0,
+  'SUPER_ADMIN não vê membros de espaços dos quais não faz parte'
+);
+select throws_ok(
+  $$ insert into public.space_members (space_id, profile_id, role, status)
+     values ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'ADMIN', 'active') $$,
+  '42501', null,
+  'SUPER_ADMIN não consegue se colocar dentro de um espaço'
 );
 select lives_ok(
   $$ update public.spaces set status = 'suspended'
