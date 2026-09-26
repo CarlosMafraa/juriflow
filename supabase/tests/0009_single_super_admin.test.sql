@@ -38,6 +38,18 @@ select lives_ok($$ select public.bootstrap_super_admin('Dono.Plataforma@t.test')
   'Bootstrap promove o primeiro SUPER_ADMIN');
 select throws_ok($$ select public.bootstrap_super_admin('outro@t.test') $$, '23514', null,
   'Bootstrap só funciona enquanto não existe SUPER_ADMIN');
+-- Link expirado antes do primeiro acesso: o mesmo e-mail pode pedir outro.
+select is(public.bootstrap_super_admin(' dono.plataforma@T.test '), '00000000-0000-0000-0000-0000000000f1'::uuid,
+  'Mesmo e-mail, primeiro acesso pendente: reenvio permitido');
+reset role;
+select is((select count(*)::int from public.audit_logs where action = 'platform.super_admin.invite_resent'
+           and entity_id = '00000000-0000-0000-0000-0000000000f1' and context ->> 'via' = 'bootstrap'), 1,
+  'O reenvio do link fica na auditoria');
+select is((select count(*)::int from public.profiles where is_super_admin), 1, 'Reenvio não cria outro SUPER_ADMIN');
+update public.profiles set onboarded_at = now() where id = '00000000-0000-0000-0000-0000000000f1';
+set local role service_role;
+select throws_ok($$ select public.bootstrap_super_admin('dono.plataforma@t.test') $$, '23514', null,
+  'Depois do primeiro acesso, nem o mesmo e-mail roda o bootstrap');
 reset role;
 
 select ok(exists(select 1 from public.audit_logs

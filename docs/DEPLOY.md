@@ -78,7 +78,18 @@ SUPABASE_URL=https://<ref>.supabase.co SUPABASE_SERVICE_ROLE_KEY=<service-role> 
 O comando recusa rodar se já existir um SUPER_ADMIN, convida o e-mail (link de
 24 h para criar a senha) e registra a promoção na auditoria
 (`platform.super_admin.grant`, via `bootstrap`). O banco também impede um
-segundo SUPER_ADMIN. Trocar o SUPER_ADMIN no futuro exige um fluxo próprio,
+segundo SUPER_ADMIN.
+
+**O e-mail não é variável de ambiente**: é digitado só nesse comando, no seu
+terminal, e não fica em arquivo nenhum. Defina as três variáveis só na sessão do
+terminal e feche-o ao terminar.
+
+**Link expirou (24 h) antes de você criar a senha?** Rode o mesmo comando com o
+**mesmo e-mail**: ele envia um link novo (o anterior deixa de valer) e registra
+`platform.super_admin.invite_resent` na auditoria. Com outro e-mail, ou depois
+de concluído o primeiro acesso, o comando é sempre recusado.
+
+Trocar o SUPER_ADMIN no futuro exige um fluxo próprio,
 auditado — não existe hoje e não deve ser feito na mão.
 
 A partir daí, escritórios novos são criados pelo app: `/admin` → **Novo

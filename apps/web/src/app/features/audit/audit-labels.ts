@@ -23,6 +23,7 @@ export const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
   'member.remove': 'Membro removido',
   'profile.update': 'Perfil atualizado',
   'platform.super_admin.grant': 'Acesso de plataforma concedido',
+  'platform.super_admin.invite_resent': 'Link de primeiro acesso da plataforma reenviado',
   'platform.super_admin.revoke': 'Acesso de plataforma removido',
   'process.create': 'Processo cadastrado',
   'process.update': 'Processo editado',

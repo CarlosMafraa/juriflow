@@ -24,6 +24,7 @@ export const AUDIT_ACTIONS = {
 
   profileUpdate: 'profile.update',
   superAdminGrant: 'platform.super_admin.grant',
+  superAdminInviteResent: 'platform.super_admin.invite_resent',
   superAdminRevoke: 'platform.super_admin.revoke',
 
   // Fase 3 — processos, clientes, tribunais (gravados por gatilhos AFTER e RPCs)
