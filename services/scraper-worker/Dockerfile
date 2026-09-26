@@ -43,4 +43,7 @@ COPY --from=build /repo/services/scraper-worker/dist ./dist
 COPY --from=build /repo/services/scraper-worker/package.json ./package.json
 
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+# O firewall do TJAM rejeita Chromium headless: o navegador roda "com janela"
+# numa tela virtual (Xvfb, já incluso na imagem do Playwright).
+ENV SCRAPER_HEADLESS=false
+CMD ["xvfb-run", "-a", "--server-args=-screen 0 1366x900x24", "node", "dist/main.js"]
