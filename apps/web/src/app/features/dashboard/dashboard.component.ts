@@ -6,6 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import type { SpaceInvite } from '@juriflow/shared-types';
 import { ButtonModule } from 'primeng/button';
@@ -31,6 +32,7 @@ import {
   type PlanGroup,
   type PlatformMetrics,
   type RecentMovement,
+  type WorkerHealth,
 } from './dashboard.service';
 
 /** Qual painel mostrar — cada papel tem o seu. */
@@ -46,6 +48,7 @@ type View = 'platform' | 'admin' | 'collaborator' | 'suspended' | 'no-space';
     CardModule,
     ProgressSpinnerModule,
     TagModule,
+    DatePipe,
     ColumnChartComponent,
     DonutChartComponent,
     MeterComponent,
@@ -94,6 +97,52 @@ type View = 'platform' | 'admin' | 'collaborator' | 'suspended' | 'no-space';
 
       @case ('platform') {
         @if (platform(); as pm) {
+          <p-card styleClass="worker-card" data-testid="worker-health">
+            <div class="worker">
+              <div>
+                <p class="label">Worker de coleta</p>
+                @if (worker(); as w) {
+                  <p class="worker__line">
+                    <p-tag
+                      [value]="w.online ? 'No ar' : 'Parado'"
+                      [severity]="w.online ? 'success' : 'danger'"
+                    />
+                    <span class="muted small"
+                      >Último sinal: {{ w.lastSeenAt | date: 'dd/MM HH:mm' }}</span
+                    >
+                  </p>
+                } @else {
+                  <p class="worker__line">
+                    <p-tag value="Nunca conectou" severity="danger" />
+                    <span class="muted small">Nenhum batimento registrado.</span>
+                  </p>
+                }
+              </div>
+              @if (worker(); as w) {
+                <div>
+                  <p class="label">Consulta ao TJAM</p>
+                  <p class="worker__line">
+                    @if (tjamBlocked()) {
+                      <p-tag value="Falhando" severity="warn" />
+                      <span class="muted small"
+                        >{{ w.lastSourceError }} ({{
+                          w.lastSourceErrorAt | date: 'dd/MM HH:mm'
+                        }})</span
+                      >
+                    } @else if (w.lastSourceOkAt) {
+                      <p-tag value="OK" severity="success" />
+                      <span class="muted small"
+                        >Última consulta: {{ w.lastSourceOkAt | date: 'dd/MM HH:mm' }}</span
+                      >
+                    } @else {
+                      <p-tag value="Sem consultas" severity="secondary" />
+                    }
+                  </p>
+                </div>
+              }
+            </div>
+          </p-card>
+
           <section class="grid">
             <a class="metric-link" routerLink="/admin">
               <p-card>
@@ -144,8 +193,8 @@ type View = 'platform' | 'admin' | 'collaborator' | 'suspended' | 'no-space';
           </section>
 
           <p class="muted small note">
-            A administração da plataforma vê apenas que os escritórios existem, o status, o plano e o
-            convite do administrador — nunca o conteúdo nem quem trabalha em cada escritório.
+            A administração da plataforma vê apenas que os escritórios existem, o status, o plano e
+            o convite do administrador — nunca o conteúdo nem quem trabalha em cada escritório.
           </p>
         } @else if (loading()) {
           <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
@@ -330,6 +379,21 @@ type View = 'platform' | 'admin' | 'collaborator' | 'suspended' | 'no-space';
         width: 2.5rem;
         height: 2.5rem;
       }
+      :host ::ng-deep .worker-card {
+        margin-bottom: 1rem;
+      }
+      .worker {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem 3rem;
+      }
+      .worker__line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0.25rem 0 0;
+      }
       .grid {
         display: grid;
         gap: 1rem;
@@ -478,6 +542,13 @@ export class DashboardComponent {
   protected readonly metrics = signal<DashboardMetrics | null>(null);
   protected readonly plan = signal<PlanUsage | null>(null);
   protected readonly platform = signal<PlatformMetrics | null>(null);
+  protected readonly worker = signal<WorkerHealth | null>(null);
+  /** Última consulta ao tribunal falhou depois do último sucesso (ex.: firewall). */
+  protected readonly tjamBlocked = computed(() => {
+    const w = this.worker();
+    if (!w?.lastSourceErrorAt) return false;
+    return !w.lastSourceOkAt || w.lastSourceErrorAt > w.lastSourceOkAt;
+  });
   protected readonly recent = signal<RecentMovement[]>([]);
   private readonly perDay = signal<DayPoint[]>([]);
   private readonly growth = signal<GrowthPoint[]>([]);
@@ -602,12 +673,14 @@ export class DashboardComponent {
     try {
       this.invites.set(await this.team.listMyPendingInvites().catch(() => []));
       if (view === 'platform') {
-        const [platform, growth, plans] = await Promise.all([
+        const [platform, growth, plans, workers] = await Promise.all([
           this.service.platformMetrics(),
           this.service.platformGrowth(6),
           this.platformAdmin.listSpaces(),
+          this.service.workerHealth().catch(() => []),
         ]);
         this.platform.set(platform);
+        this.worker.set(workers[0] ?? null);
         this.growth.set(growth);
         this.platformSpaces.set(plans);
         this.plans.set(this.service.spacesByPlan(plans));

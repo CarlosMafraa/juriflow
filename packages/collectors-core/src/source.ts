@@ -41,6 +41,8 @@ export interface RawMovement {
   readonly sourceMovementId: string | null;
   /** Data da movimentação informada pela fonte. */
   readonly occurredAt: string | null;
+  /** Tipo/título da movimentação (ex.: "EXPEDIÇÃO DE INTIMAÇÃO"), quando a fonte separa. */
+  readonly title?: string | null;
   readonly description: string;
   readonly raw: unknown;
 }

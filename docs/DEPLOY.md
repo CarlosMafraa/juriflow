@@ -131,14 +131,40 @@ produção:
 
 - [ ] `infra/vps/.env` com a `service_role` key do projeto Cloud e uma
       `WAHA_API_KEY` forte (`openssl rand -hex 32`).
-- [ ] `WAHA_IMAGE_TAG` fixa (≥ `2026.6.1`: sessões ilimitadas no WAHA Core,
-      necessárias para uma sessão por espaço).
+- [ ] Imagem do WAHA **nunca `latest`**: fixada no compose por versão e digest
+      (`gows-2026.9.1@sha256:…`, motor GOWS). Atualizar = trocar tag e digest
+      no compose num commit revisado (≥ `2026.6.1`: sessões ilimitadas no WAHA
+      Core, uma por espaço).
 - [ ] `DAILY_CHECK_TIMEZONE=America/Manaus` (o container roda em UTC).
 - [ ] Nenhuma porta publicada (`docker compose ps` não deve mostrar `0.0.0.0:`).
       O app fala com o worker só pelo banco (filas em `whatsapp_sessions` e
       `processes.check_requested_at`).
 - [ ] Mínimo 2 GB de RAM (Chromium do Playwright).
 - [ ] Firewall liberando só SSH; atualizações automáticas de segurança do SO.
+
+### Alerta de worker parado ⚙️
+
+O worker grava um batimento por minuto (painel da plataforma mostra "No ar" ou
+"Parado") e **pinga um monitor externo** — é ele que avisa se o worker cair,
+porque um worker parado não consegue avisar ninguém.
+
+1. Crie uma conta gratuita em [healthchecks.io](https://healthchecks.io) e um
+   check com **Period 1 minuto** e **Grace 5 minutos**.
+2. Em _Integrations_, ligue o canal em que quer ser avisado (e-mail, Telegram,
+   WhatsApp etc.).
+3. Copie a URL de ping (`https://hc-ping.com/<uuid>`) para
+   `HEALTHCHECK_PING_URL` no `infra/vps/.env` e reinicie o worker.
+4. Teste: `docker compose stop scraper-worker` — o aviso deve chegar em ~6 min.
+
+### Firewall do TJAM
+
+A consulta pública do TJAM rejeita navegador headless e consultas seguidas
+("Request Rejected"). O container roda o Chromium com janela numa tela virtual
+(`xvfb-run`, já no `CMD`), reaproveita a sessão entre consultas e o app
+respeita 5 min entre consultas do mesmo processo. **Primeiro teste depois de
+subir a VPS:** "Consultar agora" num processo e conferir no painel da
+plataforma se a consulta ao TJAM ficou "OK" — IP de datacenter pode ser
+tratado pior que o de casa.
 
 ## 4. Depois do deploy — smoke test
 

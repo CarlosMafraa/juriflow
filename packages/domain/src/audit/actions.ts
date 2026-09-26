@@ -66,6 +66,9 @@ export const AUDIT_ACTIONS = {
   processNotificationConfigCreate: 'notification_config.process.create',
   processNotificationConfigUpdate: 'notification_config.process.update',
   processNotificationConfigDelete: 'notification_config.process.delete',
+  movementTypeUpdate: 'notification_config.movement_type.update',
+  processMovementTypeSet: 'notification_config.process_movement_type.set',
+  processMovementTypeReset: 'notification_config.process_movement_type.reset',
 
   // Sessão WhatsApp (WAHA) por espaço — RN seção 22 / F12.
   whatsappSessionConnect: 'waha.session.connect',

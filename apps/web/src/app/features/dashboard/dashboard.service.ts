@@ -3,6 +3,17 @@ import { SUPABASE_CLIENT } from '../../core/supabase/supabase-client';
 import type { PlatformSpace } from '../admin/platform-admin.service';
 
 /** Situação exclusiva de cada escritório: suspenso > aguardando configuração > ativo. */
+/** Worker de coleta: batimento e última consulta ao tribunal. */
+export interface WorkerHealth {
+  worker: string;
+  /** Batimento nos últimos 3 minutos. */
+  online: boolean;
+  lastSeenAt: string;
+  lastSourceOkAt: string | null;
+  lastSourceError: string | null;
+  lastSourceErrorAt: string | null;
+}
+
 export interface PlatformMetrics {
   activeSpaces: number;
   /** Escritórios cujo ADMIN ainda não completou a configuração. */
@@ -164,6 +175,29 @@ export class DashboardService {
     return ((data ?? []) as { day: string; total: number }[]).map((r) => ({
       day: r.day,
       total: r.total,
+    }));
+  }
+
+  /** Saúde do worker de coleta (só SUPER_ADMIN; regra P10). */
+  async workerHealth(): Promise<WorkerHealth[]> {
+    const { data, error } = await this.supabase.rpc('platform_worker_status');
+    if (error) throw error;
+    return (
+      (data ?? []) as {
+        worker: string;
+        online: boolean;
+        last_seen_at: string;
+        last_source_ok_at: string | null;
+        last_source_error: string | null;
+        last_source_error_at: string | null;
+      }[]
+    ).map((r) => ({
+      worker: r.worker,
+      online: r.online,
+      lastSeenAt: r.last_seen_at,
+      lastSourceOkAt: r.last_source_ok_at,
+      lastSourceError: r.last_source_error,
+      lastSourceErrorAt: r.last_source_error_at,
     }));
   }
 

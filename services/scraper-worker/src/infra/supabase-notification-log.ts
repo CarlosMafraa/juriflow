@@ -38,6 +38,18 @@ export class SupabaseNotificationLog implements NotificationLog {
     return existing?.status === 'sent';
   }
 
+  async listRetryableMovementIds(processId: string, maxAttempts: number): Promise<string[]> {
+    const { data, error } = await this.client
+      .from('notification_deliveries')
+      .select('movement_id')
+      .eq('process_id', processId)
+      .eq('status', 'failed')
+      .lt('attempts', maxAttempts)
+      .returns<{ movement_id: string }[]>();
+    if (error) throw new Error(`Falha ao listar avisos para reenviar: ${error.message}`);
+    return [...new Set((data ?? []).map((r) => r.movement_id))];
+  }
+
   async recordSent(input: {
     spaceId: string;
     processId: string;
@@ -61,14 +73,16 @@ export class SupabaseNotificationLog implements NotificationLog {
     await this.write(input, { status: 'failed', error: input.error, sentAt: null });
   }
 
-  private async findExisting(key: DeliveryKey): Promise<{ id: string; status: string } | null> {
+  private async findExisting(
+    key: DeliveryKey,
+  ): Promise<{ id: string; status: string; attempts: number } | null> {
     const { data, error } = await this.client
       .from('notification_deliveries')
-      .select('id, status')
+      .select('id, status, attempts')
       .eq('movement_id', key.movementId)
       .eq('recipient_type', key.recipientType)
       .eq(RECIPIENT_COLUMN[key.recipientType], key.recipientId)
-      .maybeSingle<{ id: string; status: string }>();
+      .maybeSingle<{ id: string; status: string; attempts: number }>();
     if (error) throw new Error(`Falha ao consultar notification_deliveries: ${error.message}`);
     return data;
   }
@@ -79,6 +93,7 @@ export class SupabaseNotificationLog implements NotificationLog {
   ): Promise<void> {
     const existing = await this.findExisting(input);
     const payload = {
+      attempts: existing ? existing.attempts + 1 : 1,
       status: outcome.status,
       error: outcome.error,
       sent_at: outcome.sentAt?.toISOString() ?? null,

@@ -30,6 +30,7 @@ import {
   type ProcessDetail,
 } from './process.service';
 import { ClientService } from '../clients/client.service';
+import { MovementTypeTogglesComponent } from '../settings/movement-type-toggles.component';
 import { NotificationConfigService } from '../settings/notification-config.service';
 import { TemplateService } from '../settings/template.service';
 import { SpaceMembersService, type SpaceMemberOption } from '../../core/data/space-members.service';
@@ -46,6 +47,7 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    MovementTypeTogglesComponent,
     ReactiveFormsModule,
     FormsModule,
     RouterLink,
@@ -414,6 +416,14 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
               />
             </div>
           }
+        </p-card>
+
+        <p-card header="Tipos de movimentação avisados neste processo" styleClass="section">
+          <p class="muted">
+            Ligue só o que interessa a este processo. O que não for personalizado segue o padrão do
+            escritório.
+          </p>
+          <jf-movement-type-toggles [processId]="id()" />
         </p-card>
       }
 

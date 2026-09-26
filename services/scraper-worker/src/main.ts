@@ -8,7 +8,10 @@ import { SupabaseMovementRepository } from './infra/supabase-movement.repository
 import { SupabaseRecipientResolver } from './infra/supabase-recipient-resolver.js';
 import { SupabaseNotificationConfigResolver } from './infra/supabase-notification-config-resolver.js';
 import { SupabaseTemplateRepository } from './infra/supabase-template.repository.js';
+import { SupabaseMovementTypePolicy } from './infra/supabase-movement-type-policy.js';
 import { SupabaseNotificationLog } from './infra/supabase-notification-log.js';
+import { SupabaseWorkerStatus } from './infra/supabase-worker-status.js';
+import { ReportingDataSource } from './infra/reporting-data-source.js';
 import { WahaNotifier } from './infra/waha-notifier.js';
 import { WahaSessionGateway } from './infra/waha-session-gateway.js';
 import { SupabaseWhatsappSessionRepository } from './infra/supabase-whatsapp-session.repository.js';
@@ -18,6 +21,7 @@ import { TrackProcessUseCase } from './usecases/track-process.usecase.js';
 import { DailyCheckJob } from './jobs/daily-check.job.js';
 import { WhatsappSessionJob } from './jobs/whatsapp-session.job.js';
 import { CheckRequestJob } from './jobs/check-request.job.js';
+import { HeartbeatJob } from './jobs/heartbeat.job.js';
 import { SerialQueue } from './jobs/serial-queue.js';
 import { createHttpServer } from './http/server.js';
 
@@ -38,18 +42,25 @@ async function main(): Promise<void> {
   const notificationConfigResolver = new SupabaseNotificationConfigResolver(supabase);
   const templateRepository = new SupabaseTemplateRepository(supabase);
   const notificationLog = new SupabaseNotificationLog(supabase);
-  const notifier = new WahaNotifier(config.wahaBaseUrl, config.wahaApiKey);
+  const movementTypePolicy = new SupabaseMovementTypePolicy(supabase);
+  const notifier = new WahaNotifier(config.wahaBaseUrl, config.wahaApiKey, {
+    minIntervalMs: config.whatsappMinIntervalMs,
+    maxIntervalMs: config.whatsappMaxIntervalMs,
+  });
   const defaultTemplate = new GeneralMovementTemplate();
 
   const tjamAdapter = new TjamProjudiAdapter({
-    baseUrl: config.tjamProjudiBaseUrl,
     headless: config.scraperHeadless,
     logger,
   });
 
+  // Saúde do worker (P10): batimento + resultado da última consulta ao tribunal.
+  const workerStatus = new SupabaseWorkerStatus(supabase);
+  const reportingTjam = new ReportingDataSource(tjamAdapter, workerStatus, logger);
+
   const sourceRegistry = new SourceRegistry();
   // Único ponto de registro de fontes (ADR-0004). Uma nova fonte = 1 linha aqui.
-  sourceRegistry.register('projudi_tjam', () => tjamAdapter);
+  sourceRegistry.register('projudi_tjam', () => reportingTjam);
 
   const useCase = new TrackProcessUseCase(
     sourceRegistry,
@@ -60,6 +71,7 @@ async function main(): Promise<void> {
     templateRepository,
     notifier,
     notificationLog,
+    movementTypePolicy,
     defaultTemplate,
     logger,
   );
@@ -117,6 +129,16 @@ async function main(): Promise<void> {
   }, config.wahaSessionPollMs);
   logger.info('Polling de sessões WhatsApp agendado.', { intervalMs: config.wahaSessionPollMs });
 
+  const heartbeatJob = new HeartbeatJob(workerStatus, logger, config.healthcheckPingUrl);
+  const tickHeartbeat = (): void => {
+    void heartbeatJob.tick();
+  };
+  tickHeartbeat();
+  const heartbeatInterval = setInterval(tickHeartbeat, 60_000);
+  logger.info('Batimento do worker agendado.', {
+    monitorExterno: config.healthcheckPingUrl ? 'configurado' : 'NÃO configurado',
+  });
+
   const server = createHttpServer(useCase, processRepository, trackingQueue, logger);
   server.listen(config.httpPort, () => logger.info('Worker no ar.', { port: config.httpPort }));
 
@@ -124,6 +146,7 @@ async function main(): Promise<void> {
     logger.info('Encerrando worker...');
     clearInterval(whatsappSessionInterval);
     clearInterval(checkRequestInterval);
+    clearInterval(heartbeatInterval);
     server.close();
     await tjamAdapter.dispose();
     process.exit(0);

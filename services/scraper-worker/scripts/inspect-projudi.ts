@@ -12,10 +12,8 @@
  */
 /* eslint-disable no-console -- ferramenta de linha de comando, saída é o propósito do script. */
 import { chromium } from 'playwright';
+import { TJAM_PUBLIC_CONSULTATION_URL } from '../src/adapters/tjam-projudi.adapter.js';
 import { TJAM_PROJUDI_SELECTORS as SEL } from '../src/adapters/tjam-projudi.selectors.js';
-
-const DEFAULT_BASE_URL =
-  'https://projudi-consulta.tjam.jus.br/processo/consultaPublicaNova.do?actionType=iniciar';
 
 async function main(): Promise<void> {
   const cnjNumber = process.argv[2];
@@ -24,7 +22,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const baseUrl = process.env['TJAM_PROJUDI_BASE_URL'] ?? DEFAULT_BASE_URL;
+  const baseUrl = TJAM_PUBLIC_CONSULTATION_URL;
   const browser = await chromium.launch({ headless: false });
   const page = await browser.newPage();
 

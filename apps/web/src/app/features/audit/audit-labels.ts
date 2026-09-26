@@ -56,6 +56,9 @@ export const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
   'notification_config.process.create': 'Notificação do processo personalizada',
   'notification_config.process.update': 'Notificação do processo alterada',
   'notification_config.process.delete': 'Processo voltou às regras do espaço',
+  'notification_config.movement_type.update': 'Tipo de movimentação avisado alterado',
+  'notification_config.process_movement_type.set': 'Tipo de movimentação do processo personalizado',
+  'notification_config.process_movement_type.reset': 'Tipo de movimentação do processo voltou ao padrão',
   'waha.session.connect': 'WhatsApp: conexão solicitada',
   'waha.session.disconnect': 'WhatsApp: desconexão solicitada',
 };
@@ -69,6 +72,7 @@ export const AUDIT_ENTITY_LABEL: Record<string, string> = {
   message_template: 'Template',
   space_notification_config: 'Regras de notificação',
   process_notification_config: 'Notificação do processo',
+  space_movement_type: 'Tipo de movimentação',
   space_member: 'Membro',
   space_invite: 'Convite',
   whatsapp_session: 'WhatsApp',
