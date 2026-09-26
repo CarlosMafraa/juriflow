@@ -265,7 +265,12 @@ export class ProcessFormComponent {
   private async bootstrap(): Promise<void> {
     const spaceId = this.activeSpace.activeSpaceId();
     try {
-      this.courts.set(await this.courtService.list());
+      const courts = await this.courtService.list();
+      this.courts.set(courts);
+      // Um único tribunal ativo (hoje, só o TJAM): já vem escolhido.
+      if (courts.length === 1 && !this.form.value.courtId) {
+        this.form.patchValue({ courtId: courts[0].id });
+      }
       if (this.isAdmin() && spaceId) {
         this.members.set(await this.membersService.listActive(spaceId));
       }

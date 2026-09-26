@@ -103,8 +103,10 @@ export const routes: Routes = [
           import('./features/clients/client-form.component').then((m) => m.ClientFormComponent),
       },
       {
-        // Catálogo global: visível a qualquer autenticado (SUPER_ADMIN gerencia).
+        // Catálogo global: só a plataforma. ADMIN/colaborador escolhem entre os
+        // tribunais ativos no cadastro do processo, sem tela própria.
         path: 'tribunais',
+        canActivate: [permissionGuard('platform.admin')],
         loadComponent: () =>
           import('./features/courts/court-list.component').then((m) => m.CourtListComponent),
       },

@@ -41,11 +41,6 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
         width: 2.5rem;
         height: 2.5rem;
       }
-      /* O card do PrimeNG por padrão ocupa 100% do container — sem isso ele
-         fica bem mais largo que o campo, com um vão vazio do lado. */
-      :host ::ng-deep .p-card {
-        max-width: 24rem;
-      }
       .field {
         display: grid;
         gap: 0.35rem;
