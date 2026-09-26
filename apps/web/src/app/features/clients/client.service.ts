@@ -4,6 +4,7 @@ import type { Client, ClientType } from '@juriflow/shared-types';
 import { SUPABASE_CLIENT } from '../../core/supabase/supabase-client';
 import { AuthService } from '../../core/auth/auth.service';
 import { ActiveSpaceService } from '../../core/authorization/active-space.service';
+import { likeContains } from '../../core/data/like';
 
 interface ClientRow {
   id: string;
@@ -94,11 +95,12 @@ export class ClientService {
       .order('name')
       .range(from, from + pageSize - 1);
 
-    if (filters.search?.trim()) q = q.ilike('name', `%${filters.search.trim()}%`);
+    if (filters.search?.trim()) q = q.ilike('name', likeContains(filters.search));
     if (filters.type) q = q.eq('type', filters.type);
-    if (filters.document?.trim()) q = q.ilike('document', `%${onlyDigits(filters.document)}%`);
-    if (filters.phone?.trim()) q = q.ilike('phone', `%${filters.phone.trim()}%`);
-    if (filters.email?.trim()) q = q.ilike('email', `%${filters.email.trim()}%`);
+    if (filters.document?.trim())
+      q = q.ilike('document', likeContains(onlyDigits(filters.document)));
+    if (filters.phone?.trim()) q = q.ilike('phone', likeContains(filters.phone));
+    if (filters.email?.trim()) q = q.ilike('email', likeContains(filters.email));
 
     const { data, error, count } = await q;
     if (error) throw error;
@@ -115,7 +117,7 @@ export class ClientService {
       .from('clients')
       .select('*')
       .eq('space_id', this.spaceId())
-      .ilike('name', `%${term.trim()}%`)
+      .ilike('name', likeContains(term))
       .order('name')
       .limit(limit);
     if (error) throw error;
@@ -123,7 +125,11 @@ export class ClientService {
   }
 
   async getById(id: string): Promise<Client | null> {
-    const { data, error } = await this.supabase.from('clients').select('*').eq('id', id).maybeSingle();
+    const { data, error } = await this.supabase
+      .from('clients')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
     if (error) throw error;
     return data ? toClient(data as ClientRow) : null;
   }

@@ -8,6 +8,7 @@ import { CardModule } from 'primeng/card';
 import { ChipModule } from 'primeng/chip';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
+import { MultiSelectModule } from 'primeng/multiselect';
 import { SelectModule } from 'primeng/select';
 import { ProcessService } from './process.service';
 import { CourtService } from '../courts/court.service';
@@ -30,6 +31,7 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
     ChipModule,
     InputTextModule,
     MessageModule,
+    MultiSelectModule,
     SelectModule,
   ],
   template: `
@@ -46,7 +48,8 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
             <small class="field__error">{{ cnjError() }}</small>
           } @else {
             <small class="field__hint">
-              Formato NNNNNNN-DD.AAAA.J.TR.OOOO. Sem CNJ, o processo não entra em acompanhamento automático.
+              Formato NNNNNNN-DD.AAAA.J.TR.OOOO. Sem CNJ, o processo não entra em acompanhamento
+              automático.
             </small>
           }
         </div>
@@ -66,32 +69,53 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
         </div>
 
         <div class="field">
-          <label for="assignedUserId">Responsável</label>
+          <label for="responsibleIds">Responsáveis</label>
           @if (isAdmin()) {
-            <p-select
-              inputId="assignedUserId"
+            <p-multiselect
+              inputId="responsibleIds"
               [options]="memberOptionList()"
-              formControlName="assignedUserId"
-              placeholder="Selecione…"
-              aria-label="Responsável"
+              formControlName="responsibleIds"
+              placeholder="Selecione um ou mais…"
+              display="chip"
+              [filter]="false"
+              [showToggleAll]="false"
+              aria-label="Responsáveis"
             />
+            <small class="field__hint">Todo processo precisa de ao menos um responsável.</small>
           } @else {
-            <input pInputText type="text" [value]="myName()" disabled aria-label="Responsável" />
-            <small class="field__hint">Colaborador cadastra o processo para si.</small>
+            <input pInputText type="text" [value]="myName()" disabled aria-label="Responsáveis" />
+            <small class="field__hint"
+              >Você será o responsável. O ADMIN pode incluir outras pessoas depois.</small
+            >
           }
         </div>
 
         <fieldset class="clients field--full">
           <legend>Clientes (opcional)</legend>
           <div class="search">
-            <input pInputText type="text" placeholder="Buscar cliente por nome" [value]="term()" (input)="onSearch($event)" />
+            <input
+              pInputText
+              type="text"
+              placeholder="Buscar cliente por nome"
+              [value]="term()"
+              (input)="onSearch($event)"
+            />
           </div>
           @if (results().length) {
             <ul class="results">
               @for (c of results(); track c.id) {
                 <li>
-                  <span>{{ c.name }} <small class="muted">{{ c.type }}</small></span>
-                  <p-button type="button" size="small" [text]="true" icon="pi pi-plus" label="Adicionar" (onClick)="pick(c)" />
+                  <span
+                    >{{ c.name }} <small class="muted">{{ c.type }}</small></span
+                  >
+                  <p-button
+                    type="button"
+                    size="small"
+                    [text]="true"
+                    icon="pi pi-plus"
+                    label="Adicionar"
+                    (onClick)="pick(c)"
+                  />
                 </li>
               }
             </ul>
@@ -106,8 +130,22 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
         </fieldset>
 
         <div class="actions field--full">
-          <p-button size="small" type="button" severity="secondary" [outlined]="true" icon="pi pi-times" label="Cancelar" (onClick)="cancel()" />
-          <p-button size="small" type="submit" icon="pi pi-plus" label="Cadastrar" [loading]="saving()" />
+          <p-button
+            size="small"
+            type="button"
+            severity="secondary"
+            [outlined]="true"
+            icon="pi pi-times"
+            label="Cancelar"
+            (onClick)="cancel()"
+          />
+          <p-button
+            size="small"
+            type="submit"
+            icon="pi pi-plus"
+            label="Cadastrar"
+            [loading]="saving()"
+          />
         </div>
       </form>
     </p-card>
@@ -202,7 +240,8 @@ export class ProcessFormComponent {
   protected readonly selected = signal<Client[]>([]);
 
   protected readonly isAdmin = (): boolean => this.permissions.can('space.manage');
-  protected readonly myName = (): string => this.auth.context()?.profile?.fullName ?? this.auth.context()?.email ?? '';
+  protected readonly myName = (): string =>
+    this.auth.context()?.profile?.fullName ?? this.auth.context()?.email ?? '';
 
   protected readonly courtOptionList = (): Array<{ label: string; value: string }> =>
     this.courts().map((c) => ({ label: `${c.name} — ${c.jurisdiction}`, value: c.id }));
@@ -213,7 +252,7 @@ export class ProcessFormComponent {
     cnjNumber: '',
     internalRef: '',
     courtId: ['', [Validators.required]],
-    assignedUserId: '',
+    responsibleIds: [[] as string[]],
   });
 
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -238,7 +277,9 @@ export class ProcessFormComponent {
   protected cnjError(): string {
     const raw = this.form.value.cnjNumber?.trim();
     if (!raw) return '';
-    return formatCnjNumber(raw) || isFormattedCnj(raw) ? '' : 'Número CNJ inválido (precisa de 20 dígitos).';
+    return formatCnjNumber(raw) || isFormattedCnj(raw)
+      ? ''
+      : 'Número CNJ inválido (precisa de 20 dígitos).';
   }
 
   protected onSearch(event: Event): void {
@@ -280,9 +321,8 @@ export class ProcessFormComponent {
       return;
     }
     const v = this.form.getRawValue();
-    const assignedUserId = this.isAdmin() ? v.assignedUserId : (this.auth.userId() ?? '');
-    if (!assignedUserId) {
-      this.error.set('Selecione o responsável.');
+    if (this.isAdmin() && v.responsibleIds.length === 0) {
+      this.error.set('Selecione ao menos um responsável.');
       return;
     }
 
@@ -293,7 +333,7 @@ export class ProcessFormComponent {
         cnjNumber: cnj,
         internalRef: v.internalRef,
         courtId: v.courtId,
-        assignedUserId,
+        responsibleIds: this.isAdmin() ? v.responsibleIds : undefined,
       });
       for (const c of this.selected()) {
         try {
@@ -313,10 +353,13 @@ export class ProcessFormComponent {
 
   private humanize(err: unknown): string {
     const msg = (err as { message?: string })?.message ?? '';
-    if (msg.includes('processes_cnj_uniq')) return 'Já existe um processo com esse número CNJ neste espaço.';
+    if (msg.includes('processes_cnj_uniq'))
+      return 'Já existe um processo com esse número CNJ neste espaço.';
     if (msg.includes('processes_cnj_format_chk')) return 'Número CNJ fora do formato padrão.';
     if (msg.includes('Tribunal inexistente ou inativo')) return 'Tribunal inexistente ou inativo.';
-    if (msg.includes('membro ativo do espaço')) return 'O responsável precisa ser um membro ativo do espaço.';
+    if (msg.includes('membro ativo do espaço'))
+      return 'Todo responsável precisa ser um membro ativo do espaço.';
+    if (msg.includes('Limite do plano')) return msg;
     return 'Não foi possível cadastrar o processo.';
   }
 }

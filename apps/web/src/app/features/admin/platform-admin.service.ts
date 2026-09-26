@@ -1,13 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import type { Profile, Space } from '@juriflow/shared-types';
 import { SUPABASE_CLIENT } from '../../core/supabase/supabase-client';
-import { AuthService } from '../../core/auth/auth.service';
 
 interface SpaceRow {
   id: string;
   name: string;
   slug: string;
   status: Space['status'];
+  max_processes: number;
+  max_tracked_processes: number;
   created_by: string | null;
   created_at: string;
   updated_at: string | null;
@@ -30,6 +31,8 @@ function toSpace(r: SpaceRow): Space {
     name: r.name,
     slug: r.slug,
     status: r.status,
+    maxProcesses: r.max_processes,
+    maxTrackedProcesses: r.max_tracked_processes,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -68,7 +71,6 @@ function slugify(name: string): string {
 @Injectable({ providedIn: 'root' })
 export class PlatformAdminService {
   private readonly supabase = inject(SUPABASE_CLIENT);
-  private readonly auth = inject(AuthService);
 
   async listSpaces(): Promise<Space[]> {
     const { data, error } = await this.supabase.from('spaces').select('*').order('name');
@@ -77,30 +79,35 @@ export class PlatformAdminService {
   }
 
   /**
-   * Cria o espaço e já vincula `adminProfileId` como ADMIN ativo — sem isso o
-   * espaço fica sem ninguém para geri-lo (SUPER_ADMIN não recebe
-   * `space.manage`/`member.*`, RN7). Ver policy `space_members_insert`
-   * (migração 0004): "provisionamento" é o único caso em que SUPER_ADMIN
-   * insere em `space_members` direto, sem convite por token.
+   * Cria o espaço já com o ADMIN inicial, numa transação só (RPC
+   * `create_space_with_admin`). É o único momento em que a plataforma toca em
+   * membros — depois disso, quem gere o espaço é o ADMIN dele. O plano nasce
+   * com os valores padrão (Free) e é ajustado em `updatePlan`.
    */
-  async createSpace(name: string, adminProfileId: string): Promise<Space> {
-    const { data, error } = await this.supabase
-      .from('spaces')
-      .insert({ name: name.trim(), slug: slugify(name), created_by: this.auth.userId() })
-      .select('*')
-      .single();
-    if (error) throw error;
-    const space = toSpace(data as SpaceRow);
-
-    const { error: memberError } = await this.supabase.from('space_members').insert({
-      space_id: space.id,
-      profile_id: adminProfileId,
-      role: 'ADMIN',
-      status: 'active',
+  async createSpace(name: string, adminProfileId: string): Promise<void> {
+    const { error } = await this.supabase.rpc('create_space_with_admin', {
+      p_name: name.trim(),
+      p_slug: slugify(name),
+      p_admin_profile_id: adminProfileId,
     });
-    if (memberError) throw memberError;
+    if (error) throw error;
+  }
 
-    return space;
+  async updatePlan(id: string, maxProcesses: number, maxTrackedProcesses: number): Promise<void> {
+    const { error } = await this.supabase
+      .from('spaces')
+      .update({ max_processes: maxProcesses, max_tracked_processes: maxTrackedProcesses })
+      .eq('id', id);
+    if (error) throw error;
+  }
+
+  /** Convite de plataforma (Edge Function `send-invite`): cria a conta e manda o e-mail. */
+  async inviteUser(email: string): Promise<'invited' | 'existing_user' | 'failed'> {
+    const { data, error } = await this.supabase.functions.invoke<{
+      status: 'invited' | 'existing_user';
+    }>('send-invite', { body: { email } });
+    if (error || !data) return 'failed';
+    return data.status;
   }
 
   async setSpaceStatus(id: string, status: Space['status']): Promise<void> {

@@ -41,24 +41,69 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
             formControlName="adminProfileId"
             placeholder="Administrador inicial"
           />
-          <p-button type="submit" size="small" icon="pi pi-plus" [loading]="creatingSpace()" label="Criar espaço" />
+          <p-button
+            type="submit"
+            size="small"
+            icon="pi pi-plus"
+            [loading]="creatingSpace()"
+            label="Criar espaço"
+          />
         </form>
 
+        <p class="muted small">
+          A plataforma só enxerga que o espaço existe, o status e o plano — nada do conteúdo de cada
+          escritório. Plano novo nasce como Free (10 processos, 3 com sincronização).
+        </p>
         <p-table [value]="spaces()" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
               <th>Nome</th>
-              <th>Slug</th>
               <th>Status</th>
+              <th>Processos</th>
+              <th>Sincronização automática</th>
               <th></th>
             </tr>
           </ng-template>
           <ng-template pTemplate="body" let-s>
             <tr>
               <td>{{ s.name }}</td>
-              <td>{{ s.slug }}</td>
-              <td><p-tag [severity]="s.status === 'active' ? 'success' : 'danger'" [value]="s.status" /></td>
+              <td>
+                <p-tag
+                  [severity]="s.status === 'active' ? 'success' : 'danger'"
+                  [value]="s.status === 'active' ? 'Ativo' : 'Suspenso'"
+                />
+              </td>
+              <td>
+                <input
+                  pInputText
+                  class="num"
+                  type="number"
+                  min="0"
+                  [attr.aria-label]="'Limite de processos de ' + s.name"
+                  [value]="draft(s).maxProcesses"
+                  (input)="setDraft(s, 'maxProcesses', $event)"
+                />
+              </td>
+              <td>
+                <input
+                  pInputText
+                  class="num"
+                  type="number"
+                  min="0"
+                  [attr.aria-label]="'Limite de sincronizados de ' + s.name"
+                  [value]="draft(s).maxTrackedProcesses"
+                  (input)="setDraft(s, 'maxTrackedProcesses', $event)"
+                />
+              </td>
               <td class="actions">
+                <p-button
+                  size="small"
+                  icon="pi pi-check"
+                  label="Salvar plano"
+                  [disabled]="!planChanged(s)"
+                  [loading]="savingPlan() === s.id"
+                  (onClick)="savePlan(s)"
+                />
                 <p-button
                   size="small"
                   severity="secondary"
@@ -79,6 +124,25 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
       </p-card>
 
       <p-card header="Usuários" styleClass="section">
+        <!-- Escritório novo: convida o futuro ADMIN por e-mail; a conta aparece
+             na lista abaixo e pode ser escolhida como administrador do espaço. -->
+        <form class="create-form" [formGroup]="inviteForm" (ngSubmit)="inviteUser()">
+          <input
+            pInputText
+            class="f"
+            type="email"
+            placeholder="E-mail do novo usuário"
+            formControlName="email"
+          />
+          <p-button
+            type="submit"
+            size="small"
+            icon="pi pi-send"
+            [loading]="invitingUser()"
+            label="Convidar usuário"
+          />
+        </form>
+
         <p-table [value]="profiles()" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
             <tr>
@@ -151,6 +215,19 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
       .muted {
         color: var(--jf-text-muted, #64748b);
       }
+      .small {
+        font-size: 0.8rem;
+        margin: 0 0 0.75rem;
+      }
+      .num {
+        width: 6rem;
+      }
+      .actions {
+        white-space: nowrap;
+      }
+      .actions p-button {
+        margin-left: 0.35rem;
+      }
     `,
   ],
 })
@@ -165,6 +242,11 @@ export class AdminComponent {
   protected readonly currentUserId = this.auth.userId;
   protected readonly loading = signal(true);
   protected readonly creatingSpace = signal(false);
+  protected readonly invitingUser = signal(false);
+  protected readonly savingPlan = signal<string | null>(null);
+  private readonly planDrafts = signal<
+    Record<string, { maxProcesses: number; maxTrackedProcesses: number }>
+  >({});
   protected readonly spaces = signal<Space[]>([]);
   protected readonly profiles = signal<Profile[]>([]);
   protected readonly profileOptions = signal<{ label: string; value: string }[]>([]);
@@ -173,6 +255,8 @@ export class AdminComponent {
     name: '',
     adminProfileId: '',
   });
+
+  protected readonly inviteForm = this.fb.nonNullable.group({ email: '' });
 
   constructor() {
     this.pageHeader.set(
@@ -198,6 +282,86 @@ export class AdminComponent {
       this.toast.error(err instanceof Error ? err.message : 'Não foi possível criar o espaço.');
     } finally {
       this.creatingSpace.set(false);
+    }
+  }
+
+  protected async inviteUser(): Promise<void> {
+    const email = this.inviteForm.getRawValue().email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      this.toast.error('Informe um e-mail válido.');
+      return;
+    }
+    this.invitingUser.set(true);
+    try {
+      const result = await this.service.inviteUser(email);
+      if (result === 'invited') {
+        this.toast.success('Convite enviado. A pessoa receberá um e-mail para criar a senha.');
+      } else if (result === 'existing_user') {
+        this.toast.info('Este e-mail já tem conta na plataforma.');
+      } else {
+        this.toast.error('Não foi possível enviar o convite.');
+        return;
+      }
+      this.inviteForm.reset({ email: '' });
+      await this.reloadProfiles();
+    } finally {
+      this.invitingUser.set(false);
+    }
+  }
+
+  /** Candidatos a ADMIN inicial: todos menos quem está operando a plataforma agora. */
+  private adminCandidates(profiles: Profile[]): { label: string; value: string }[] {
+    return profiles
+      .filter((p) => p.id !== this.currentUserId())
+      .map((p) => ({ label: p.fullName ? `${p.fullName} (${p.email})` : p.email, value: p.id }));
+  }
+
+  private async reloadProfiles(): Promise<void> {
+    const profiles = await this.service.listProfiles();
+    this.profiles.set(profiles);
+    this.profileOptions.set(this.adminCandidates(profiles));
+  }
+
+  protected draft(space: Space): { maxProcesses: number; maxTrackedProcesses: number } {
+    return (
+      this.planDrafts()[space.id] ?? {
+        maxProcesses: space.maxProcesses,
+        maxTrackedProcesses: space.maxTrackedProcesses,
+      }
+    );
+  }
+
+  protected setDraft(
+    space: Space,
+    field: 'maxProcesses' | 'maxTrackedProcesses',
+    event: Event,
+  ): void {
+    const value = Math.max(0, Math.floor(Number((event.target as HTMLInputElement).value) || 0));
+    this.planDrafts.update((all) => ({
+      ...all,
+      [space.id]: { ...this.draft(space), [field]: value },
+    }));
+  }
+
+  protected planChanged(space: Space): boolean {
+    const d = this.draft(space);
+    return (
+      d.maxProcesses !== space.maxProcesses || d.maxTrackedProcesses !== space.maxTrackedProcesses
+    );
+  }
+
+  protected async savePlan(space: Space): Promise<void> {
+    const d = this.draft(space);
+    this.savingPlan.set(space.id);
+    try {
+      await this.service.updatePlan(space.id, d.maxProcesses, d.maxTrackedProcesses);
+      this.toast.success(`Plano de "${space.name}" atualizado.`);
+      this.planDrafts.update(({ [space.id]: _, ...rest }) => rest);
+      this.spaces.set(await this.service.listSpaces());
+    } catch {
+      this.toast.error('Não foi possível atualizar o plano.');
+    } finally {
+      this.savingPlan.set(null);
     }
   }
 
@@ -250,9 +414,7 @@ export class AdminComponent {
       ]);
       this.spaces.set(spaces);
       this.profiles.set(profiles);
-      this.profileOptions.set(
-        profiles.map((p) => ({ label: p.fullName || p.email, value: p.id })),
-      );
+      this.profileOptions.set(this.adminCandidates(profiles));
     } catch {
       this.toast.error('Não foi possível carregar os dados de administração.');
     } finally {

@@ -14,6 +14,8 @@ export default tseslint.config(
       '**/coverage/**',
       'apps/web/**',
       'supabase/**',
+      // Scripts E2E ad-hoc locais (gitignored, ver .gitignore).
+      '.e2e-*',
     ],
   },
   eslint.configs.recommended,

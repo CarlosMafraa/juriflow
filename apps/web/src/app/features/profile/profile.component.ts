@@ -3,12 +3,16 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { InputTextModule } from 'primeng/inputtext';
+import { PASSWORD_HINT, passwordValidators } from '../../core/auth/password-policy';
 import { AuthService } from '../../core/auth/auth.service';
 import { ToastService } from '../../shared/feedback/toast.service';
 import { ProfileService } from './profile.service';
 import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
+
+const AVATAR_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 
 @Component({
   selector: 'jf-profile',
@@ -42,7 +46,7 @@ const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
               label="Alterar foto"
               (onClick)="fileInput.click()"
             />
-            <p class="field__hint">PNG, JPEG ou WebP.</p>
+            <p class="field__hint">PNG, JPEG ou WebP, até 2 MB.</p>
           </div>
         </div>
 
@@ -69,7 +73,13 @@ const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
             <small class="field__hint">Não pode ser alterado por aqui.</small>
           </div>
           <div class="actions">
-            <p-button size="small" type="submit" icon="pi pi-check" label="Salvar alterações" [loading]="savingProfile()" />
+            <p-button
+              size="small"
+              type="submit"
+              icon="pi pi-check"
+              label="Salvar alterações"
+              [loading]="savingProfile()"
+            />
           </div>
         </form>
       </p-card>
@@ -78,20 +88,40 @@ const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
         <form class="form" [formGroup]="passwordForm" (ngSubmit)="submitPassword()">
           <div class="field">
             <label for="password">Nova senha</label>
-            <input pInputText id="password" type="password" autocomplete="new-password" formControlName="password" />
+            <input
+              pInputText
+              id="password"
+              type="password"
+              autocomplete="new-password"
+              formControlName="password"
+            />
             @if (showPasswordError('password')) {
-              <small class="field__error">Mínimo de 6 caracteres.</small>
+              <small class="field__error">{{ passwordHint }}</small>
             }
           </div>
           <div class="field">
             <label for="confirm">Confirmar nova senha</label>
-            <input pInputText id="confirm" type="password" autocomplete="new-password" formControlName="confirm" />
+            <input
+              pInputText
+              id="confirm"
+              type="password"
+              autocomplete="new-password"
+              formControlName="confirm"
+            />
             @if (confirmError()) {
               <small class="field__error">{{ confirmError() }}</small>
             }
           </div>
           <div class="actions">
-            <p-button size="small" type="submit" severity="secondary" [outlined]="true" icon="pi pi-key" [loading]="changingPassword()" label="Alterar senha" />
+            <p-button
+              size="small"
+              type="submit"
+              severity="secondary"
+              [outlined]="true"
+              icon="pi pi-key"
+              [loading]="changingPassword()"
+              label="Alterar senha"
+            />
           </div>
         </form>
       </p-card>
@@ -166,8 +196,9 @@ export class ProfileComponent {
     email: [''],
   });
 
+  protected readonly passwordHint = PASSWORD_HINT;
   protected readonly passwordForm = this.fb.nonNullable.group({
-    password: ['', [Validators.required, Validators.minLength(6)]],
+    password: ['', passwordValidators],
     confirm: '',
   });
 
@@ -191,6 +222,17 @@ export class ProfileComponent {
 
     const userId = this.auth.userId();
     if (!userId) return;
+
+    // Mesmos limites do bucket `avatars` (migração 0031) — o Storage recusa de
+    // qualquer jeito; aqui só evitamos o upload inútil e damos o motivo.
+    if (!AVATAR_TYPES.includes(file.type)) {
+      this.toast.error('Formato não suportado. Use PNG, JPEG ou WebP.');
+      return;
+    }
+    if (file.size > AVATAR_MAX_BYTES) {
+      this.toast.error('A foto deve ter no máximo 2 MB.');
+      return;
+    }
 
     this.uploadingAvatar.set(true);
     try {

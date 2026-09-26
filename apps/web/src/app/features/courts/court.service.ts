@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import type { Court, CourtType } from '@juriflow/shared-types';
 import { SUPABASE_CLIENT } from '../../core/supabase/supabase-client';
+import { likeContains } from '../../core/data/like';
 
 interface CourtRow {
   id: string;
@@ -44,7 +45,7 @@ export class CourtService {
   async list(opts: { includeInactive?: boolean; search?: string } = {}): Promise<Court[]> {
     let q = this.supabase.from('courts').select('*').order('name');
     if (!opts.includeInactive) q = q.eq('active', true);
-    if (opts.search?.trim()) q = q.ilike('name', `%${opts.search.trim()}%`);
+    if (opts.search?.trim()) q = q.ilike('name', likeContains(opts.search));
     const { data, error } = await q;
     if (error) throw error;
     return ((data ?? []) as CourtRow[]).map(toCourt);

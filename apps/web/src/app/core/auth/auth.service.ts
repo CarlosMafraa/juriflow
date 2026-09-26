@@ -5,11 +5,16 @@ import { SUPABASE_CLIENT } from '../supabase/supabase-client';
 import { Logger } from '../observability/logger';
 import type { AuthContext, AuthStatus, Membership } from './auth.models';
 
+interface SpaceRef {
+  name: string;
+  status: 'active' | 'suspended';
+}
+
 interface MembershipRow {
   space_id: string;
   role: Membership['role'];
   status: Membership['status'];
-  spaces: { name: string } | { name: string }[] | null;
+  spaces: SpaceRef | SpaceRef[] | null;
 }
 
 /**
@@ -40,10 +45,11 @@ export class AuthService {
     return {
       userId: ctx.userId,
       isSuperAdmin: ctx.profile?.isSuperAdmin ?? false,
+      // Espaço suspenso: o vínculo não concede nada (o banco já nega tudo).
       memberships: ctx.memberships.map((m) => ({
         spaceId: m.spaceId,
         role: m.role,
-        status: m.status,
+        status: m.spaceSuspended ? 'disabled' : m.status,
       })),
     };
   });
@@ -125,21 +131,23 @@ export class AuthService {
           .maybeSingle(),
         this.supabase
           .from('space_members')
-          .select('space_id, role, status, spaces(name)')
+          .select('space_id, role, status, spaces(name, status)')
           .eq('profile_id', userId),
       ]);
 
     if (profileErr) throw profileErr;
     if (memberErr) throw memberErr;
 
-    const memberships: Membership[] = ((memberRows ?? []) as MembershipRow[]).map((row) => ({
-      spaceId: row.space_id,
-      role: row.role,
-      status: row.status,
-      spaceName: Array.isArray(row.spaces)
-        ? (row.spaces[0]?.name ?? null)
-        : (row.spaces?.name ?? null),
-    }));
+    const memberships: Membership[] = ((memberRows ?? []) as MembershipRow[]).map((row) => {
+      const space = Array.isArray(row.spaces) ? row.spaces[0] : row.spaces;
+      return {
+        spaceId: row.space_id,
+        role: row.role,
+        status: row.status,
+        spaceName: space?.name ?? null,
+        spaceSuspended: space?.status === 'suspended',
+      };
+    });
 
     return {
       userId,

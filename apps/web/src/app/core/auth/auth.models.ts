@@ -5,6 +5,8 @@ export interface Membership {
   role: SpaceRole;
   status: SpaceMemberStatus;
   spaceName: string | null;
+  /** Espaço suspenso pela administração da plataforma: vínculo sem nenhum acesso. */
+  spaceSuspended: boolean;
 }
 
 export interface AuthContext {

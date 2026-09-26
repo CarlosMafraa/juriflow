@@ -29,7 +29,11 @@
                 "input": "public"
               }
             ],
-            "styles": ["primeicons/primeicons.css", "src/styles.scss"],
+            "styles": [
+              "@fontsource/sora/latin-600.css",
+              "primeicons/primeicons.css",
+              "src/styles.scss"
+            ],
             "scripts": []
           },
           "configurations": {
@@ -90,7 +94,11 @@
                 "input": "public"
               }
             ],
-            "styles": ["primeicons/primeicons.css", "src/styles.scss"],
+            "styles": [
+              "@fontsource/sora/latin-600.css",
+              "primeicons/primeicons.css",
+              "src/styles.scss"
+            ],
             "scripts": []
           }
         }

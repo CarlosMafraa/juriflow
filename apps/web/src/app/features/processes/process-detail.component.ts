@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -19,8 +20,10 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import {
   ProcessService,
+  type DeliveryRow,
   type HistoryRow,
   type LinkedClient,
   type MovementRow,
@@ -55,27 +58,58 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
     SelectModule,
     TableModule,
     TagModule,
+    ToggleSwitchModule,
     PageHeaderActionsDirective,
   ],
   template: `
     <ng-template jfPageHeaderActions>
       @if (process(); as p) {
-        @if (canEdit() && p.status !== 'closed') {
-          @if (p.status === 'active') {
-            <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-inbox" label="Arquivar" (onClick)="setStatus('archived')" />
-          } @else {
-            <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-refresh" label="Reativar" (onClick)="setStatus('active')" />
-          }
+        @if (canEdit() && p.status === 'active') {
+          <p-button
+            size="small"
+            severity="secondary"
+            [outlined]="true"
+            icon="pi pi-inbox"
+            label="Arquivar"
+            (onClick)="setStatus('archived')"
+          />
         }
         @if (isAdmin()) {
-          @if (p.status !== 'closed') {
-            <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-lock" label="Encerrar" (onClick)="setStatus('closed')" />
+          @if (p.status === 'archived') {
+            <p-button
+              size="small"
+              severity="secondary"
+              [outlined]="true"
+              icon="pi pi-refresh"
+              label="Reativar"
+              (onClick)="setStatus('active')"
+            />
+            <p-button
+              size="small"
+              severity="danger"
+              icon="pi pi-trash"
+              label="Excluir"
+              (onClick)="remove()"
+            />
+          } @else if (p.status === 'closed') {
+            <p-button
+              size="small"
+              severity="secondary"
+              [outlined]="true"
+              icon="pi pi-lock-open"
+              label="Reabrir"
+              (onClick)="setStatus('active')"
+            />
           } @else {
-            <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-lock-open" label="Reabrir" (onClick)="setStatus('active')" />
+            <p-button
+              size="small"
+              severity="secondary"
+              [outlined]="true"
+              icon="pi pi-lock"
+              label="Encerrar"
+              (onClick)="setStatus('closed')"
+            />
           }
-        }
-        @if (canEdit()) {
-          <p-button size="small" severity="danger" icon="pi pi-trash" label="Excluir" (onClick)="remove()" />
         }
       }
     </ng-template>
@@ -86,7 +120,15 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
       <p-message severity="warn" styleClass="w-full">
         Processo não encontrado. Ele pode ter sido transferido, arquivado ou você não tem acesso.
       </p-message>
-      <a routerLink="/processos"><p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-arrow-left" label="Voltar" styleClass="back-btn" /></a>
+      <a routerLink="/processos"
+        ><p-button
+          size="small"
+          severity="secondary"
+          [outlined]="true"
+          icon="pi pi-arrow-left"
+          label="Voltar"
+          styleClass="back-btn"
+      /></a>
     } @else {
       @if (msg()) {
         <p-message [severity]="msg()!.tone" [text]="msg()!.text" styleClass="w-full section" />
@@ -96,27 +138,95 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
         <form [formGroup]="coreForm" (ngSubmit)="saveCore()" class="core">
           <div class="field">
             <label for="cnjNumber">Número CNJ</label>
-            <input pInputText id="cnjNumber" formControlName="cnjNumber" [readonly]="!canEdit()" placeholder="—" />
+            <input
+              pInputText
+              id="cnjNumber"
+              formControlName="cnjNumber"
+              [readonly]="!canEdit()"
+              placeholder="—"
+            />
           </div>
           <div class="field">
             <label for="internalRef">Referência interna</label>
-            <input pInputText id="internalRef" formControlName="internalRef" [readonly]="!canEdit()" placeholder="—" />
+            <input
+              pInputText
+              id="internalRef"
+              formControlName="internalRef"
+              [readonly]="!canEdit()"
+              placeholder="—"
+            />
           </div>
           <div class="ro">
             <span>Tribunal</span><strong>{{ process()!.courtName }}</strong>
           </div>
           <div class="ro">
-            <span>Responsável atual</span><strong>{{ process()!.assignedName }}</strong>
+            <span>Responsáveis</span><strong>{{ responsibleNames() }}</strong>
           </div>
           <div class="ro">
             <span>Cadastrado por</span><strong>{{ process()!.creatorName }}</strong>
           </div>
           @if (canEdit()) {
             <div class="core-actions field--full">
-              <p-button type="submit" size="small" icon="pi pi-check" label="Salvar dados" [loading]="savingCore()" />
+              <p-button
+                type="submit"
+                size="small"
+                icon="pi pi-check"
+                label="Salvar dados"
+                [loading]="savingCore()"
+              />
             </div>
           }
         </form>
+      </p-card>
+
+      <p-card header="Acompanhamento" styleClass="section">
+        <div class="tracking">
+          <div class="tracking__info">
+            @if (process()!.checkRequestedAt) {
+              <p-tag severity="info" icon="pi pi-spin pi-spinner" value="Consulta na fila" />
+              <span class="muted small">O resultado aparece aqui assim que a coleta terminar.</span>
+            } @else if (process()!.lastCheckedAt) {
+              <span
+                >Última consulta: <strong>{{ fmt(process()!.lastCheckedAt!) }}</strong></span
+              >
+            } @else {
+              <span class="muted">Ainda não consultado.</span>
+            }
+          </div>
+          <p-button
+            size="small"
+            icon="pi pi-sync"
+            label="Consultar agora"
+            [disabled]="!!checkBlockedReason() || !!process()!.checkRequestedAt"
+            [loading]="requestingCheck()"
+            (onClick)="requestCheck()"
+          />
+        </div>
+        @if (checkBlockedReason()) {
+          <p class="muted small">{{ checkBlockedReason() }}</p>
+        }
+        <div class="sync">
+          <p-toggleswitch
+            inputId="trackingEnabled"
+            [ngModel]="process()!.trackingEnabled"
+            (ngModelChange)="setTracking($event)"
+            [disabled]="!canEdit() || savingTracking()"
+          />
+          <label for="trackingEnabled">
+            Sincronização automática
+            <small class="muted"
+              >— a coleta diária só consulta processos com a sincronização ligada (limite do
+              plano).</small
+            >
+          </label>
+        </div>
+        @if (process()!.lastCheckError && !process()!.checkRequestedAt) {
+          <p-message
+            severity="warn"
+            styleClass="w-full tracking__error"
+            text="A última consulta ao tribunal falhou. Tente novamente mais tarde."
+          />
+        }
       </p-card>
 
       <p-card header="Movimentações" styleClass="section">
@@ -145,6 +255,37 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
         }
       </p-card>
 
+      <p-card header="Notificações enviadas" styleClass="section">
+        @if (deliveries().length === 0) {
+          <p class="muted">Nenhuma notificação de WhatsApp enviada para este processo ainda.</p>
+        } @else {
+          <p-table [value]="deliveries()" styleClass="p-datatable-sm">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>Data</th>
+                <th>Destinatário</th>
+                <th>Telefone</th>
+                <th>Status</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-d>
+              <tr>
+                <td>{{ fmt(d.at) }}</td>
+                <td>{{ d.recipientName }}</td>
+                <td>{{ d.phone }}</td>
+                <td>
+                  @if (d.status === 'sent') {
+                    <p-tag severity="success" value="Enviada" />
+                  } @else {
+                    <p-tag severity="danger" value="Falhou" [attr.title]="d.error" />
+                  }
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        }
+      </p-card>
+
       <p-card header="Clientes vinculados" styleClass="section">
         @if (clients().length === 0) {
           <p class="muted">Nenhum cliente vinculado.</p>
@@ -155,7 +296,13 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
                 <a [routerLink]="['/clientes', c.clientId]">{{ c.name }}</a>
                 <span class="muted">{{ c.type }} · {{ c.document || 's/ documento' }}</span>
                 @if (canEdit()) {
-                  <p-button size="small" [text]="true" icon="pi pi-times" label="Remover" (onClick)="detach(c)" />
+                  <p-button
+                    size="small"
+                    [text]="true"
+                    icon="pi pi-times"
+                    label="Remover"
+                    (onClick)="detach(c)"
+                  />
                 }
               </li>
             }
@@ -177,7 +324,13 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
                     <span
                       >{{ r.name }} <small class="muted">{{ r.type }}</small></span
                     >
-                    <p-button size="small" [text]="true" icon="pi pi-link" label="Vincular" (onClick)="attach(r)" />
+                    <p-button
+                      size="small"
+                      [text]="true"
+                      icon="pi pi-link"
+                      label="Vincular"
+                      (onClick)="attach(r)"
+                    />
                   </li>
                 }
               </ul>
@@ -192,7 +345,14 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
             <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
           } @else if (!notifOverride()) {
             <p class="muted">Este processo usa a configuração geral do espaço.</p>
-            <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-sliders-h" label="Personalizar" (onClick)="enableNotifOverride()" />
+            <p-button
+              size="small"
+              severity="secondary"
+              [outlined]="true"
+              icon="pi pi-sliders-h"
+              label="Personalizar"
+              (onClick)="enableNotifOverride()"
+            />
           } @else {
             <div class="notif-row">
               <label class="chk" for="notifResponsible">
@@ -237,39 +397,71 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
               />
             </div>
             <div class="core-actions">
-              <p-button size="small" icon="pi pi-check" label="Salvar" [loading]="notifSaving()" (onClick)="saveNotifOverride()" />
-              <p-button size="small" severity="secondary" [text]="true" icon="pi pi-undo" label="Voltar ao padrão do espaço" (onClick)="removeNotifOverride()" />
+              <p-button
+                size="small"
+                icon="pi pi-check"
+                label="Salvar"
+                [loading]="notifSaving()"
+                (onClick)="saveNotifOverride()"
+              />
+              <p-button
+                size="small"
+                severity="secondary"
+                [text]="true"
+                icon="pi pi-undo"
+                label="Voltar ao padrão do espaço"
+                (onClick)="removeNotifOverride()"
+              />
             </div>
           }
         </p-card>
       }
 
-      @if (isAdmin()) {
-        <p-card header="Transferência de responsabilidade" styleClass="section">
+      <p-card header="Responsáveis" styleClass="section">
+        <ul class="linked">
+          @for (r of process()!.responsibles; track r.profileId) {
+            <li>
+              <span>{{ r.name }}</span>
+              @if (isAdmin()) {
+                <p-button
+                  size="small"
+                  [text]="true"
+                  icon="pi pi-times"
+                  label="Remover"
+                  [disabled]="process()!.responsibles.length <= 1"
+                  (onClick)="removeResponsible(r.profileId, r.name)"
+                />
+              }
+            </li>
+          }
+        </ul>
+        @if (isAdmin()) {
           <div class="transfer">
             <p-select
               class="f"
-              [options]="transferOptions()"
-              [ngModel]="transferTarget()"
-              (ngModelChange)="transferTarget.set($event)"
+              [options]="addResponsibleOptions()"
+              [ngModel]="newResponsible()"
+              (ngModelChange)="newResponsible.set($event)"
               [ngModelOptions]="{ standalone: true }"
-              placeholder="Selecione o novo responsável…"
+              placeholder="Incluir responsável…"
             />
             <p-button
               size="small"
-              icon="pi pi-arrow-right-arrow-left"
-              [disabled]="!transferTarget()"
-              [loading]="transferring()"
-              label="Transferir"
-              (onClick)="transfer()"
+              icon="pi pi-user-plus"
+              [disabled]="!newResponsible()"
+              [loading]="savingResponsible()"
+              label="Incluir"
+              (onClick)="addResponsible()"
             />
           </div>
           <p class="muted small">
-            O responsável anterior perde o acesso ao processo imediatamente. O histórico é
-            preservado.
+            Todo processo tem ao menos um responsável. Quem é removido perde o acesso ao processo na
+            hora; o histórico é preservado.
           </p>
-        </p-card>
+        }
+      </p-card>
 
+      @if (isAdmin()) {
         <p-card header="Histórico de responsabilidade" styleClass="section">
           @if (history().length === 0) {
             <p class="muted">Sem histórico.</p>
@@ -287,7 +479,7 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
               <ng-template pTemplate="body" let-h>
                 <tr>
                   <td>{{ h.responsibleName }}</td>
-                  <td>{{ h.reason === 'transfer' ? 'Transferência' : 'Cadastro' }}</td>
+                  <td>{{ reasonText(h.reason) }}</td>
                   <td>{{ fmt(h.startedAt) }}</td>
                   <td>{{ h.endedAt ? fmt(h.endedAt) : 'atual' }}</td>
                   <td>{{ h.assignedByName || '—' }}</td>
@@ -404,6 +596,29 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
       .attach {
         margin-top: 0.85rem;
       }
+      .tracking {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .sync {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin-top: 0.85rem;
+        font-size: 0.9rem;
+      }
+      .tracking__info {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+      :host ::ng-deep .tracking__error {
+        margin-top: 0.75rem;
+      }
       .attach input {
         width: 100%;
         max-width: 24rem;
@@ -457,17 +672,40 @@ export class ProcessDetailComponent {
   private readonly notifConfigService = inject(NotificationConfigService);
   private readonly templateService = inject(TemplateService);
   private readonly pageHeader = inject(PageHeaderService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly loading = signal(true);
   protected readonly process = signal<ProcessDetail | null>(null);
   protected readonly clients = signal<LinkedClient[]>([]);
   protected readonly movements = signal<MovementRow[]>([]);
   protected readonly movementsLoading = signal(true);
+  protected readonly deliveries = signal<DeliveryRow[]>([]);
+  protected readonly requestingCheck = signal(false);
+  private checkPoll: ReturnType<typeof setInterval> | null = null;
+
+  /** Motivo de "Consultar agora" estar indisponível — mesmas regras da RPC request_process_check. */
+  protected readonly checkBlockedReason = computed((): string => {
+    const p = this.process();
+    if (!p) return '';
+    if (p.status !== 'active') return 'Só processos ativos são consultados no tribunal.';
+    if (!p.trackingEnabled)
+      return 'Ligue a sincronização automática para consultar este processo no tribunal.';
+    if (!p.cnjNumber) return 'Informe o número CNJ para consultar o processo no tribunal.';
+    if (!p.courtTracked) return 'Este tribunal ainda não tem consulta automática.';
+    return '';
+  });
   protected readonly history = signal<HistoryRow[]>([]);
   protected readonly members = signal<SpaceMemberOption[]>([]);
   protected readonly savingCore = signal(false);
-  protected readonly transferring = signal(false);
-  protected readonly transferTarget = signal('');
+  protected readonly savingResponsible = signal(false);
+  protected readonly newResponsible = signal('');
+  protected readonly savingTracking = signal(false);
+  private readonly reasonLabel: Record<HistoryRow['reason'], string> = {
+    process_created: 'Cadastro',
+    transfer: 'Transferência',
+    added: 'Inclusão',
+  };
+  protected readonly reasonText = (r: HistoryRow['reason']): string => this.reasonLabel[r];
   protected readonly term = signal('');
   protected readonly results = signal<Client[]>([]);
   protected readonly msg = signal<{ tone: 'error' | 'success' | 'warn'; text: string } | null>(
@@ -496,12 +734,24 @@ export class ProcessDetailComponent {
     { label: 'Mensagem genérica embutida', value: '' },
     ...this.notifClientTemplates().map((t) => ({ label: t.name, value: t.id })),
   ]);
-  protected readonly transferOptions = computed(() => [
-    { label: 'Selecione o novo responsável…', value: '' },
-    ...this.members()
-      .filter((m) => m.profileId !== this.process()?.assignedUserId)
-      .map((m) => ({ label: `${m.fullName} (${m.role})`, value: m.profileId })),
-  ]);
+  protected readonly responsibleNames = computed(
+    () =>
+      this.process()
+        ?.responsibles.map((r) => r.name)
+        .join(', ') || '—',
+  );
+  protected readonly addResponsibleOptions = computed(() => {
+    const current = new Set(this.process()?.responsibles.map((r) => r.profileId));
+    return [
+      { label: 'Incluir responsável…', value: '' },
+      ...this.members()
+        .filter((m) => !current.has(m.profileId))
+        .map((m) => ({
+          label: `${m.fullName} (${m.role === 'ADMIN' ? 'Administrador' : 'Colaborador'})`,
+          value: m.profileId,
+        })),
+    ];
+  });
 
   protected readonly coreForm = this.fb.nonNullable.group({ cnjNumber: '', internalRef: '' });
 
@@ -515,13 +765,12 @@ export class ProcessDetailComponent {
   }
 
   protected readonly isAdmin = (): boolean => this.permissions.can('space.manage');
+  /** ADMIN ou qualquer um dos responsáveis atuais (mesma regra de app.can_edit_process). */
   protected readonly canEdit = computed(() => {
     const p = this.process();
     if (!p) return false;
-    return (
-      this.permissions.can('space.manage') ||
-      (p.createdBy === this.auth.userId() && p.assignedUserId === this.auth.userId())
-    );
+    const me = this.auth.userId();
+    return this.permissions.can('space.manage') || p.responsibles.some((r) => r.profileId === me);
   });
   protected readonly statusTone = (): 'success' | 'secondary' | 'warn' => {
     const s = this.process()?.status;
@@ -536,14 +785,77 @@ export class ProcessDetailComponent {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    effect(() => {
-      const p = this.process();
-      this.pageHeader.set(
-        p?.cnjNumber || p?.internalRef || 'Processo',
-        p ? this.statusLabel[p.status] : undefined,
-      );
-    });
+    // allowSignalWrites: sem ele o Angular 18 lança NG0600 e o título nunca chega à topbar.
+    effect(
+      () => {
+        const p = this.process();
+        this.pageHeader.set(
+          p?.cnjNumber || p?.internalRef || 'Processo',
+          p ? this.statusLabel[p.status] : undefined,
+        );
+      },
+      { allowSignalWrites: true },
+    );
     queueMicrotask(() => void this.load());
+    this.destroyRef.onDestroy(() => this.stopCheckPoll());
+  }
+
+  protected async requestCheck(): Promise<void> {
+    const p = this.process();
+    if (!p) return;
+    this.requestingCheck.set(true);
+    try {
+      await this.service.requestCheck(p.id);
+      this.process.set({ ...p, checkRequestedAt: new Date().toISOString() });
+      this.toast.success('Consulta solicitada. O resultado aparece aqui em instantes.');
+      this.startCheckPoll();
+    } catch (err) {
+      // As mensagens da RPC (intervalo mínimo, CNJ, tribunal) já são para o usuário.
+      const m = (err as { code?: string; message?: string }) ?? {};
+      this.toast.error(
+        m.code === '23514' && m.message ? m.message : 'Não foi possível solicitar a consulta.',
+      );
+    } finally {
+      this.requestingCheck.set(false);
+    }
+  }
+
+  /**
+   * Acompanha o pedido até o worker concluir (check_requested_at volta a
+   * NULL) e então recarrega movimentações e envios. Desiste após ~5 min —
+   * worker parado não deixa a tela fazendo polling para sempre.
+   */
+  private startCheckPoll(): void {
+    this.stopCheckPoll();
+    const startedAt = Date.now();
+    this.checkPoll = setInterval(async () => {
+      const p = this.process();
+      if (!p || Date.now() - startedAt > 5 * 60_000) {
+        this.stopCheckPoll();
+        return;
+      }
+      try {
+        const state = await this.service.trackingState(p.id);
+        if (state.checkRequestedAt) return;
+        this.stopCheckPoll();
+        this.process.set({ ...p, ...state });
+        const [movements, deliveries] = await Promise.all([
+          this.service.movements(p.id),
+          this.service.deliveries(p.id),
+        ]);
+        this.movements.set(movements);
+        this.deliveries.set(deliveries);
+        if (state.lastCheckError) this.toast.warning('A consulta ao tribunal falhou.');
+        else this.toast.success('Consulta concluída.');
+      } catch {
+        // Falha transitória de rede: tenta de novo no próximo intervalo.
+      }
+    }, 5000);
+  }
+
+  private stopCheckPoll(): void {
+    if (this.checkPoll) clearInterval(this.checkPoll);
+    this.checkPoll = null;
   }
 
   private async load(): Promise<void> {
@@ -552,6 +864,8 @@ export class ProcessDetailComponent {
       const p = await this.service.getById(this.id());
       this.process.set(p);
       if (!p) return;
+      // Pedido feito em outra aba/sessão ainda na fila: segue acompanhando.
+      if (p.checkRequestedAt) this.startCheckPoll();
       this.coreForm.patchValue({ cnjNumber: p.cnjNumber ?? '', internalRef: p.internalRef ?? '' });
       const tasks: Promise<unknown>[] = [
         this.service.listClients(p.id).then((c) => this.clients.set(c)),
@@ -559,6 +873,7 @@ export class ProcessDetailComponent {
           .movements(p.id)
           .then((m) => this.movements.set(m))
           .finally(() => this.movementsLoading.set(false)),
+        this.service.deliveries(p.id).then((d) => this.deliveries.set(d)),
       ];
       if (this.isAdmin()) {
         const spaceId = this.activeSpace.activeSpaceId();
@@ -661,27 +976,55 @@ export class ProcessDetailComponent {
     }
   }
 
-  protected async transfer(): Promise<void> {
-    const target = this.transferTarget();
+  protected async addResponsible(): Promise<void> {
+    const target = this.newResponsible();
     if (!target) return;
-    const name =
-      this.members().find((m) => m.profileId === target)?.fullName ?? 'o usuário selecionado';
-    const ok = await this.dialog.confirm({
-      title: 'Transferir processo',
-      message: `Transferir a responsabilidade para ${name}? O responsável atual perde o acesso imediatamente.`,
-      confirmLabel: 'Transferir',
-    });
-    if (!ok) return;
-    this.transferring.set(true);
+    this.savingResponsible.set(true);
     try {
-      await this.service.transfer(this.id(), target);
-      this.transferTarget.set('');
-      this.toast.success('Processo transferido.');
+      await this.service.addResponsible(this.id(), target);
+      this.newResponsible.set('');
+      this.toast.success('Responsável incluído.');
       await this.load();
     } catch (err) {
       this.msg.set({ tone: 'error', text: this.humanize(err) });
     } finally {
-      this.transferring.set(false);
+      this.savingResponsible.set(false);
+    }
+  }
+
+  protected async removeResponsible(profileId: string, name: string): Promise<void> {
+    const ok = await this.dialog.confirm({
+      title: 'Remover responsável',
+      message: `Remover ${name} dos responsáveis? A pessoa perde o acesso ao processo imediatamente.`,
+      confirmLabel: 'Remover',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await this.service.removeResponsible(this.id(), profileId);
+      this.toast.success('Responsável removido.');
+      await this.load();
+    } catch (err) {
+      this.msg.set({ tone: 'error', text: this.humanize(err) });
+    }
+  }
+
+  protected async setTracking(enabled: boolean): Promise<void> {
+    const p = this.process();
+    if (!p) return;
+    this.savingTracking.set(true);
+    try {
+      await this.service.setTracking(p.id, enabled);
+      this.process.set({ ...p, trackingEnabled: enabled });
+      this.toast.success(
+        enabled ? 'Sincronização automática ligada.' : 'Sincronização automática desligada.',
+      );
+    } catch (err) {
+      // Volta o switch para o valor real e explica (ex.: limite do plano).
+      this.process.set({ ...p });
+      this.toast.error(this.humanize(err));
+    } finally {
+      this.savingTracking.set(false);
     }
   }
 
@@ -689,7 +1032,7 @@ export class ProcessDetailComponent {
     const ok = await this.dialog.confirm({
       title: 'Excluir processo',
       message:
-        'O processo deixará de aparecer nas listagens. O histórico e a auditoria são preservados.',
+        'O processo sai das listas e da contagem do plano. O histórico e a auditoria são mantidos, e ele pode ser restaurado na aba Excluídos.',
       confirmLabel: 'Excluir',
       tone: 'danger',
     });
@@ -697,7 +1040,7 @@ export class ProcessDetailComponent {
     try {
       await this.service.softDelete(this.id());
       this.toast.success('Processo excluído.');
-      await this.router.navigate(['/processos']);
+      await this.router.navigate(['/processos'], { queryParams: { aba: 'archived' } });
     } catch (err) {
       this.msg.set({ tone: 'error', text: this.humanize(err) });
     }
@@ -751,10 +1094,11 @@ export class ProcessDetailComponent {
 
   private humanize(err: unknown): string {
     const m = (err as { message?: string })?.message ?? '';
-    if (m.includes('Encerrar ou reabrir'))
-      return 'Encerrar ou reabrir um processo é ação de ADMIN.';
-    if (m.includes('Transferência de responsável é ação de ADMIN'))
-      return 'Só ADMIN transfere processos.';
+    const code = (err as { code?: string })?.code;
+    // Regras de negócio do banco já trazem a mensagem para o usuário.
+    if (code === '23514' || code === '42501') {
+      if (m && !m.includes('row-level security') && !m.includes('permission denied')) return m;
+    }
     if (m.includes('Alterar o tribunal')) return 'Só ADMIN altera o tribunal do processo.';
     if (m.includes('novo responsável deve ser um membro ativo'))
       return 'O novo responsável precisa ser membro ativo do espaço.';

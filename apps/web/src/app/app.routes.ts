@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, guestGuard } from './core/auth/auth.guard';
-import { permissionGuard } from './core/authorization/permission.guard';
+import { permissionGuard, usersAreaGuard } from './core/authorization/permission.guard';
 import { AuthLayoutComponent } from './shared/layout/auth-layout.component';
 
 export const routes: Routes = [
@@ -20,6 +20,22 @@ export const routes: Routes = [
     path: 'redefinir-senha',
     loadComponent: () =>
       import('./features/auth/reset-password.component').then((m) => m.ResetPasswordComponent),
+  },
+
+  // ---- Públicas (LGPD) — acessíveis logado ou não ----
+  {
+    path: 'privacidade',
+    data: { kind: 'privacy' },
+    title: 'Política de Privacidade — JuriFlow',
+    loadComponent: () =>
+      import('./features/legal/legal-page.component').then((m) => m.LegalPageComponent),
+  },
+  {
+    path: 'termos',
+    data: { kind: 'terms' },
+    title: 'Termos de Uso — JuriFlow',
+    loadComponent: () =>
+      import('./features/legal/legal-page.component').then((m) => m.LegalPageComponent),
   },
 
   // ---- Autenticadas (shell com sidebar/header) ----
@@ -123,10 +139,9 @@ export const routes: Routes = [
           ),
       },
       {
-        // Sem permissionGuard de propósito: um usuário recém-convidado ainda não
-        // tem vínculo em nenhum espaço (por isso não teria `member.view`), mas
-        // precisa conseguir ver e aceitar o convite pendente nesta mesma tela.
+        // Só ADMIN — exceto quem ainda não tem espaço, que aceita convites aqui.
         path: 'configuracoes/usuarios',
+        canActivate: [usersAreaGuard],
         loadComponent: () =>
           import('./features/team/team-list.component').then((m) => m.TeamListComponent),
       },

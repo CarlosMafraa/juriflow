@@ -3,6 +3,9 @@ import type { SpaceInvite, SpaceRole } from '@juriflow/shared-types';
 import { SUPABASE_CLIENT } from '../../core/supabase/supabase-client';
 import { ActiveSpaceService } from '../../core/authorization/active-space.service';
 
+/** Resultado do envio: e-mail mandado, pessoa já tem conta, ou falha no envio. */
+export type InviteDelivery = 'invited' | 'existing_user' | 'email_failed';
+
 export interface TeamMember {
   id: string;
   profileId: string;
@@ -120,13 +123,28 @@ export class TeamService {
     }));
   }
 
-  async invite(email: string, role: SpaceRole): Promise<void> {
-    const { error } = await this.supabase.rpc('create_space_invite', {
+  /**
+   * Cria o convite (RPC) e pede à Edge Function `send-invite` o e-mail do Auth
+   * para quem ainda não tem conta. Falha no e-mail NÃO desfaz o convite: ele
+   * continua válido e aparece para a pessoa assim que ela tiver conta.
+   */
+  async invite(email: string, role: SpaceRole): Promise<InviteDelivery> {
+    const { data: inviteId, error } = await this.supabase.rpc('create_space_invite', {
       p_space_id: this.spaceId(),
       p_email: email.trim().toLowerCase(),
       p_role: role,
     });
     if (error) throw error;
+    return this.sendInviteEmail({ inviteId: inviteId as string });
+  }
+
+  async sendInviteEmail(body: { inviteId: string } | { email: string }): Promise<InviteDelivery> {
+    const { data, error } = await this.supabase.functions.invoke<{ status: InviteDelivery }>(
+      'send-invite',
+      { body },
+    );
+    if (error || !data) return 'email_failed';
+    return data.status;
   }
 
   async cancelInvite(inviteId: string): Promise<void> {

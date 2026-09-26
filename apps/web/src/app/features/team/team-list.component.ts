@@ -82,14 +82,26 @@ const ROLE_OPTIONS = [
           <form class="invite-form" [formGroup]="inviteForm" (ngSubmit)="submitInvite()">
             <div class="field">
               <label for="invite-email">E-mail</label>
-              <input pInputText id="invite-email" type="email" placeholder="pessoa@escritorio.com.br" formControlName="email" />
+              <input
+                pInputText
+                id="invite-email"
+                type="email"
+                placeholder="pessoa@escritorio.com.br"
+                formControlName="email"
+              />
             </div>
             <div class="field">
               <label for="invite-role">Papel</label>
               <p-select inputId="invite-role" [options]="roleOptions" formControlName="role" />
             </div>
             <div class="field--full">
-              <p-button size="small" type="submit" icon="pi pi-send" [loading]="inviting()" label="Enviar convite" />
+              <p-button
+                size="small"
+                type="submit"
+                icon="pi pi-send"
+                [loading]="inviting()"
+                label="Enviar convite"
+              />
             </div>
           </form>
         </p-card>
@@ -134,7 +146,10 @@ const ROLE_OPTIONS = [
                         [ngModelOptions]="{ standalone: true }"
                       />
                     } @else {
-                      <p-tag severity="info" [value]="m.role === 'ADMIN' ? 'Administrador' : 'Colaborador'" />
+                      <p-tag
+                        severity="info"
+                        [value]="m.role === 'ADMIN' ? 'Administrador' : 'Colaborador'"
+                      />
                     }
                     @if (isAdmin() && m.profileId !== currentUserId()) {
                       <p-button
@@ -171,7 +186,13 @@ const ROLE_OPTIONS = [
                         {{ invite.expiresAt | date: 'dd/MM/yyyy' }}
                       </p>
                     </div>
-                    <p-button size="small" icon="pi pi-times" [text]="true" label="Cancelar" (onClick)="cancelInvite(invite)" />
+                    <p-button
+                      size="small"
+                      icon="pi pi-times"
+                      [text]="true"
+                      label="Cancelar"
+                      (onClick)="cancelInvite(invite)"
+                    />
                   </li>
                 }
               </ul>
@@ -295,7 +316,7 @@ export class TeamListComponent {
   );
 
   constructor() {
-    this.pageHeader.set('Equipe');
+    this.pageHeader.set('Usuários');
     void this.load();
   }
 
@@ -315,10 +336,16 @@ export class TeamListComponent {
     }
     this.inviting.set(true);
     try {
-      await this.service.invite(email, role);
-      this.toast.success(
-        'Convite criado. A pessoa verá o convite ao entrar no JuriFlow com este e-mail.',
-      );
+      const delivery = await this.service.invite(email, role);
+      if (delivery === 'invited') {
+        this.toast.success('Convite enviado. A pessoa receberá um e-mail para criar a senha.');
+      } else if (delivery === 'existing_user') {
+        this.toast.success('Convite criado. A pessoa já tem conta e verá o convite ao entrar.');
+      } else {
+        this.toast.warning(
+          'Convite criado, mas o e-mail não pôde ser enviado. A pessoa verá o convite ao entrar com este e-mail.',
+        );
+      }
       this.inviteForm.reset({ email: '', role: 'COLABORADOR' });
       this.showInviteForm.set(false);
       this.pendingInvites.set(await this.service.listPendingInvites());

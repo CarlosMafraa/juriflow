@@ -75,13 +75,31 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
         }
 
         <label class="chk field--full" for="notificationOptIn">
-          <p-checkbox inputId="notificationOptIn" [binary]="true" formControlName="notificationOptIn" />
+          <p-checkbox
+            inputId="notificationOptIn"
+            [binary]="true"
+            formControlName="notificationOptIn"
+          />
           <span>Cliente consente em receber notificações por WhatsApp</span>
         </label>
 
         <div class="actions field--full">
-          <p-button size="small" type="button" severity="secondary" [outlined]="true" icon="pi pi-times" label="Cancelar" (onClick)="cancel()" />
-          <p-button size="small" type="submit" icon="pi pi-check" label="Salvar" [loading]="saving()" />
+          <p-button
+            size="small"
+            type="button"
+            severity="secondary"
+            [outlined]="true"
+            icon="pi pi-times"
+            label="Cancelar"
+            (onClick)="cancel()"
+          />
+          <p-button
+            size="small"
+            type="submit"
+            icon="pi pi-check"
+            label="Salvar"
+            [loading]="saving()"
+          />
         </div>
       </form>
     </p-card>
@@ -152,7 +170,9 @@ export class ClientFormComponent {
   });
 
   constructor() {
-    effect(() => this.pageHeader.set(this.id() ? 'Editar cliente' : 'Novo cliente'));
+    effect(() => this.pageHeader.set(this.id() ? 'Editar cliente' : 'Novo cliente'), {
+      allowSignalWrites: true,
+    });
     queueMicrotask(() => void this.maybeLoad());
   }
 
@@ -187,7 +207,9 @@ export class ClientFormComponent {
   protected docError(): string {
     const v = this.form.getRawValue();
     if (!v.document.trim()) return '';
-    return isValidClientDocument(v.type, v.document) ? '' : `${v.type === 'PJ' ? 'CNPJ' : 'CPF'} inválido.`;
+    return isValidClientDocument(v.type, v.document)
+      ? ''
+      : `${v.type === 'PJ' ? 'CNPJ' : 'CPF'} inválido.`;
   }
 
   protected phoneError(): string {
@@ -238,9 +260,12 @@ export class ClientFormComponent {
 
   private humanize(err: unknown): string {
     const msg = (err as { message?: string })?.message ?? '';
-    if (msg.includes('clients_document_uniq')) return 'Já existe um cliente com esse documento neste espaço.';
-    if (msg.includes('clients_document_len_chk')) return 'O documento não tem o comprimento esperado (CPF 11, CNPJ 14 dígitos).';
-    if (msg.includes('clients_birth_date_pf_chk')) return 'Data de nascimento só é permitida para pessoa física.';
+    if (msg.includes('clients_document_uniq'))
+      return 'Já existe um cliente com esse documento neste espaço.';
+    if (msg.includes('clients_document_len_chk'))
+      return 'O documento não tem o comprimento esperado (CPF 11, CNPJ 14 dígitos).';
+    if (msg.includes('clients_birth_date_pf_chk'))
+      return 'Data de nascimento só é permitida para pessoa física.';
     return 'Não foi possível salvar o cliente.';
   }
 }

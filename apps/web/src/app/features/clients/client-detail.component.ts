@@ -30,9 +30,21 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
     <ng-template jfPageHeaderActions>
       @if (canEdit() && client(); as c) {
         <a [routerLink]="['/clientes', c.id, 'editar']">
-          <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-pencil" label="Editar" />
+          <p-button
+            size="small"
+            severity="secondary"
+            [outlined]="true"
+            icon="pi pi-pencil"
+            label="Editar"
+          />
         </a>
-        <p-button size="small" severity="danger" icon="pi pi-trash" label="Excluir" (onClick)="remove()" />
+        <p-button
+          size="small"
+          severity="danger"
+          icon="pi pi-trash"
+          label="Excluir"
+          (onClick)="remove()"
+        />
       }
     </ng-template>
 
@@ -43,11 +55,15 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
     } @else {
       <p-card header="Dados" styleClass="section">
         <dl class="grid">
-          <dt>Documento</dt><dd>{{ client()!.document || '—' }}</dd>
-          <dt>Telefone</dt><dd>{{ client()!.phone || '—' }}</dd>
-          <dt>E-mail</dt><dd>{{ client()!.email || '—' }}</dd>
+          <dt>Documento</dt>
+          <dd>{{ client()!.document || '—' }}</dd>
+          <dt>Telefone</dt>
+          <dd>{{ client()!.phone || '—' }}</dd>
+          <dt>E-mail</dt>
+          <dd>{{ client()!.email || '—' }}</dd>
           @if (client()!.type === 'PF') {
-            <dt>Nascimento</dt><dd>{{ client()!.birthDate || '—' }}</dd>
+            <dt>Nascimento</dt>
+            <dd>{{ client()!.birthDate || '—' }}</dd>
           }
           <dt>Notificações WhatsApp</dt>
           <dd>{{ client()!.notificationOptIn ? 'Consentido' : 'Não consentido' }}</dd>
@@ -61,8 +77,13 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
           <ul class="plist">
             @for (p of processes(); track p.id) {
               <li>
-                <a [routerLink]="['/processos', p.id]">{{ p.cnjNumber || p.internalRef || p.id }}</a>
-                <p-tag [severity]="p.status === 'active' ? 'success' : 'secondary'" [value]="p.status" />
+                <a [routerLink]="['/processos', p.id]">{{
+                  p.cnjNumber || p.internalRef || p.id
+                }}</a>
+                <p-tag
+                  [severity]="p.status === 'active' ? 'success' : 'secondary'"
+                  [value]="p.status"
+                />
               </li>
             }
           </ul>
@@ -138,10 +159,17 @@ export class ClientDetailComponent {
   protected readonly processes = signal<ProcessListRow[]>([]);
 
   constructor() {
-    effect(() => {
-      const c = this.client();
-      this.pageHeader.set(c?.name ?? 'Cliente', c ? (c.type === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física') : undefined);
-    });
+    // allowSignalWrites: sem ele o Angular 18 lança NG0600 e o título nunca chega à topbar.
+    effect(
+      () => {
+        const c = this.client();
+        this.pageHeader.set(
+          c?.name ?? 'Cliente',
+          c ? (c.type === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física') : undefined,
+        );
+      },
+      { allowSignalWrites: true },
+    );
     queueMicrotask(() => void this.load());
   }
 

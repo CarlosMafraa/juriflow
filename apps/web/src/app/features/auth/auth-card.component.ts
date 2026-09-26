@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { CardModule } from 'primeng/card';
 
 /**
@@ -9,7 +10,7 @@ import { CardModule } from 'primeng/card';
   selector: 'jf-auth-card',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CardModule],
+  imports: [CardModule, RouterLink],
   template: `
     <div class="shell">
       <div class="brand">
@@ -43,12 +44,28 @@ import { CardModule } from 'primeng/card';
             </header>
             <ng-content />
           </p-card>
+          <nav class="panel__legal" aria-label="Documentos legais">
+            <a routerLink="/privacidade">Política de Privacidade</a>
+            <span aria-hidden="true">·</span>
+            <a routerLink="/termos">Termos de Uso</a>
+          </nav>
         </div>
       </div>
     </div>
   `,
   styles: [
     `
+      .panel__legal {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        font-size: 0.8rem;
+        color: var(--jf-text-muted, #64748b);
+      }
+      .panel__legal a {
+        color: inherit;
+      }
       .shell {
         min-height: 100vh;
         display: grid;
@@ -204,7 +221,10 @@ import { CardModule } from 'primeng/card';
         background: var(--jf-navy);
         border-color: var(--jf-navy);
       }
-      :host ::ng-deep .panel__card .p-button:not(.p-button-outlined):not(.p-button-text):not(:disabled):hover {
+      :host
+        ::ng-deep
+        .panel__card
+        .p-button:not(.p-button-outlined):not(.p-button-text):not(:disabled):hover {
         background: var(--jf-primary-strong, #11284b);
         border-color: var(--jf-primary-strong, #11284b);
       }

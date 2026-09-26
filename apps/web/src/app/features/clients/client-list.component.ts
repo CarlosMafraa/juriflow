@@ -32,18 +32,33 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
   ],
   template: `
     <ng-template jfPageHeaderActions>
-      <a routerLink="/clientes/novo"><p-button size="small" icon="pi pi-plus" label="Novo cliente" /></a>
+      <a routerLink="/clientes/novo"
+        ><p-button size="small" icon="pi pi-plus" label="Novo cliente"
+      /></a>
     </ng-template>
 
     <p-card styleClass="section">
       <form class="filters" [formGroup]="form" (ngSubmit)="apply()">
         <input pInputText class="f" placeholder="Nome" formControlName="search" />
         <input pInputText class="f" placeholder="CPF / CNPJ" formControlName="document" />
-        <p-select class="f" [options]="typeOptions" formControlName="type" placeholder="Tipo (todos)" />
+        <p-select
+          class="f"
+          [options]="typeOptions"
+          formControlName="type"
+          placeholder="Tipo (todos)"
+        />
         <input pInputText class="f" placeholder="Telefone" formControlName="phone" />
         <input pInputText class="f" placeholder="E-mail" formControlName="email" />
         <p-button type="submit" size="small" icon="pi pi-filter" label="Filtrar" />
-        <p-button type="button" size="small" severity="secondary" [text]="true" icon="pi pi-filter-slash" label="Limpar" (onClick)="clear()" />
+        <p-button
+          type="button"
+          size="small"
+          severity="secondary"
+          [text]="true"
+          icon="pi pi-filter-slash"
+          label="Limpar"
+          (onClick)="clear()"
+        />
       </form>
     </p-card>
 
@@ -69,20 +84,36 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
             <td>{{ c.phone || c.email || '—' }}</td>
             <td class="actions">
               <a [routerLink]="['/clientes', c.id]">
-                <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-arrow-right" label="Abrir" />
+                <p-button
+                  size="small"
+                  severity="secondary"
+                  [outlined]="true"
+                  icon="pi pi-arrow-right"
+                  label="Abrir"
+                />
               </a>
             </td>
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="5">Nenhum cliente encontrado. Ajuste os filtros ou cadastre um novo cliente.</td>
+            <td colspan="5">
+              Nenhum cliente encontrado. Ajuste os filtros ou cadastre um novo cliente.
+            </td>
           </tr>
         </ng-template>
       </p-table>
       @if (p.rows.length > 0) {
         <div class="pager">
-          <p-button size="small" severity="secondary" [text]="true" icon="pi pi-chevron-left" label="Anterior" [disabled]="p.page <= 1" (onClick)="go(p.page - 1)" />
+          <p-button
+            size="small"
+            severity="secondary"
+            [text]="true"
+            icon="pi pi-chevron-left"
+            label="Anterior"
+            [disabled]="p.page <= 1"
+            (onClick)="go(p.page - 1)"
+          />
           <span>Página {{ p.page }} — {{ p.total }} cliente(s)</span>
           <p-button
             size="small"
