@@ -15,6 +15,26 @@
   /* Texto de aviso sobre fundo claro — #d97706 não passa contraste AA para texto. */
   --jf-warning-text: #92400e;
 
+  /* Gráficos (paleta de referência de data-viz, validada contra o fundo
+     branco dos cards: CVD e visão normal ok nos 3 primeiros slots). O slot 3
+     fica abaixo de 3:1 — por isso toda fatia leva o valor escrito na legenda. */
+  --jf-viz-1: #2a78d6;
+  --jf-viz-2: #eb6834;
+  --jf-viz-3: #1baf7a;
+  /* Rampa ordinal (uma cor, claro -> escuro) para categorias com ordem. */
+  --jf-viz-ord-1: #86b6ef;
+  --jf-viz-ord-2: #3987e5;
+  --jf-viz-ord-3: #256abf;
+  --jf-viz-ord-4: #184f95;
+  --jf-viz-other: #c3c2b7;
+  --jf-viz-track: #cde2fb;
+  --jf-viz-grid: #e1e0d9;
+  --jf-viz-axis: #c3c2b7;
+  --jf-viz-muted: #898781;
+  /* Status (só quando a cor SIGNIFICA estado; sempre com ícone + texto). */
+  --jf-viz-warning: #fab219;
+  --jf-viz-critical: #d03b3b;
+
   --jf-bg: #f8fafc;
   --jf-surface: #ffffff;
   --jf-surface-muted: #f1f5f9;

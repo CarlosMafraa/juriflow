@@ -19,9 +19,15 @@ import { ToastService } from '../../shared/feedback/toast.service';
 import { PageHeaderService } from '../../shared/layout/page-header.service';
 import { ProcessService, type PlanUsage } from '../processes/process.service';
 import { TeamService } from '../team/team.service';
+import { ColumnChartComponent, type ColumnPoint } from '../../shared/charts/column-chart.component';
+import { DonutChartComponent, type DonutSegment } from '../../shared/charts/donut-chart.component';
+import { MeterComponent } from '../../shared/charts/meter.component';
 import {
   DashboardService,
   type DashboardMetrics,
+  type DayPoint,
+  type GrowthPoint,
+  type PlanGroup,
   type PlatformMetrics,
   type RecentMovement,
 } from './dashboard.service';
@@ -33,7 +39,16 @@ type View = 'platform' | 'admin' | 'collaborator' | 'suspended' | 'no-space';
   selector: 'jf-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ButtonModule, CardModule, ProgressSpinnerModule, TagModule],
+  imports: [
+    RouterLink,
+    ButtonModule,
+    CardModule,
+    ProgressSpinnerModule,
+    TagModule,
+    ColumnChartComponent,
+    DonutChartComponent,
+    MeterComponent,
+  ],
   template: `
     @if (invites().length) {
       <p-card header="Convites recebidos" styleClass="section">
@@ -101,6 +116,33 @@ type View = 'platform' | 'admin' | 'collaborator' | 'suspended' | 'no-space';
               </p-card>
             </a>
           </section>
+
+          <section class="charts">
+            <p-card header="Espaços por plano" styleClass="chart-card">
+              <jf-donut-chart
+                [segments]="planSegments()"
+                centerLabel="espaços"
+                ariaLabel="Espaços por plano"
+              />
+            </p-card>
+            <p-card header="Novos espaços por mês" styleClass="chart-card">
+              <jf-column-chart
+                [points]="spacesPerMonth()"
+                ariaLabel="Novos espaços por mês, últimos 6 meses"
+                periodHeader="Mês"
+                valueHeader="Novos espaços"
+              />
+            </p-card>
+            <p-card header="Novas contas por mês" class="chart-wide" styleClass="chart-card">
+              <jf-column-chart
+                [points]="usersPerMonth()"
+                ariaLabel="Novas contas de usuário por mês, últimos 6 meses"
+                periodHeader="Mês"
+                valueHeader="Novas contas"
+              />
+            </p-card>
+          </section>
+
           <p class="muted small note">
             A administração da plataforma vê apenas que os espaços existem, o status e o plano de
             cada um — nunca o conteúdo dos escritórios.
@@ -165,42 +207,73 @@ type View = 'platform' | 'admin' | 'collaborator' | 'suspended' | 'no-space';
               }
             </section>
 
-            @if (isAdmin() && plan()) {
-              @let pl = plan()!;
-              <p-card header="Plano do escritório" styleClass="section plan-card">
-                <div class="plan">
-                  <div>
-                    <p class="label">Processos</p>
-                    <p
-                      class="plan__value"
-                      [class.plan__value--full]="pl.usedProcesses >= pl.maxProcesses"
-                    >
-                      {{ pl.usedProcesses }} de {{ pl.maxProcesses }}
-                    </p>
-                    <p class="muted small">
-                      Ativos, encerrados e arquivados contam; excluídos não.
-                    </p>
-                  </div>
-                  <div>
-                    <p class="label">Com sincronização automática</p>
-                    <p
-                      class="plan__value"
-                      [class.plan__value--full]="pl.usedTracked >= pl.maxTracked"
-                    >
-                      {{ pl.usedTracked }} de {{ pl.maxTracked }}
-                    </p>
-                    <p class="muted small">Consultados todo dia no tribunal.</p>
-                  </div>
-                  <div>
-                    <p class="label">Arquivados</p>
-                    <p class="plan__value">{{ m.archivedProcesses }}</p>
-                    <a class="small" routerLink="/processos" [queryParams]="{ aba: 'archived' }">
-                      Ver arquivados
-                    </a>
-                  </div>
-                </div>
+            <section class="charts">
+              <p-card
+                [header]="isAdmin() ? 'Processos por situação' : 'Meus processos por situação'"
+                styleClass="chart-card"
+              >
+                <jf-donut-chart
+                  [segments]="statusSegments()"
+                  centerLabel="processos"
+                  [ariaLabel]="
+                    isAdmin()
+                      ? 'Processos do escritório por situação'
+                      : 'Meus processos por situação'
+                  "
+                />
               </p-card>
-            }
+
+              @if (isAdmin() && plan()) {
+                @let pl = plan()!;
+                <p-card header="Uso do plano" styleClass="chart-card">
+                  <div class="meters">
+                    <jf-meter
+                      label="Processos"
+                      [value]="pl.usedProcesses"
+                      [max]="pl.maxProcesses"
+                      hint="Ativos, encerrados e arquivados contam; excluídos não."
+                    />
+                    <jf-meter
+                      label="Com sincronização automática"
+                      [value]="pl.usedTracked"
+                      [max]="pl.maxTracked"
+                      hint="Consultados todo dia no tribunal."
+                    />
+                  </div>
+                </p-card>
+              } @else if (!isAdmin()) {
+                <p-card header="Sincronização dos meus processos" styleClass="chart-card">
+                  <div class="meters">
+                    <jf-meter
+                      label="Ativos com sincronização automática"
+                      [value]="m.trackedProcesses"
+                      [max]="m.activeProcesses"
+                      [limit]="false"
+                      hint="Só estes são consultados todo dia no tribunal."
+                    />
+                  </div>
+                </p-card>
+              }
+
+              <p-card
+                [header]="
+                  isAdmin()
+                    ? 'Movimentações por dia · 30 dias'
+                    : 'Movimentações nos meus processos · 30 dias'
+                "
+                class="chart-wide"
+                styleClass="chart-card"
+              >
+                <p class="muted small chart-total">{{ movementsTotal() }} no período</p>
+                <jf-column-chart
+                  [points]="dayPoints()"
+                  [labelEvery]="7"
+                  ariaLabel="Movimentações coletadas por dia nos últimos 30 dias"
+                  periodHeader="Dia"
+                  valueHeader="Movimentações"
+                />
+              </p-card>
+            </section>
 
             @if (m.processesWithCheckError > 0) {
               <p class="alert">
@@ -287,23 +360,36 @@ type View = 'platform' | 'admin' | 'collaborator' | 'suspended' | 'no-space';
         font-weight: 800;
         margin: 0.25rem 0;
       }
-      .plan {
+      .charts {
         display: grid;
         gap: 1rem;
         grid-template-columns: 1fr;
+        margin-top: 1rem;
       }
-      @media (min-width: 768px) {
-        .plan {
-          grid-template-columns: repeat(3, 1fr);
+      @media (min-width: 900px) {
+        .charts {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        /* No host do p-card (o item do grid), não na div interna do PrimeNG. */
+        .chart-wide {
+          grid-column: 1 / -1;
         }
       }
-      .plan__value {
-        font-size: 1.25rem;
-        font-weight: 700;
-        margin: 0.2rem 0;
+      /* Cards da mesma linha com a mesma altura. */
+      .charts > p-card {
+        display: block;
+        min-width: 0;
       }
-      .plan__value--full {
-        color: var(--jf-warning-text, #92400e);
+      :host ::ng-deep .chart-card {
+        height: 100%;
+      }
+      .meters {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+      .chart-total {
+        margin: -0.5rem 0 0.5rem;
       }
       .alert {
         display: flex;
@@ -317,7 +403,6 @@ type View = 'platform' | 'admin' | 'collaborator' | 'suspended' | 'no-space';
         display: block;
         margin-bottom: 1rem;
       }
-      :host ::ng-deep .plan-card,
       :host ::ng-deep .recent-card {
         margin-top: 1rem;
       }
@@ -393,6 +478,70 @@ export class DashboardComponent {
   protected readonly plan = signal<PlanUsage | null>(null);
   protected readonly platform = signal<PlatformMetrics | null>(null);
   protected readonly recent = signal<RecentMovement[]>([]);
+  private readonly perDay = signal<DayPoint[]>([]);
+  private readonly growth = signal<GrowthPoint[]>([]);
+  private readonly plans = signal<PlanGroup[]>([]);
+
+  // Cor segue a situação (nunca a posição): ativo = slot 1, encerrado = 2, arquivado = 3.
+  protected readonly statusSegments = computed<DonutSegment[]>(() => {
+    const m = this.metrics();
+    if (!m) return [];
+    return [
+      { key: 'active', label: 'Ativos', value: m.activeProcesses, color: 'var(--jf-viz-1)' },
+      { key: 'closed', label: 'Encerrados', value: m.closedProcesses, color: 'var(--jf-viz-2)' },
+      {
+        key: 'archived',
+        label: 'Arquivados',
+        value: m.archivedProcesses,
+        color: 'var(--jf-viz-3)',
+      },
+    ];
+  });
+
+  protected readonly dayPoints = computed<ColumnPoint[]>(() =>
+    this.perDay().map((d) => {
+      const [y, mo, da] = d.day.split('-');
+      return { label: `${da}/${mo}`, title: `${da}/${mo}/${y}`, value: d.total };
+    }),
+  );
+  protected readonly movementsTotal = computed(() =>
+    this.perDay().reduce((sum, d) => sum + d.total, 0),
+  );
+
+  protected readonly spacesPerMonth = computed<ColumnPoint[]>(() =>
+    this.growth().map((g) => ({ ...monthLabels(g.month), value: g.newSpaces })),
+  );
+  protected readonly usersPerMonth = computed<ColumnPoint[]>(() =>
+    this.growth().map((g) => ({ ...monthLabels(g.month), value: g.newUsers })),
+  );
+
+  // Planos têm ordem (menor -> maior): rampa de uma cor, clara -> escura.
+  // Mais de 4 combinações: as maiores viram "Outros planos".
+  protected readonly planSegments = computed<DonutSegment[]>(() => {
+    const ramp = [
+      'var(--jf-viz-ord-1)',
+      'var(--jf-viz-ord-2)',
+      'var(--jf-viz-ord-3)',
+      'var(--jf-viz-ord-4)',
+    ];
+    const groups = this.plans();
+    const head = groups.length > 4 ? groups.slice(0, 3) : groups;
+    const segments = head.map((g, i) => ({
+      key: `${g.maxProcesses}/${g.maxTracked}`,
+      label: `${g.maxProcesses} processos · ${g.maxTracked} sincronizados`,
+      value: g.spaces,
+      color: ramp[i]!,
+    }));
+    if (groups.length > 4) {
+      segments.push({
+        key: 'outros',
+        label: 'Outros planos',
+        value: groups.slice(3).reduce((sum, g) => sum + g.spaces, 0),
+        color: 'var(--jf-viz-other)',
+      });
+    }
+    return segments;
+  });
   protected readonly invites = signal<SpaceInvite[]>([]);
   protected readonly accepting = signal<string | null>(null);
 
@@ -438,15 +587,24 @@ export class DashboardComponent {
     try {
       this.invites.set(await this.team.listMyPendingInvites().catch(() => []));
       if (view === 'platform') {
-        this.platform.set(await this.service.platformMetrics());
+        const [platform, growth, plans] = await Promise.all([
+          this.service.platformMetrics(),
+          this.service.platformGrowth(6),
+          this.service.spacesByPlan(),
+        ]);
+        this.platform.set(platform);
+        this.growth.set(growth);
+        this.plans.set(plans);
       } else if ((view === 'admin' || view === 'collaborator') && spaceId) {
-        const [metrics, recent, plan] = await Promise.all([
+        const [metrics, recent, plan, perDay] = await Promise.all([
           this.service.metrics(spaceId),
           this.service.recentMovements(spaceId),
           view === 'admin' ? this.processes.planUsage() : Promise.resolve(null),
+          this.service.movementsPerDay(spaceId, 30),
         ]);
         this.metrics.set(metrics);
         this.recent.set(recent);
+        this.perDay.set(perDay);
         this.plan.set(plan);
       }
     } catch {
@@ -455,4 +613,17 @@ export class DashboardComponent {
       this.loading.set(false);
     }
   }
+}
+
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/** "2026-09-01" -> eixo "set/26", tooltip "setembro de 2026". */
+function monthLabels(isoMonth: string): { label: string; title: string } {
+  const [y, m] = isoMonth.split('-');
+  const index = Number(m) - 1;
+  const long = new Date(Number(y), index, 1).toLocaleDateString('pt-BR', {
+    month: 'long',
+    year: 'numeric',
+  });
+  return { label: `${MONTHS[index] ?? m}/${y?.slice(2)}`, title: long };
 }
