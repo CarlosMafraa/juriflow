@@ -96,8 +96,9 @@ npx supabase status
 npm run dev               # http://localhost:4200
 ```
 
-Para criar um usuário local: use o Studio (`http://127.0.0.1:54323`) → Authentication →
-Add user, ou o signup do próprio app. O `profile` é criado automaticamente por
+Para criar um usuário local: use o Studio (`http://127.0.0.1:55323`) → Authentication →
+Add user (o cadastro público é desligado — contas nascem por convite; os e-mails
+locais aparecem no Inbucket, `http://127.0.0.1:55324`). O `profile` é criado automaticamente por
 trigger. Para transformar em SUPER_ADMIN, no Studio SQL editor:
 `update public.profiles set is_super_admin = true where email = '...';`
 
@@ -159,6 +160,8 @@ Ocultar uma opção de menu **não** substitui autorização no backend.
 
 ## Documentação
 
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — checklist de produção (Supabase Cloud,
+  frontend, VPS do worker/WAHA, smoke test).
 - [`docs/PLANO-FASE-1.md`](docs/PLANO-FASE-1.md) — análise, arquitetura, modelo de
   dados, roadmap, decisões pendentes, riscos.
 - [`docs/adr/`](docs/adr/) — decisões arquiteturais (stack, monorepo, RBAC, fontes
