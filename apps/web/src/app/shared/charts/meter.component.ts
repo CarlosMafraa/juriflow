@@ -1,16 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ProgressBarModule } from 'primeng/progressbar';
 
 type Level = 'ok' | 'warning' | 'critical';
 
 /**
- * Medidor de uma razão contra um limite ("3 de 5"). Trilha num tom mais claro
- * da mesma cor; em modo limite, a cor vira estado (perto/estourado) e sempre
- * vem acompanhada de ícone + texto — nunca só a cor.
+ * Medidor de uma razão contra um limite ("3 de 5"), com o `p-progressbar` do
+ * PrimeNG. Trilha num tom mais claro da mesma cor; em modo limite, a cor vira
+ * estado (perto/estourado) e sempre vem acompanhada de ícone + texto.
  */
 @Component({
   selector: 'jf-meter',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ProgressBarModule],
   template: `
     <div class="meter">
       <div class="meter__head">
@@ -28,12 +30,14 @@ type Level = 'ok' | 'warning' | 'critical';
         [attr.aria-valuemax]="max()"
         [attr.aria-valuetext]="value() + ' de ' + max()"
       >
-        <div
-          class="meter__fill"
-          [class.meter__fill--warning]="level() === 'warning'"
-          [class.meter__fill--critical]="level() === 'critical'"
-          [style.width.%]="fillPercent()"
-        ></div>
+        <!-- O papel "meter" (com os números) fica no contêiner; a barra é só visual. -->
+        <p-progressbar
+          aria-hidden="true"
+          [value]="fillPercent()"
+          [showValue]="false"
+          [color]="fillColor()"
+          styleClass="meter__bar"
+        />
       </div>
       <div class="meter__foot">
         @if (level() === 'critical') {
@@ -77,23 +81,13 @@ type Level = 'ok' | 'warning' | 'critical';
         font-size: 1.05rem;
         color: var(--jf-text, #0f172a);
       }
-      .meter__track {
+      :host ::ng-deep .meter__bar {
         height: 10px;
         border-radius: 4px;
         background: var(--jf-viz-track);
-        overflow: hidden;
       }
-      .meter__fill {
-        height: 100%;
+      :host ::ng-deep .meter__bar .p-progressbar-value {
         border-radius: 4px;
-        background: var(--jf-viz-1);
-        transition: width 200ms ease;
-      }
-      .meter__fill--warning {
-        background: var(--jf-viz-warning);
-      }
-      .meter__fill--critical {
-        background: var(--jf-viz-critical);
       }
       .meter__foot {
         min-height: 1.1rem;
@@ -128,6 +122,14 @@ export class MeterComponent {
     if (max <= 0) return this.value() > 0 ? 100 : 0;
     return Math.min(100, (this.value() / max) * 100);
   });
+
+  protected readonly fillColor = computed(() =>
+    this.level() === 'critical'
+      ? 'var(--jf-viz-critical)'
+      : this.level() === 'warning'
+        ? 'var(--jf-viz-warning)'
+        : 'var(--jf-viz-1)',
+  );
 
   protected readonly level = computed<Level>(() => {
     if (!this.limit()) return 'ok';
