@@ -179,20 +179,18 @@ select is(
   'SUPER_ADMIN enxerga todos os espaços'
 );
 select is(
-  (select count(*)::int from public.profiles),
-  4,
-  'SUPER_ADMIN enxerga todos os perfis'
+  (select count(*)::int from public.profiles where id = '00000000-0000-0000-0000-000000000004'),
+  0,
+  'SUPER_ADMIN não enxerga perfis de escritórios dos quais não faz parte'
 );
 select lives_ok(
-  $$ select public.create_space_with_admin('Escritorio C', 'escritorio-c',
-       '00000000-0000-0000-0000-000000000003') $$,
-  'SUPER_ADMIN cria espaço já com o ADMIN inicial'
+  $$ select * from public.create_space_for_admin('novo.admin@juriflow.test') $$,
+  'SUPER_ADMIN cria escritório convidando o ADMIN'
 );
 select throws_ok(
-  $$ select public.create_space_with_admin('Escritorio D', 'escritorio-d',
-       '00000000-0000-0000-0000-000000000001') $$,
+  $$ select * from public.create_space_for_admin('super@juriflow.test') $$,
   '42501', null,
-  'SUPER_ADMIN não pode se nomear ADMIN do espaço que cria'
+  'SUPER_ADMIN não pode se convidar como ADMIN de um escritório'
 );
 select throws_ok(
   $$ insert into public.spaces (name, slug) values ('Direto', 'direto') $$,

@@ -138,7 +138,9 @@ max_frequency = "1s"
 # Number of characters used in the email OTP.
 otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
-otp_expiry = 3600
+# Link de convite/acesso vale 24 horas (regra do produto). No Supabase Cloud:
+# Authentication → Emails → "Email OTP Expiration" = 86400.
+otp_expiry = 86400
 
 # Use a production-ready SMTP server
 # [auth.email.smtp]
@@ -154,6 +156,11 @@ otp_expiry = 3600
 [auth.email.template.invite]
 subject = "Você foi convidado para o JuriFlow"
 content_path = "./supabase/templates/invite.html"
+
+# Link para quem JÁ tem conta e recebeu convite de outro espaço.
+[auth.email.template.magic_link]
+subject = "Você tem um convite no JuriFlow"
+content_path = "./supabase/templates/magic_link.html"
 
 [auth.email.template.recovery]
 subject = "Redefinição de senha — JuriFlow"

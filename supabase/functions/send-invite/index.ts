@@ -1,17 +1,17 @@
 // =============================================================================
-// send-invite — manda o e-mail de convite do Supabase Auth para quem ainda não
-// tem conta no JuriFlow (o app não tem cadastro público: signup desligado).
+// send-invite — manda o e-mail do link de um convite (space_invites).
 //
-// Dois modos, ambos exigem JWT de usuário (verify_jwt):
-//   { inviteId } — convite de ESPAÇO já criado pela RPC create_space_invite.
-//                  A autorização é a própria RLS: só ADMIN do espaço (ou
-//                  SUPER_ADMIN) enxerga a linha em space_invites.
-//   { email }    — convite de PLATAFORMA, só SUPER_ADMIN: cria a conta do
-//                  futuro ADMIN de um escritório novo (depois ele é escolhido
-//                  como ADMIN ao criar o espaço em /admin).
+// Serve aos dois convites do produto:
+//   - SUPER_ADMIN -> ADMIN de um escritório novo (create_space_for_admin);
+//   - ADMIN -> colaborador/ADMIN do próprio espaço (create_space_invite).
+// Quem pode enviar e se o convite ainda vale quem decide é o banco
+// (invite_delivery_info, com o JWT de quem chamou).
 //
-// Quem já tem conta não recebe e-mail: vê o convite ao entrar (my_pending_invites).
-// A service_role key só existe aqui, no runtime das Edge Functions.
+// O link leva a /primeiro-acesso?convite=<id>: lá o convite é marcado como
+// aberto, a pessoa completa os dados e aceita. Regras do link:
+//   - vale 24 h (otp_expiry do Auth + expires_at do convite);
+//   - reenviar gera outro convite e outro token: o link anterior deixa de valer
+//     (o Auth troca o token; o banco marca o convite antigo como substituído).
 // =============================================================================
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -20,10 +20,6 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-type Status = 'invited' | 'existing_user';
 
 function json(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), {
@@ -42,80 +38,63 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const noSession = { persistSession: false, autoRefreshToken: false };
 
-  // Cliente com o JWT de quem chamou: tudo que ele lê passa pela RLS.
   const asCaller = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authorization } },
-    auth: { persistSession: false, autoRefreshToken: false },
+    auth: noSession,
   });
   const {
     data: { user },
   } = await asCaller.auth.getUser();
   if (!user) return json(401, { error: 'Sessão inválida.' });
 
-  const body = (await req.json().catch(() => null)) as { inviteId?: string; email?: string } | null;
+  const body = (await req.json().catch(() => null)) as { inviteId?: string } | null;
+  if (!body?.inviteId) return json(400, { error: 'Informe o convite.' });
 
-  let email: string;
-  if (body?.inviteId) {
-    const { data: invite } = await asCaller
-      .from('space_invites')
-      .select('email, status, expires_at')
-      .eq('id', body.inviteId)
-      .maybeSingle();
-    if (!invite || invite.status !== 'pending' || new Date(invite.expires_at) <= new Date()) {
-      return json(404, { error: 'Convite não encontrado ou não está mais pendente.' });
-    }
-    email = String(invite.email).toLowerCase();
-  } else if (body?.email) {
-    const { data: me } = await asCaller
-      .from('profiles')
-      .select('is_super_admin')
-      .eq('id', user.id)
-      .maybeSingle();
-    if (!me?.is_super_admin) {
-      return json(403, { error: 'Apenas SUPER_ADMIN convida usuários para a plataforma.' });
-    }
-    email = body.email.trim().toLowerCase();
-    if (!EMAIL_RE.test(email)) return json(400, { error: 'E-mail inválido.' });
-  } else {
-    return json(400, { error: 'Informe inviteId ou email.' });
-  }
-
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  const { data: existing, error: lookupError } = await admin
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .maybeSingle();
-  if (lookupError) return json(500, { error: 'Falha ao verificar o e-mail.' });
-  if (existing) {
-    // Conta criada por um convite anterior que nunca foi aceito (e-mail perdido,
-    // link expirado): reenvia. O Auth só recusa reenviar para conta confirmada.
-    const { data: authUser } = await admin.auth.admin.getUserById(existing.id);
-    if (authUser.user?.email_confirmed_at) {
-      return json(200, { status: 'existing_user' satisfies Status });
-    }
+  const { data: info, error: infoError } = await asCaller
+    .rpc('invite_delivery_info', { p_invite_id: body.inviteId })
+    .single<{
+      email: string;
+      role: string;
+      account: 'none' | 'unconfirmed' | 'confirmed';
+      has_password: boolean;
+    }>();
+  if (infoError || !info) {
+    const status = infoError?.code === '42501' ? 403 : 409;
+    return json(status, { error: infoError?.message ?? 'Convite inválido.' });
   }
 
   // APP_SITE_URL é obrigatório em produção (secret da função). O Origin só
-  // serve de fallback local; de qualquer forma o Auth só aceita redirects que
-  // estejam na allow-list do projeto.
+  // serve de fallback local; o Auth só aceita redirects da allow-list.
   const siteUrl = (Deno.env.get('APP_SITE_URL') ?? req.headers.get('origin') ?? '').replace(
     /\/$/,
     '',
   );
   if (!siteUrl) return json(500, { error: 'APP_SITE_URL não configurado.' });
 
-  const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${siteUrl}/redefinir-senha?convite=1`,
-  });
-  if (inviteError) {
-    console.error('inviteUserByEmail falhou', inviteError.message);
+  const newAccount = info.account !== 'confirmed';
+  // Sem senha ainda (conta nova, ou abriu um link anterior e não terminou): a tela pede para criar.
+  const needsPassword = !info.has_password;
+  const redirectTo = `${siteUrl}/primeiro-acesso?convite=${body.inviteId}${needsPassword ? '&nova=1' : ''}`;
+
+  let sendError: { message: string } | null = null;
+  if (newAccount) {
+    // Conta nova (ou convite anterior nunca aceito): e-mail de convite do Auth.
+    const admin = createClient(supabaseUrl, serviceRoleKey, { auth: noSession });
+    ({ error: sendError } = await admin.auth.admin.inviteUserByEmail(info.email, { redirectTo }));
+  } else {
+    // Já tem conta: link de acesso (magic link) com o mesmo destino.
+    const anon = createClient(supabaseUrl, anonKey, { auth: noSession });
+    ({ error: sendError } = await anon.auth.signInWithOtp({
+      email: info.email,
+      options: { shouldCreateUser: false, emailRedirectTo: redirectTo },
+    }));
+  }
+  if (sendError) {
+    console.error('envio do convite falhou', sendError.message);
     return json(502, { error: 'Não foi possível enviar o e-mail de convite.' });
   }
 
-  return json(200, { status: 'invited' satisfies Status });
+  return json(200, { status: 'sent' });
 });
