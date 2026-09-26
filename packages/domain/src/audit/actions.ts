@@ -11,6 +11,8 @@ export const AUDIT_ACTIONS = {
   spaceCreate: 'space.create',
   spaceUpdate: 'space.update',
   spaceSuspend: 'space.suspend',
+  spaceReactivate: 'space.reactivate',
+  spacePlanUpdate: 'space.plan.update',
 
   memberInvite: 'member.invite',
   memberInviteCancel: 'member.invite.cancel',
@@ -32,6 +34,9 @@ export const AUDIT_ACTIONS = {
   processReactivate: 'process.reactivate',
   processClose: 'process.close',
   processSoftDelete: 'process.soft_delete',
+  processRestore: 'process.restore',
+  processResponsibleAdd: 'process.responsible.add',
+  processResponsibleRemove: 'process.responsible.remove',
 
   clientCreate: 'client.create',
   clientUpdate: 'client.update',
@@ -46,6 +51,7 @@ export const AUDIT_ACTIONS = {
   courtDeactivate: 'court.deactivate',
 
   // MVP Acompanhamento — coleta (scraper-worker) e notificações WhatsApp
+  processCheckRequest: 'process.check.request',
   processMovementCollected: 'process.movement.collected',
   notificationDeliverySent: 'notification.delivery.sent',
   notificationDeliveryFailed: 'notification.delivery.failed',
