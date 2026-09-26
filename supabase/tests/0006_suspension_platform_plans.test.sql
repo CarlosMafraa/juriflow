@@ -95,7 +95,8 @@ select lives_ok($$ update public.spaces set name = 'Escritorio A Renomeado'
 -- SUPER_ADMIN — sabe que o espaço existe, não vê nada de dentro
 -- =============================================================================
 select tests_as('00000000-0000-0000-0000-0000000000f1');
-select is((select count(*)::int from public.spaces), 1, 'SUPER_ADMIN vê que o espaço existe');
+select is((select count(*)::int from public.platform_spaces()), 1, 'SUPER_ADMIN vê que o espaço existe');
+select is((select count(*)::int from public.spaces), 0, 'SUPER_ADMIN não lê a tabela do escritório (só a lista da plataforma)');
 select is((select count(*)::int from public.space_members), 0, 'SUPER_ADMIN não vê membros');
 select is((select count(*)::int from public.processes), 0, 'SUPER_ADMIN não vê processos');
 select is((select count(*)::int from public.audit_logs where space_id is not null), 0,
@@ -108,14 +109,14 @@ select throws_ok($$ insert into public.space_members (space_id, profile_id, role
   values ('10000000-0000-0000-0000-00000000000a','00000000-0000-0000-0000-0000000000f1','ADMIN','active') $$,
   '42501', null, 'SUPER_ADMIN não se coloca dentro do espaço');
 
-select lives_ok($$ update public.spaces set max_processes = 50, max_tracked_processes = 10
-  where id = '10000000-0000-0000-0000-00000000000a' $$, 'SUPER_ADMIN define o plano');
-select throws_ok($$ update public.spaces set name = 'Invasao'
-  where id = '10000000-0000-0000-0000-00000000000a' $$,
-  '42501', null, 'SUPER_ADMIN não altera os dados internos do espaço (nome)');
+select lives_ok($$ select public.platform_set_space_plan('10000000-0000-0000-0000-00000000000a', 50, 10) $$,
+  'SUPER_ADMIN define o plano');
+select is(tests_rowcount($$ update public.spaces set name = 'Invasao'
+  where id = '10000000-0000-0000-0000-00000000000a' $$), 0,
+  'SUPER_ADMIN não altera os dados internos do espaço (nome)');
 
-select lives_ok($$ update public.spaces set status = 'suspended'
-  where id = '10000000-0000-0000-0000-00000000000a' $$, 'SUPER_ADMIN suspende o espaço');
+select lives_ok($$ select public.platform_set_space_status('10000000-0000-0000-0000-00000000000a', 'suspended') $$,
+  'SUPER_ADMIN suspende o espaço');
 select ok(exists(select 1 from public.audit_logs where action = 'space.suspend' and space_id is null),
   'Suspensão auditada como ação de plataforma, visível ao SUPER_ADMIN');
 select ok(exists(select 1 from public.audit_logs where action = 'space.plan.update' and space_id is null),
@@ -143,8 +144,8 @@ select tests_as('00000000-0000-0000-0000-0000000000a2');
 select is((select count(*)::int from public.processes), 0, 'Espaço suspenso: colaborador não vê processos');
 
 select tests_as('00000000-0000-0000-0000-0000000000f1');
-select lives_ok($$ update public.spaces set status = 'active'
-  where id = '10000000-0000-0000-0000-00000000000a' $$, 'SUPER_ADMIN reativa o espaço');
+select lives_ok($$ select public.platform_set_space_status('10000000-0000-0000-0000-00000000000a', 'active') $$,
+  'SUPER_ADMIN reativa o espaço');
 
 select tests_as('00000000-0000-0000-0000-0000000000a2');
 select ok((select count(*)::int from public.processes) > 0, 'Reativado: colaborador volta a ver os processos dele');

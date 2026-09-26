@@ -1,12 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { SUPABASE_CLIENT } from '../../core/supabase/supabase-client';
+import type { PlatformSpace } from '../admin/platform-admin.service';
 
+/** Situação exclusiva de cada escritório: suspenso > aguardando configuração > ativo. */
 export interface PlatformMetrics {
   activeSpaces: number;
-  suspendedSpaces: number;
   /** Escritórios cujo ADMIN ainda não completou a configuração. */
   pendingSetup: number;
-  users: number;
+  suspendedSpaces: number;
 }
 
 export interface DashboardMetrics {
@@ -40,7 +41,6 @@ export interface GrowthPoint {
   /** AAAA-MM-01. */
   month: string;
   newSpaces: number;
-  newUsers: number;
 }
 
 export interface PlanGroup {
@@ -139,16 +139,18 @@ export class DashboardService {
     };
   }
 
-  /** Visão da plataforma: só quantidades — nada de dentro dos espaços. */
+  /**
+   * Visão da plataforma: só a situação dos escritórios. Nada de dentro deles —
+   * nem contagem de usuários (regra do produto, docs/REGRAS-DE-NEGOCIO.md).
+   */
   async platformMetrics(): Promise<PlatformMetrics> {
     const { data, error } = await this.supabase.rpc('platform_overview').single();
     if (error) throw error;
     const r = data as Record<string, number>;
     return {
       activeSpaces: r['active_spaces'] ?? 0,
-      suspendedSpaces: r['suspended_spaces'] ?? 0,
       pendingSetup: r['pending_setup'] ?? 0,
-      users: r['users'] ?? 0,
+      suspendedSpaces: r['suspended_spaces'] ?? 0,
     };
   }
 
@@ -165,31 +167,24 @@ export class DashboardService {
     }));
   }
 
-  /** Novos espaços e novas contas por mês (só SUPER_ADMIN). */
+  /** Novos escritórios por mês (só SUPER_ADMIN). */
   async platformGrowth(months = 6): Promise<GrowthPoint[]> {
     const { data, error } = await this.supabase.rpc('platform_growth', { p_months: months });
     if (error) throw error;
-    return ((data ?? []) as { month: string; new_spaces: number; new_users: number }[]).map(
-      (r) => ({
-        month: r.month,
-        newSpaces: r.new_spaces,
-        newUsers: r.new_users,
-      }),
-    );
+    return ((data ?? []) as { month: string; new_spaces: number }[]).map((r) => ({
+      month: r.month,
+      newSpaces: r.new_spaces,
+    }));
   }
 
-  /** Quantos espaços em cada combinação de limites (plano), do menor ao maior. */
-  async spacesByPlan(): Promise<PlanGroup[]> {
-    const { data, error } = await this.supabase
-      .from('spaces')
-      .select('max_processes, max_tracked_processes');
-    if (error) throw error;
+  /** Escritórios agrupados por plano, do menor ao maior (lista da plataforma). */
+  spacesByPlan(spaces: PlatformSpace[]): PlanGroup[] {
     const groups = new Map<string, PlanGroup>();
-    for (const r of (data ?? []) as { max_processes: number; max_tracked_processes: number }[]) {
-      const key = `${r.max_processes}/${r.max_tracked_processes}`;
+    for (const sp of spaces) {
+      const key = `${sp.maxProcesses}/${sp.maxTrackedProcesses}`;
       const g = groups.get(key) ?? {
-        maxProcesses: r.max_processes,
-        maxTracked: r.max_tracked_processes,
+        maxProcesses: sp.maxProcesses,
+        maxTracked: sp.maxTrackedProcesses,
         spaces: 0,
       };
       g.spaces += 1;

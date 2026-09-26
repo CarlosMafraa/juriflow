@@ -96,11 +96,16 @@ npx supabase status
 npm run dev               # http://localhost:4200
 ```
 
-Para criar um usuário local: use o Studio (`http://127.0.0.1:55323`) → Authentication →
-Add user (o cadastro público é desligado — contas nascem por convite; os e-mails
-locais aparecem no Inbucket, `http://127.0.0.1:55324`). O `profile` é criado automaticamente por
-trigger. Para transformar em SUPER_ADMIN, no Studio SQL editor:
-`update public.profiles set is_super_admin = true where email = '...';`
+Contas nascem só por convite (o cadastro público é desligado). Para começar,
+crie o SUPER_ADMIN local com o mesmo comando de produção — nunca com SQL na mão
+(ver [regras](docs/REGRAS-DE-NEGOCIO.md)):
+
+```bash
+SUPABASE_URL=http://127.0.0.1:55321 SUPABASE_SERVICE_ROLE_KEY=<service_role de `npx supabase status`> APP_SITE_URL=http://localhost:4200 npm run bootstrap:super-admin -- voce@exemplo.com
+```
+
+O e-mail com o link chega no Inbucket (`http://127.0.0.1:55324`). A partir daí,
+escritórios e equipes nascem pelo próprio app (convites).
 
 ## Testes
 
@@ -160,6 +165,8 @@ Ocultar uma opção de menu **não** substitui autorização no backend.
 
 ## Documentação
 
+- [`docs/REGRAS-DE-NEGOCIO.md`](docs/REGRAS-DE-NEGOCIO.md) — **regras do produto**:
+  confira qualquer mudança contra elas antes de subir.
 - [`docs/DEPLOY.md`](docs/DEPLOY.md) — checklist de produção (Supabase Cloud,
   frontend, VPS do worker/WAHA, smoke test).
 - [`docs/PLANO-FASE-1.md`](docs/PLANO-FASE-1.md) — análise, arquitetura, modelo de

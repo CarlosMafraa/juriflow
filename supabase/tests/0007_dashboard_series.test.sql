@@ -60,7 +60,8 @@ select is((select sum(total)::int from public.space_movements_per_day('10000000-
   'SUPER_ADMIN não enxerga movimentações de nenhum espaço');
 select is((select count(*)::int from public.platform_growth(6)), 6, 'Crescimento da plataforma: 6 meses');
 select ok((select sum(new_spaces) from public.platform_growth(6)) >= 1, 'Conta o espaço criado neste mês');
-select ok((select sum(new_users) from public.platform_growth(6)) >= 4, 'Conta as contas criadas neste mês');
+select throws_ok($$ select new_users from public.platform_growth(6) $$, '42703', null,
+  'Plataforma não recebe contagem de contas (informação de dentro dos escritórios)');
 
 select tests_as('00000000-0000-0000-0000-0000000000a1');
 select throws_ok($$ select * from public.platform_growth(6) $$, '42501', null,

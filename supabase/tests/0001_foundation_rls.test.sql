@@ -3,7 +3,7 @@
 -- Rode com: npm run db:test   (requer Docker + supabase start)
 -- =============================================================================
 begin;
-select plan(26);
+select plan(27);
 
 -- --- helper: define o "usuário logado" (claims do JWT). ----------------------
 -- A troca de ROLE é feita com `set local role` no próprio script (o runner
@@ -174,9 +174,14 @@ select throws_ok(
 select tests_as('00000000-0000-0000-0000-000000000001');
 
 select is(
-  (select count(*)::int from public.spaces),
+  (select count(*)::int from public.platform_spaces()),
   2,
-  'SUPER_ADMIN enxerga todos os espaços'
+  'SUPER_ADMIN sabe que todos os escritórios existem (pela lista da plataforma)'
+);
+select is(
+  (select count(*)::int from public.spaces where id = '10000000-0000-0000-0000-000000000002'),
+  0,
+  'SUPER_ADMIN não lê a tabela de um escritório do qual não faz parte'
 );
 select is(
   (select count(*)::int from public.profiles where id = '00000000-0000-0000-0000-000000000004'),
@@ -212,9 +217,8 @@ select throws_ok(
   'SUPER_ADMIN não consegue se colocar dentro de um espaço'
 );
 select lives_ok(
-  $$ update public.spaces set status = 'suspended'
-     where id = '10000000-0000-0000-0000-000000000002' $$,
-  'SUPER_ADMIN suspende espaço'
+  $$ select public.platform_set_space_status('10000000-0000-0000-0000-000000000002', 'suspended') $$,
+  'SUPER_ADMIN suspende escritório (pela função da plataforma)'
 );
 
 -- ---- anônimo ----

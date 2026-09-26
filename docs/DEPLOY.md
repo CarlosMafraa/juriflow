@@ -67,12 +67,19 @@ injetadas pelo runtime — não configurar manualmente.
 
 ### Primeiro SUPER_ADMIN ⚙️
 
-Com o cadastro público desligado, crie o primeiro usuário em Authentication →
-Users → **Invite user** e, no SQL Editor:
+A plataforma tem **um único** SUPER_ADMIN, e ele é criado por comando
+versionado e auditado — **nunca** por SQL manual no banco de produção (regra
+interna e prestação de contas da LGPD; ver [REGRAS-DE-NEGOCIO.md](REGRAS-DE-NEGOCIO.md)):
 
-```sql
-update public.profiles set is_super_admin = true where email = 'voce@dominio.com';
+```bash
+SUPABASE_URL=https://<ref>.supabase.co SUPABASE_SERVICE_ROLE_KEY=<service-role> APP_SITE_URL=https://app.juriflow.com.br npm run bootstrap:super-admin -- voce@dominio.com
 ```
+
+O comando recusa rodar se já existir um SUPER_ADMIN, convida o e-mail (link de
+24 h para criar a senha) e registra a promoção na auditoria
+(`platform.super_admin.grant`, via `bootstrap`). O banco também impede um
+segundo SUPER_ADMIN. Trocar o SUPER_ADMIN no futuro exige um fluxo próprio,
+auditado — não existe hoje e não deve ser feito na mão.
 
 A partir daí, escritórios novos são criados pelo app: `/admin` → **Novo
 escritório** com o e-mail do ADMIN. O escritório nasce "aguardando

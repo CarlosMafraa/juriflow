@@ -277,14 +277,21 @@ export class FirstAccessComponent {
       this.spaceId = this.opening.spaceId;
       this.office.set(this.opening.role === 'ADMIN' && this.opening.setupPending);
     } else {
-      // Veio do redirecionamento: ADMIN com escritório ainda não configurado.
-      const space = this.activeSpace.activeSpace();
-      if (!space?.setupPending || space.role !== 'ADMIN') {
+      // Sem convite de escritório: ADMIN com escritório ainda não configurado
+      // (redirecionado ao entrar) ou conta criada por convite que ainda não
+      // concluiu o primeiro acesso (ex.: o SUPER_ADMIN criado pelo bootstrap).
+      const space = this.activeSpace.activeSpace() ?? this.activeSpace.availableSpaces()[0];
+      const officePending = !!space?.setupPending && space.role === 'ADMIN';
+      const notOnboarded = !this.auth.context()?.profile?.onboardedAt;
+      if (!officePending && !notOnboarded) {
         await this.router.navigateByUrl('/');
         return;
       }
-      this.spaceId = space.id;
-      this.office.set(true);
+      if (notOnboarded) this.needsPassword.set(true);
+      if (officePending && space) {
+        this.spaceId = space.id;
+        this.office.set(true);
+      }
     }
 
     const profile = this.auth.context()?.profile;

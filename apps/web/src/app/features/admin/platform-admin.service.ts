@@ -80,16 +80,22 @@ export class PlatformAdminService {
     return this.send(data as string);
   }
 
+  // Status e plano só pelas funções da plataforma (auditadas): a plataforma
+  // não tem acesso direto à tabela de escritórios.
   async updatePlan(id: string, maxProcesses: number, maxTrackedProcesses: number): Promise<void> {
-    const { error } = await this.supabase
-      .from('spaces')
-      .update({ max_processes: maxProcesses, max_tracked_processes: maxTrackedProcesses })
-      .eq('id', id);
+    const { error } = await this.supabase.rpc('platform_set_space_plan', {
+      p_space_id: id,
+      p_max_processes: maxProcesses,
+      p_max_tracked_processes: maxTrackedProcesses,
+    });
     if (error) throw error;
   }
 
   async setSpaceStatus(id: string, status: SpaceStatus): Promise<void> {
-    const { error } = await this.supabase.from('spaces').update({ status }).eq('id', id);
+    const { error } = await this.supabase.rpc('platform_set_space_status', {
+      p_space_id: id,
+      p_status: status,
+    });
     if (error) throw error;
   }
 

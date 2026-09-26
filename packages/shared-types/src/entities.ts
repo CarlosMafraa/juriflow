@@ -14,6 +14,8 @@ export interface Profile {
   phone: string | null;
   isSuperAdmin: boolean;
   avatarUrl: string | null;
+  /** Concluiu o primeiro acesso (criou senha e completou os dados). */
+  onboardedAt?: IsoDateTime | null;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime | null;
 }

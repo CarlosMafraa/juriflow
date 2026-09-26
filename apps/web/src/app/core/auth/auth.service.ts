@@ -127,7 +127,9 @@ export class AuthService {
       await Promise.all([
         this.supabase
           .from('profiles')
-          .select('id, full_name, email, phone, is_super_admin, avatar_url, created_at, updated_at')
+          .select(
+            'id, full_name, email, phone, is_super_admin, avatar_url, onboarded_at, created_at, updated_at',
+          )
           .eq('id', userId)
           .maybeSingle(),
         this.supabase
@@ -162,6 +164,7 @@ export class AuthService {
             phone: profileRow.phone,
             isSuperAdmin: profileRow.is_super_admin,
             avatarUrl: profileRow.avatar_url,
+            onboardedAt: profileRow.onboarded_at,
             createdAt: profileRow.created_at,
             updatedAt: profileRow.updated_at,
           }

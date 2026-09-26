@@ -19,6 +19,7 @@ import { ToastService } from '../../shared/feedback/toast.service';
 import { PageHeaderService } from '../../shared/layout/page-header.service';
 import { ProcessService, type PlanUsage } from '../processes/process.service';
 import { TeamService } from '../team/team.service';
+import { PlatformAdminService, type PlatformSpace } from '../admin/platform-admin.service';
 import { ColumnChartComponent, type ColumnPoint } from '../../shared/charts/column-chart.component';
 import { DonutChartComponent, type DonutSegment } from '../../shared/charts/donut-chart.component';
 import { MeterComponent } from '../../shared/charts/meter.component';
@@ -96,62 +97,55 @@ type View = 'platform' | 'admin' | 'collaborator' | 'suspended' | 'no-space';
           <section class="grid">
             <a class="metric-link" routerLink="/admin">
               <p-card>
-                <p class="label">Espaços ativos</p>
+                <p class="label">Escritórios ativos</p>
                 <p class="metric">{{ pm.activeSpaces }}</p>
-                <p class="muted small">
-                  @if (pm.pendingSetup > 0) {
-                    {{ pm.pendingSetup }} aguardando configuração pelo administrador.
-                  } @else {
-                    Escritórios usando a plataforma.
-                  }
-                </p>
+                <p class="muted small">Configurados e em uso.</p>
               </p-card>
             </a>
             <a class="metric-link" routerLink="/admin">
               <p-card>
-                <p class="label">Espaços suspensos</p>
+                <p class="label">Aguardando configuração</p>
+                <p class="metric">{{ pm.pendingSetup }}</p>
+                <p class="muted small">Convite enviado; o administrador ainda não concluiu.</p>
+              </p-card>
+            </a>
+            <a class="metric-link" routerLink="/admin">
+              <p-card>
+                <p class="label">Suspensos</p>
                 <p class="metric">{{ pm.suspendedSpaces }}</p>
                 <p class="muted small">Sem acesso até serem reativados.</p>
-              </p-card>
-            </a>
-            <a class="metric-link" routerLink="/admin">
-              <p-card>
-                <p class="label">Usuários na plataforma</p>
-                <p class="metric">{{ pm.users }}</p>
-                <p class="muted small">Contas criadas, em qualquer espaço.</p>
               </p-card>
             </a>
           </section>
 
           <section class="charts">
-            <p-card header="Espaços por plano" styleClass="chart-card">
+            <p-card header="Escritórios por plano" styleClass="chart-card">
               <jf-donut-chart
                 [segments]="planSegments()"
-                centerLabel="espaços"
-                ariaLabel="Espaços por plano"
+                centerLabel="escritórios"
+                ariaLabel="Escritórios por plano"
               />
             </p-card>
-            <p-card header="Novos espaços por mês" styleClass="chart-card">
+            <p-card header="Convites de escritório pendentes" styleClass="chart-card">
+              <jf-donut-chart
+                [segments]="inviteSegments()"
+                centerLabel="pendentes"
+                ariaLabel="Convites de escritório pendentes por situação do link"
+              />
+            </p-card>
+            <p-card header="Novos escritórios por mês" class="chart-wide" styleClass="chart-card">
               <jf-column-chart
                 [points]="spacesPerMonth()"
-                ariaLabel="Novos espaços por mês, últimos 6 meses"
+                ariaLabel="Novos escritórios por mês, últimos 6 meses"
                 periodHeader="Mês"
-                valueHeader="Novos espaços"
-              />
-            </p-card>
-            <p-card header="Novas contas por mês" class="chart-wide" styleClass="chart-card">
-              <jf-column-chart
-                [points]="usersPerMonth()"
-                ariaLabel="Novas contas de usuário por mês, últimos 6 meses"
-                periodHeader="Mês"
-                valueHeader="Novas contas"
+                valueHeader="Novos escritórios"
               />
             </p-card>
           </section>
 
           <p class="muted small note">
-            A administração da plataforma vê apenas que os espaços existem, o status e o plano de
-            cada um — nunca o conteúdo dos escritórios.
+            A administração da plataforma vê apenas que os escritórios existem, o status, o plano e o
+            convite do administrador — nunca o conteúdo nem quem trabalha em cada escritório.
           </p>
         } @else if (loading()) {
           <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
@@ -466,6 +460,7 @@ export class DashboardComponent {
   private readonly service = inject(DashboardService);
   private readonly processes = inject(ProcessService);
   private readonly team = inject(TeamService);
+  private readonly platformAdmin = inject(PlatformAdminService);
   private readonly toast = inject(ToastService);
   private readonly pageHeader = inject(PageHeaderService);
 
@@ -487,6 +482,7 @@ export class DashboardComponent {
   private readonly perDay = signal<DayPoint[]>([]);
   private readonly growth = signal<GrowthPoint[]>([]);
   private readonly plans = signal<PlanGroup[]>([]);
+  private readonly platformSpaces = signal<PlatformSpace[]>([]);
 
   // Cor segue a situação (nunca a posição): ativo = slot 1, encerrado = 2, arquivado = 3.
   protected readonly statusSegments = computed<DonutSegment[]>(() => {
@@ -517,9 +513,22 @@ export class DashboardComponent {
   protected readonly spacesPerMonth = computed<ColumnPoint[]>(() =>
     this.growth().map((g) => ({ ...monthLabels(g.month), value: g.newSpaces })),
   );
-  protected readonly usersPerMonth = computed<ColumnPoint[]>(() =>
-    this.growth().map((g) => ({ ...monthLabels(g.month), value: g.newUsers })),
-  );
+  // Situação do link de cada escritório ainda não configurado (cor segue a situação).
+  protected readonly inviteSegments = computed<DonutSegment[]>(() => {
+    const pending = this.platformSpaces().filter((sp) => !sp.setupCompletedAt);
+    const count = (states: string[]) =>
+      pending.filter((sp) => states.includes(sp.inviteState ?? '')).length;
+    return [
+      { key: 'sent', label: 'Não aberto', value: count(['sent']), color: 'var(--jf-viz-1)' },
+      { key: 'opened', label: 'Link aberto', value: count(['opened']), color: 'var(--jf-viz-3)' },
+      {
+        key: 'expired',
+        label: 'Expirado',
+        value: count(['expired', 'superseded', 'cancelled']),
+        color: 'var(--jf-viz-2)',
+      },
+    ];
+  });
 
   // Planos têm ordem (menor -> maior): rampa de uma cor, clara -> escura.
   // Mais de 4 combinações: as maiores viram "Outros planos".
@@ -596,11 +605,12 @@ export class DashboardComponent {
         const [platform, growth, plans] = await Promise.all([
           this.service.platformMetrics(),
           this.service.platformGrowth(6),
-          this.service.spacesByPlan(),
+          this.platformAdmin.listSpaces(),
         ]);
         this.platform.set(platform);
         this.growth.set(growth);
-        this.plans.set(plans);
+        this.platformSpaces.set(plans);
+        this.plans.set(this.service.spacesByPlan(plans));
       } else if ((view === 'admin' || view === 'collaborator') && spaceId) {
         const [metrics, recent, plan, perDay] = await Promise.all([
           this.service.metrics(spaceId),

@@ -29,8 +29,9 @@ create temp table t_ids (k text primary key, v uuid) on commit drop;
 grant all on t_ids to authenticated;
 
 insert into t_ids select 'space', space_id from public.create_space_for_admin('Dono@Escritorio.Test');
-select is((select setup_completed_at from public.spaces where id = (select v from t_ids where k = 'space')),
+select is((select setup_completed_at from public.platform_spaces() where id = (select v from t_ids where k = 'space')),
   null::timestamptz, 'Escritório novo nasce aguardando configuração');
+select is((select pending_setup from public.platform_overview()), 1, 'Visão geral conta o escritório aguardando configuração');
 select is((select admin_email::text from public.platform_spaces() where id = (select v from t_ids where k = 'space')),
   'dono@escritorio.test', 'Plataforma vê o e-mail do ADMIN convidado (normalizado)');
 select is((select invite_state from public.platform_spaces() where id = (select v from t_ids where k = 'space')),
@@ -108,7 +109,8 @@ select is((select invite_state from public.platform_spaces() where id = (select 
 select isnt((select setup_completed_at from public.platform_spaces() where id = (select v from t_ids where k = 'space')),
   null::timestamptz, 'Escritório aparece como configurado');
 select is((select count(*)::int from public.profiles), 1, 'Plataforma só lê o próprio perfil');
-select is((select users from public.platform_overview()), 3, 'Mas conhece o total de contas');
+select throws_ok($$ select users from public.platform_overview() $$, '42703', null,
+  'E não recebe o total de contas (informação de dentro dos escritórios)');
 select throws_ok(
   format('select public.reissue_space_invite(%L)', (select v from t_ids where k = 'invite2')),
   '42501', null, 'Depois de configurado, o espaço é do ADMIN: a plataforma não reenvia convites dele');
