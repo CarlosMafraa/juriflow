@@ -8,6 +8,8 @@ interface SpaceRow {
   name: string;
   slug: string;
   status: Space['status'];
+  max_processes: number;
+  max_tracked_processes: number;
   created_by: string | null;
   created_at: string;
   updated_at: string | null;
@@ -19,6 +21,8 @@ function toSpace(r: SpaceRow): Space {
     name: r.name,
     slug: r.slug,
     status: r.status,
+    maxProcesses: r.max_processes,
+    maxTrackedProcesses: r.max_tracked_processes,
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,

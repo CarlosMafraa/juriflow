@@ -31,9 +31,19 @@ const disabledAdminOfA: AuthSubject = {
 };
 
 describe('effectiveRole', () => {
-  it('resolve SUPER_ADMIN independentemente do espaço', () => {
+  it('resolve SUPER_ADMIN fora de espaço e nada dentro de um espaço sem vínculo', () => {
     expect(effectiveRole(superAdmin)).toBe('SUPER_ADMIN');
-    expect(effectiveRole(superAdmin, SPACE_A)).toBe('SUPER_ADMIN');
+    expect(effectiveRole(superAdmin, SPACE_A)).toBeNull();
+  });
+
+  it('SUPER_ADMIN que também é membro usa o papel do vínculo dentro do espaço', () => {
+    const superMember: AuthSubject = {
+      ...superAdmin,
+      memberships: [{ spaceId: SPACE_A, role: 'COLABORADOR', status: 'active' }],
+    };
+    expect(effectiveRole(superMember, SPACE_A)).toBe('COLABORADOR');
+    expect(can(superMember, 'space.manage', { spaceId: SPACE_A })).toBe(false);
+    expect(can(superMember, 'platform.admin')).toBe(true);
   });
 
   it('resolve o papel do vínculo ativo no espaço', () => {
@@ -70,7 +80,8 @@ describe('can — isolamento por espaço', () => {
       expect(can(colaboradorOfA, permission, { spaceId: SPACE_A })).toBe(false);
     }
     expect(can(colaboradorOfA, 'space.view', { spaceId: SPACE_A })).toBe(true);
-    expect(can(colaboradorOfA, 'member.view', { spaceId: SPACE_A })).toBe(true);
+    // Colaborador não acessa o módulo de usuários.
+    expect(can(colaboradorOfA, 'member.view', { spaceId: SPACE_A })).toBe(false);
   });
 
   it('permissão com escopo de espaço sem spaceId falha fechada', () => {
@@ -90,7 +101,8 @@ describe('can — SUPER_ADMIN (RN7)', () => {
     expect(can(superAdmin, 'audit.view.global')).toBe(true);
   });
 
-  it('NÃO recebe permissões operacionais de espaço, mesmo com spaceId', () => {
+  it('NÃO recebe nenhuma permissão de dentro de espaço, mesmo com spaceId', () => {
+    expect(can(superAdmin, 'space.view', { spaceId: SPACE_A })).toBe(false);
     expect(can(superAdmin, 'space.manage', { spaceId: SPACE_A })).toBe(false);
     expect(can(superAdmin, 'member.invite', { spaceId: SPACE_A })).toBe(false);
     expect(can(superAdmin, 'member.remove', { spaceId: SPACE_A })).toBe(false);

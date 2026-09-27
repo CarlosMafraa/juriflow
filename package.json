@@ -26,6 +26,7 @@
     "db:reset": "supabase db reset",
     "db:diff": "supabase db diff",
     "db:test": "supabase test db",
+    "bootstrap:super-admin": "node scripts/bootstrap-super-admin.mjs",
     "dev": "npm run dev --workspace apps/web"
   },
   "devDependencies": {

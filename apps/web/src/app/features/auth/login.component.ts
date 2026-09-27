@@ -94,7 +94,8 @@ export class LoginComponent {
 
   protected readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]],
+    // Sem regra de tamanho no login: quem define a política é o Auth, na criação da senha.
+    password: ['', [Validators.required]],
   });
 
   protected fieldError(name: 'email' | 'password'): string {

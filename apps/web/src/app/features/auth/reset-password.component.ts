@@ -6,11 +6,12 @@ import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthCardComponent } from './auth-card.component';
+import { PASSWORD_HINT, passwordValidators } from '../../core/auth/password-policy';
 
 /**
- * Alvo do link de redefinição do Supabase. O SDK detecta o token na URL
- * (detectSessionInUrl) e cria uma sessão de recuperação; aqui só definimos a
- * nova senha.
+ * Alvo do link de redefinição de senha do Supabase. O SDK detecta o token na
+ * URL (detectSessionInUrl) e cria a sessão; aqui só definimos a senha.
+ * (O link de convite vai para /primeiro-acesso.)
  */
 @Component({
   selector: 'jf-reset-password',
@@ -32,6 +33,9 @@ import { AuthCardComponent } from './auth-card.component';
             autocomplete="new-password"
             formControlName="password"
           />
+          <small [class]="showPasswordError() ? 'field__error' : 'field__hint'">{{
+            passwordHint
+          }}</small>
         </div>
         <div class="field">
           <label for="confirm">Confirmar senha</label>
@@ -46,7 +50,13 @@ import { AuthCardComponent } from './auth-card.component';
             <small class="field__error">As senhas não conferem.</small>
           }
         </div>
-        <p-button type="submit" icon="pi pi-key" label="Salvar senha" [loading]="loading()" styleClass="w-full" />
+        <p-button
+          type="submit"
+          icon="pi pi-key"
+          label="Salvar senha"
+          [loading]="loading()"
+          styleClass="w-full"
+        />
       </form>
     </jf-auth-card>
   `,
@@ -67,14 +77,20 @@ export class ResetPasswordComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  protected readonly passwordHint = PASSWORD_HINT;
 
   protected readonly loading = signal(false);
   protected readonly error = signal('');
 
   protected readonly form = this.fb.nonNullable.group({
-    password: ['', [Validators.required, Validators.minLength(8)]],
+    password: ['', passwordValidators],
     confirm: ['', [Validators.required]],
   });
+
+  protected showPasswordError(): boolean {
+    const c = this.form.controls.password;
+    return c.invalid && (c.touched || c.dirty);
+  }
 
   protected mismatch(): boolean {
     const { password, confirm } = this.form.getRawValue();

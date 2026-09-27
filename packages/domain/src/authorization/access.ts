@@ -24,16 +24,14 @@ export interface AccessOptions {
 
 /**
  * Papel efetivo do usuário para fins de permissão.
- * - SUPER_ADMIN quando `isSuperAdmin` (independe de espaço).
- * - Caso contrário, o papel do vínculo ATIVO no `spaceId` informado.
+ * - Dentro de um espaço (`spaceId`): o papel do vínculo ATIVO nele — inclusive
+ *   para quem também é SUPER_ADMIN; ser da plataforma não dá nada lá dentro.
+ * - Fora de espaço: SUPER_ADMIN quando `isSuperAdmin`.
  * - `null` quando não há papel aplicável.
  */
 export function effectiveRole(subject: AuthSubject, spaceId?: string): EffectiveRole | null {
-  if (subject.isSuperAdmin) {
-    return 'SUPER_ADMIN';
-  }
   if (!spaceId) {
-    return null;
+    return subject.isSuperAdmin ? 'SUPER_ADMIN' : null;
   }
   const membership = subject.memberships.find(
     (m) => m.spaceId === spaceId && m.status === 'active',
@@ -50,18 +48,17 @@ export function can(
   permission: Permission,
   options: AccessOptions = {},
 ): boolean {
-  if (!isPlatformPermission(permission) && !options.spaceId) {
+  if (isPlatformPermission(permission)) {
+    // Plataforma: só SUPER_ADMIN, independentemente de espaço.
+    return subject.isSuperAdmin && PERMISSION_MATRIX.SUPER_ADMIN.includes(permission);
+  }
+  if (!options.spaceId) {
     // Permissão com escopo de espaço exige `spaceId` — falha fechada.
     return false;
   }
 
   const role = effectiveRole(subject, options.spaceId);
-  if (!role) {
-    return false;
-  }
-
-  // SUPER_ADMIN nunca ganha permissões fora da sua matriz, mesmo com spaceId.
-  return PERMISSION_MATRIX[role].includes(permission);
+  return role ? PERMISSION_MATRIX[role].includes(permission) : false;
 }
 
 /** Igual a {@link can}, mas lança {@link AuthorizationError} quando negado. */

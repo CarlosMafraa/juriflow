@@ -54,16 +54,15 @@ export function isPlatformPermission(permission: Permission): boolean {
 /**
  * Matriz papel -> permissões. Declarativa e exaustiva por papel.
  *
- * SUPER_ADMIN (RN7): opera a plataforma, mas NÃO recebe `space.manage`,
- * `member.*` nem `audit.view` de espaço — nada que dê acesso ao conteúdo
- * operacional de um tenant.
+ * SUPER_ADMIN: sabe que os espaços existem (cria, suspende, define o plano),
+ * mas não recebe NENHUMA permissão de dentro de um espaço — nem `space.view`.
+ * COLABORADOR: trabalha nos processos dele; não acessa a gestão de usuários.
  */
 export const PERMISSION_MATRIX: Record<EffectiveRole, readonly Permission[]> = {
   SUPER_ADMIN: [
     'platform.admin',
     'space.create',
     'space.suspend',
-    'space.view',
     'audit.view.global',
     'profile.view_own',
     'profile.update_own',
@@ -80,5 +79,5 @@ export const PERMISSION_MATRIX: Record<EffectiveRole, readonly Permission[]> = {
     'profile.view_own',
     'profile.update_own',
   ],
-  COLABORADOR: ['space.view', 'member.view', 'profile.view_own', 'profile.update_own'],
+  COLABORADOR: ['space.view', 'profile.view_own', 'profile.update_own'],
 };

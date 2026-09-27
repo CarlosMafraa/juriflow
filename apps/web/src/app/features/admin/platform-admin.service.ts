@@ -1,127 +1,109 @@
 import { Injectable, inject } from '@angular/core';
-import type { Profile, Space } from '@juriflow/shared-types';
+import type { Space } from '@juriflow/shared-types';
 import { SUPABASE_CLIENT } from '../../core/supabase/supabase-client';
-import { AuthService } from '../../core/auth/auth.service';
+import type { InviteState } from '../team/team.service';
 
-interface SpaceRow {
+type SpaceStatus = Space['status'];
+
+/** Um escritório como a plataforma o enxerga: só por fora. */
+export interface PlatformSpace {
   id: string;
   name: string;
-  slug: string;
-  status: Space['status'];
-  created_by: string | null;
-  created_at: string;
-  updated_at: string | null;
+  status: SpaceStatus;
+  maxProcesses: number;
+  maxTrackedProcesses: number;
+  createdAt: string;
+  /** null = o ADMIN ainda não configurou o escritório. */
+  setupCompletedAt: string | null;
+  adminEmail: string | null;
+  inviteId: string | null;
+  inviteState: InviteState | null;
+  inviteSentAt: string | null;
+  inviteExpiresAt: string | null;
+  inviteOpenedAt: string | null;
 }
 
-interface ProfileRow {
-  id: string;
-  full_name: string | null;
-  email: string;
-  phone: string | null;
-  is_super_admin: boolean;
-  avatar_url: string | null;
-  created_at: string;
-  updated_at: string | null;
-}
+type Row = Record<string, unknown>;
 
-function toSpace(r: SpaceRow): Space {
+function toPlatformSpace(r: Row): PlatformSpace {
   return {
-    id: r.id,
-    name: r.name,
-    slug: r.slug,
-    status: r.status,
-    createdBy: r.created_by,
-    createdAt: r.created_at,
-    updatedAt: r.updated_at,
+    id: r['id'] as string,
+    name: r['name'] as string,
+    status: r['status'] as SpaceStatus,
+    maxProcesses: r['max_processes'] as number,
+    maxTrackedProcesses: r['max_tracked_processes'] as number,
+    createdAt: r['created_at'] as string,
+    setupCompletedAt: (r['setup_completed_at'] as string) ?? null,
+    adminEmail: (r['admin_email'] as string) ?? null,
+    inviteId: (r['invite_id'] as string) ?? null,
+    inviteState: (r['invite_state'] as InviteState) ?? null,
+    inviteSentAt: (r['invite_sent_at'] as string) ?? null,
+    inviteExpiresAt: (r['invite_expires_at'] as string) ?? null,
+    inviteOpenedAt: (r['invite_opened_at'] as string) ?? null,
   };
-}
-
-function toProfile(r: ProfileRow): Profile {
-  return {
-    id: r.id,
-    fullName: r.full_name,
-    email: r.email,
-    phone: r.phone,
-    isSuperAdmin: r.is_super_admin,
-    avatarUrl: r.avatar_url,
-    createdAt: r.created_at,
-    updatedAt: r.updated_at,
-  };
-}
-
-function slugify(name: string): string {
-  const base = name
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  const suffix = Math.random().toString(36).slice(2, 6);
-  return `${base || 'espaco'}-${suffix}`;
 }
 
 /**
- * Administração da plataforma (SUPER_ADMIN, RN7: opera a plataforma, não o
- * conteúdo operacional de um tenant). RLS já concede acesso direto às tabelas
- * `spaces`/`profiles` para SUPER_ADMIN — nenhuma RPC é necessária.
+ * Administração da plataforma (SUPER_ADMIN). A plataforma cria escritórios
+ * convidando o ADMIN de cada um, suspende/reativa e define o plano — e só vê
+ * o espaço por fora (nome, status, plano, ADMIN convidado e o convite).
  */
 @Injectable({ providedIn: 'root' })
 export class PlatformAdminService {
   private readonly supabase = inject(SUPABASE_CLIENT);
-  private readonly auth = inject(AuthService);
 
-  async listSpaces(): Promise<Space[]> {
-    const { data, error } = await this.supabase.from('spaces').select('*').order('name');
+  async listSpaces(): Promise<PlatformSpace[]> {
+    const { data, error } = await this.supabase.rpc('platform_spaces');
     if (error) throw error;
-    return ((data ?? []) as SpaceRow[]).map(toSpace);
+    return ((data ?? []) as Row[]).map(toPlatformSpace);
   }
 
   /**
-   * Cria o espaço e já vincula `adminProfileId` como ADMIN ativo — sem isso o
-   * espaço fica sem ninguém para geri-lo (SUPER_ADMIN não recebe
-   * `space.manage`/`member.*`, RN7). Ver policy `space_members_insert`
-   * (migração 0004): "provisionamento" é o único caso em que SUPER_ADMIN
-   * insere em `space_members` direto, sem convite por token.
+   * Novo escritório: cria o espaço "aguardando configuração" e manda ao ADMIN o
+   * link (24 h). O ADMIN completa os dados dele e do escritório ao abrir.
+   * Devolve false se o espaço foi criado mas o e-mail não saiu (dá para reenviar).
    */
-  async createSpace(name: string, adminProfileId: string): Promise<Space> {
+  async createOffice(adminEmail: string): Promise<boolean> {
     const { data, error } = await this.supabase
-      .from('spaces')
-      .insert({ name: name.trim(), slug: slugify(name), created_by: this.auth.userId() })
-      .select('*')
+      .rpc('create_space_for_admin', { p_email: adminEmail.trim() })
       .single();
     if (error) throw error;
-    const space = toSpace(data as SpaceRow);
+    return this.send((data as Row)['invite_id'] as string);
+  }
 
-    const { error: memberError } = await this.supabase.from('space_members').insert({
-      space_id: space.id,
-      profile_id: adminProfileId,
-      role: 'ADMIN',
-      status: 'active',
+  /** Reenvia o convite do ADMIN: o link anterior deixa de funcionar. */
+  async resendOfficeInvite(inviteId: string): Promise<boolean> {
+    const { data, error } = await this.supabase.rpc('reissue_space_invite', {
+      p_invite_id: inviteId,
     });
-    if (memberError) throw memberError;
-
-    return space;
+    if (error) throw error;
+    return this.send(data as string);
   }
 
-  async setSpaceStatus(id: string, status: Space['status']): Promise<void> {
-    const { error } = await this.supabase.from('spaces').update({ status }).eq('id', id);
+  // Status e plano só pelas funções da plataforma (auditadas): a plataforma
+  // não tem acesso direto à tabela de escritórios.
+  async updatePlan(id: string, maxProcesses: number, maxTrackedProcesses: number): Promise<void> {
+    const { error } = await this.supabase.rpc('platform_set_space_plan', {
+      p_space_id: id,
+      p_max_processes: maxProcesses,
+      p_max_tracked_processes: maxTrackedProcesses,
+    });
     if (error) throw error;
   }
 
-  async listProfiles(): Promise<Profile[]> {
-    const { data, error } = await this.supabase
-      .from('profiles')
-      .select('*')
-      .order('full_name', { ascending: true, nullsFirst: false });
+  async setSpaceStatus(id: string, status: SpaceStatus): Promise<void> {
+    const { error } = await this.supabase.rpc('platform_set_space_status', {
+      p_space_id: id,
+      p_status: status,
+    });
     if (error) throw error;
-    return ((data ?? []) as ProfileRow[]).map(toProfile);
   }
 
-  async setSuperAdmin(id: string, isSuperAdmin: boolean): Promise<void> {
-    const { error } = await this.supabase
-      .from('profiles')
-      .update({ is_super_admin: isSuperAdmin })
-      .eq('id', id);
-    if (error) throw error;
+  private async send(inviteId: string): Promise<boolean> {
+    const { data, error } = await this.supabase.functions.invoke<{ status: string }>(
+      'send-invite',
+      { body: { inviteId } },
+    );
+    return !error && data?.status === 'sent';
   }
 }

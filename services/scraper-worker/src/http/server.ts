@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { Logger } from '../infra/logger.js';
 import type { ProcessRepository } from '../ports/process-repository.port.js';
 import type { TrackProcessUseCase } from '../usecases/track-process.usecase.js';
+import type { SerialQueue } from '../jobs/serial-queue.js';
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'Content-Type': 'application/json' });
@@ -9,13 +10,15 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
 }
 
 /**
- * Endpoint de "consultar agora" (RN seção 39). Hoje sem UI que o chame — fica
- * pronto para o frontend plugar depois. Sem autenticação própria nesta fase:
- * o backend deve estar numa rede/porta não exposta publicamente (ver infra/vps).
+ * Endpoint operacional de "consultar agora" (RN seção 39), só para depuração
+ * via túnel SSH. O botão do app NÃO usa esta rota: grava o pedido pela RPC
+ * `request_process_check` e o CheckRequestJob consome. Sem autenticação
+ * própria: a porta nunca deve ser publicada (ver infra/vps).
  */
 export function createHttpServer(
   useCase: TrackProcessUseCase,
   processRepository: ProcessRepository,
+  queue: SerialQueue,
   logger: Logger,
 ): Server {
   return createServer(async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -37,7 +40,7 @@ export function createHttpServer(
           });
           return;
         }
-        const result = await useCase.execute(process);
+        const result = await queue.run(() => useCase.execute(process));
         sendJson(res, 200, result);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

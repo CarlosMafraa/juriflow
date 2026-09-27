@@ -8,7 +8,7 @@ describe('visibleNavItems', () => {
 
     expect(labels).toContain('Dashboard');
     expect(labels).toContain('Processos');
-    expect(labels).toContain('Tribunais');
+    expect(labels).not.toContain('Tribunais');
     expect(labels).not.toContain('WhatsApp');
     expect(labels).not.toContain('Auditoria');
     expect(labels).not.toContain('Administração');
@@ -23,6 +23,7 @@ describe('visibleNavItems', () => {
     expect(labels).toContain('WhatsApp');
     expect(labels).toContain('Usuários');
     expect(labels).toContain('Auditoria');
+    expect(labels).not.toContain('Tribunais');
     expect(labels).not.toContain('Administração');
   });
 
@@ -30,14 +31,12 @@ describe('visibleNavItems', () => {
     const superCan = (p: Permission): boolean => ['platform.admin', 'space.view'].includes(p);
     const labels = visibleNavItems(superCan).map((i) => i.label);
     expect(labels).toContain('Administração');
+    expect(labels).toContain('Tribunais');
     expect(labels).not.toContain('WhatsApp');
   });
 
-  it('itens sem permissão (Dashboard, Tribunais) aparecem sempre', () => {
+  it('só o Dashboard aparece sem permissão', () => {
     const denyAll = (): boolean => false;
-    expect(visibleNavItems(denyAll, NAV_ITEMS).map((i) => i.label)).toEqual([
-      'Dashboard',
-      'Tribunais',
-    ]);
+    expect(visibleNavItems(denyAll, NAV_ITEMS).map((i) => i.label)).toEqual(['Dashboard']);
   });
 });

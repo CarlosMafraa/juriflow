@@ -17,7 +17,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Dashboard', path: '/', icon: 'pi pi-home', exact: true },
   { label: 'Processos', path: '/processos', icon: 'pi pi-briefcase', permission: 'space.view' },
   { label: 'Clientes', path: '/clientes', icon: 'pi pi-users', permission: 'space.view' },
-  { label: 'Tribunais', path: '/tribunais', icon: 'pi pi-building' },
+  // Catálogo global de tribunais: só a plataforma gerencia (ADMIN/colaborador
+  // só escolhem entre os ativos ao cadastrar processo).
+  {
+    label: 'Tribunais',
+    path: '/tribunais',
+    icon: 'pi pi-building',
+    permission: 'platform.admin',
+  },
   {
     label: 'Dados do espaço',
     path: '/configuracoes/espaco',

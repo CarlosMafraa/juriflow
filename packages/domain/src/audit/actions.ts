@@ -11,6 +11,8 @@ export const AUDIT_ACTIONS = {
   spaceCreate: 'space.create',
   spaceUpdate: 'space.update',
   spaceSuspend: 'space.suspend',
+  spaceReactivate: 'space.reactivate',
+  spacePlanUpdate: 'space.plan.update',
 
   memberInvite: 'member.invite',
   memberInviteCancel: 'member.invite.cancel',
@@ -22,6 +24,7 @@ export const AUDIT_ACTIONS = {
 
   profileUpdate: 'profile.update',
   superAdminGrant: 'platform.super_admin.grant',
+  superAdminInviteResent: 'platform.super_admin.invite_resent',
   superAdminRevoke: 'platform.super_admin.revoke',
 
   // Fase 3 — processos, clientes, tribunais (gravados por gatilhos AFTER e RPCs)
@@ -32,6 +35,9 @@ export const AUDIT_ACTIONS = {
   processReactivate: 'process.reactivate',
   processClose: 'process.close',
   processSoftDelete: 'process.soft_delete',
+  processRestore: 'process.restore',
+  processResponsibleAdd: 'process.responsible.add',
+  processResponsibleRemove: 'process.responsible.remove',
 
   clientCreate: 'client.create',
   clientUpdate: 'client.update',
@@ -46,6 +52,7 @@ export const AUDIT_ACTIONS = {
   courtDeactivate: 'court.deactivate',
 
   // MVP Acompanhamento — coleta (scraper-worker) e notificações WhatsApp
+  processCheckRequest: 'process.check.request',
   processMovementCollected: 'process.movement.collected',
   notificationDeliverySent: 'notification.delivery.sent',
   notificationDeliveryFailed: 'notification.delivery.failed',
@@ -59,6 +66,9 @@ export const AUDIT_ACTIONS = {
   processNotificationConfigCreate: 'notification_config.process.create',
   processNotificationConfigUpdate: 'notification_config.process.update',
   processNotificationConfigDelete: 'notification_config.process.delete',
+  movementTypeUpdate: 'notification_config.movement_type.update',
+  processMovementTypeSet: 'notification_config.process_movement_type.set',
+  processMovementTypeReset: 'notification_config.process_movement_type.reset',
 
   // Sessão WhatsApp (WAHA) por espaço — RN seção 22 / F12.
   whatsappSessionConnect: 'waha.session.connect',

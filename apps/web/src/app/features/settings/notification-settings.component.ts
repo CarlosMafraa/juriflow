@@ -7,6 +7,7 @@ import { CardModule } from 'primeng/card';
 import { CheckboxModule } from 'primeng/checkbox';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { SelectModule } from 'primeng/select';
+import { MovementTypeTogglesComponent } from './movement-type-toggles.component';
 import { NotificationConfigService } from './notification-config.service';
 import { TemplateService } from './template.service';
 import { ToastService } from '../../shared/feedback/toast.service';
@@ -26,6 +27,7 @@ const NO_TEMPLATE = '';
     CheckboxModule,
     ProgressSpinnerModule,
     SelectModule,
+    MovementTypeTogglesComponent,
   ],
   template: `
     <p class="hint">
@@ -84,6 +86,14 @@ const NO_TEMPLATE = '';
           <p-button size="small" icon="pi pi-check" (onClick)="save()" [loading]="saving()" label="Salvar" />
         </div>
       </p-card>
+
+      <p-card header="Tipos de movimentação avisados" styleClass="types-card">
+        <p class="hint">
+          Padrão do escritório: para cada tipo, escolha se avisa os responsáveis e/ou os clientes.
+          Cada processo pode personalizar a sua lista.
+        </p>
+        <jf-movement-type-toggles />
+      </p-card>
     }
   `,
   styles: [
@@ -129,6 +139,9 @@ const NO_TEMPLATE = '';
         display: flex;
         justify-content: flex-end;
         padding-top: 1rem;
+      }
+      :host ::ng-deep .types-card {
+        margin-top: 1rem;
       }
     `,
   ],

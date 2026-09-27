@@ -1,7 +1,9 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
+import { ActiveSpaceService } from '../../core/authorization/active-space.service';
+import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 @Component({
   selector: 'jf-forbidden',
@@ -12,13 +14,29 @@ import { CardModule } from 'primeng/card';
     <div class="wrap">
       <p-card>
         <div class="content">
-          <i class="pi pi-lock" aria-hidden="true"></i>
-          <h1>Acesso negado</h1>
-          <p>
-            Você não tem permissão para acessar esta área. Se acha que isto é um engano, fale com
-            um administrador do seu espaço.
-          </p>
-          <a routerLink="/"><p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-arrow-left" label="Voltar ao início" /></a>
+          @if (suspended()) {
+            <i class="pi pi-ban" aria-hidden="true"></i>
+            <h1>Espaço suspenso</h1>
+            <p>
+              O espaço {{ spaceName() }} está suspenso pela administração da plataforma. Esta área
+              volta a ficar disponível quando o espaço for reativado.
+            </p>
+          } @else {
+            <i class="pi pi-lock" aria-hidden="true"></i>
+            <h1>Acesso negado</h1>
+            <p>
+              Você não tem permissão para acessar esta área. Se acha que isto é um engano, fale com
+              um administrador do seu espaço.
+            </p>
+          }
+          <a routerLink="/"
+            ><p-button
+              size="small"
+              severity="secondary"
+              [outlined]="true"
+              icon="pi pi-arrow-left"
+              label="Voltar ao início"
+          /></a>
         </div>
       </p-card>
     </div>
@@ -54,4 +72,13 @@ import { CardModule } from 'primeng/card';
     `,
   ],
 })
-export class ForbiddenComponent {}
+export class ForbiddenComponent {
+  private readonly activeSpace = inject(ActiveSpaceService);
+  protected readonly suspended = computed(() => !!this.activeSpace.activeSpace()?.suspended);
+  protected readonly spaceName = computed(() => this.activeSpace.activeSpace()?.name ?? '');
+
+  constructor() {
+    // Sem isto a topbar ficava com o título da tela anterior.
+    inject(PageHeaderService).set(this.suspended() ? 'Espaço suspenso' : 'Acesso negado');
+  }
+}

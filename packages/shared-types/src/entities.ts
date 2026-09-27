@@ -14,6 +14,8 @@ export interface Profile {
   phone: string | null;
   isSuperAdmin: boolean;
   avatarUrl: string | null;
+  /** Concluiu o primeiro acesso (criou senha e completou os dados). */
+  onboardedAt?: IsoDateTime | null;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime | null;
 }
@@ -24,6 +26,10 @@ export interface Space {
   name: string;
   slug: string;
   status: 'active' | 'suspended';
+  /** Plano: máximo de processos não excluídos. */
+  maxProcesses: number;
+  /** Plano: máximo de processos com sincronização automática. */
+  maxTrackedProcesses: number;
   createdBy: Uuid | null;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime | null;
@@ -57,7 +63,11 @@ export interface SpaceInvite {
   role: SpaceRole;
   status: SpaceInviteStatus;
   token?: Uuid;
+  /** Link vale 24 h a partir do envio. */
   expiresAt: IsoDateTime;
+  sentAt?: IsoDateTime;
+  /** Quando a pessoa abriu o link (null = ainda não abriu). */
+  openedAt?: IsoDateTime | null;
 }
 
 /** Registro imutável da trilha de auditoria. */
@@ -77,11 +87,7 @@ export interface AuditLog {
 }
 
 export type WhatsappSessionStatus =
-  | 'disconnected'
-  | 'connecting'
-  | 'qr_ready'
-  | 'connected'
-  | 'failed';
+  'disconnected' | 'connecting' | 'qr_ready' | 'connected' | 'failed';
 
 /** Status da sessão WhatsApp (WAHA) de um espaço (`whatsapp_sessions`). */
 export interface WhatsappSession {

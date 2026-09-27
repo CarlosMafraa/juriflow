@@ -5,11 +5,17 @@ import { SUPABASE_CLIENT } from '../supabase/supabase-client';
 import { Logger } from '../observability/logger';
 import type { AuthContext, AuthStatus, Membership } from './auth.models';
 
+interface SpaceRef {
+  name: string;
+  status: 'active' | 'suspended';
+  setup_completed_at: string | null;
+}
+
 interface MembershipRow {
   space_id: string;
   role: Membership['role'];
   status: Membership['status'];
-  spaces: { name: string } | { name: string }[] | null;
+  spaces: SpaceRef | SpaceRef[] | null;
 }
 
 /**
@@ -40,10 +46,11 @@ export class AuthService {
     return {
       userId: ctx.userId,
       isSuperAdmin: ctx.profile?.isSuperAdmin ?? false,
+      // Espaço suspenso: o vínculo não concede nada (o banco já nega tudo).
       memberships: ctx.memberships.map((m) => ({
         spaceId: m.spaceId,
         role: m.role,
-        status: m.status,
+        status: m.spaceSuspended ? 'disabled' : m.status,
       })),
     };
   });
@@ -120,26 +127,31 @@ export class AuthService {
       await Promise.all([
         this.supabase
           .from('profiles')
-          .select('id, full_name, email, phone, is_super_admin, avatar_url, created_at, updated_at')
+          .select(
+            'id, full_name, email, phone, is_super_admin, avatar_url, onboarded_at, created_at, updated_at',
+          )
           .eq('id', userId)
           .maybeSingle(),
         this.supabase
           .from('space_members')
-          .select('space_id, role, status, spaces(name)')
+          .select('space_id, role, status, spaces(name, status, setup_completed_at)')
           .eq('profile_id', userId),
       ]);
 
     if (profileErr) throw profileErr;
     if (memberErr) throw memberErr;
 
-    const memberships: Membership[] = ((memberRows ?? []) as MembershipRow[]).map((row) => ({
-      spaceId: row.space_id,
-      role: row.role,
-      status: row.status,
-      spaceName: Array.isArray(row.spaces)
-        ? (row.spaces[0]?.name ?? null)
-        : (row.spaces?.name ?? null),
-    }));
+    const memberships: Membership[] = ((memberRows ?? []) as MembershipRow[]).map((row) => {
+      const space = Array.isArray(row.spaces) ? row.spaces[0] : row.spaces;
+      return {
+        spaceId: row.space_id,
+        role: row.role,
+        status: row.status,
+        spaceName: space?.name ?? null,
+        spaceSuspended: space?.status === 'suspended',
+        spaceSetupPending: !!space && !space.setup_completed_at,
+      };
+    });
 
     return {
       userId,
@@ -152,6 +164,7 @@ export class AuthService {
             phone: profileRow.phone,
             isSuperAdmin: profileRow.is_super_admin,
             avatarUrl: profileRow.avatar_url,
+            onboardedAt: profileRow.onboarded_at,
             createdAt: profileRow.created_at,
             updatedAt: profileRow.updated_at,
           }

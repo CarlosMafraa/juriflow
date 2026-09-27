@@ -6,7 +6,15 @@ export interface StoredMovement {
   readonly contentHash: string;
   readonly description: string;
   readonly occurredAt: string | null;
+  /** Tipo normalizado (título sem nome de parte); null se a fonte não separa. */
+  readonly movementType: string | null;
 }
+
+/** Movimentação pronta para gravar: hash de deduplicação e tipo já calculados. */
+export type MovementToInsert = RawMovement & {
+  readonly contentHash: string;
+  readonly movementType: string | null;
+};
 
 /** Porta de leitura/escrita de `process_movements`. */
 export interface MovementRepository {
@@ -17,9 +25,12 @@ export interface MovementRepository {
    * Insere só as movimentações cujo hash ainda não existe para o processo.
    * Retorna as que de fato foram inseridas (as novas), na ordem recebida.
    */
+  /** Movimentações já gravadas deste processo, pelos ids (para reenviar avisos). */
+  getByIds(processId: string, ids: readonly string[]): Promise<StoredMovement[]>;
+
   insertNewMovements(
     processId: string,
     spaceId: string,
-    movements: readonly (RawMovement & { readonly contentHash: string })[],
+    movements: readonly MovementToInsert[],
   ): Promise<StoredMovement[]>;
 }

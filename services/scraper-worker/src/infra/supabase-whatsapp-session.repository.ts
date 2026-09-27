@@ -72,7 +72,8 @@ export class SupabaseWhatsappSessionRepository implements WhatsappSessionReposit
       .from('whatsapp_sessions')
       .update(payload)
       .eq('space_id', spaceId);
-    if (error) throw new Error(`Falha ao atualizar whatsapp_sessions (${spaceId}): ${error.message}`);
+    if (error)
+      throw new Error(`Falha ao atualizar whatsapp_sessions (${spaceId}): ${error.message}`);
   }
 }
 

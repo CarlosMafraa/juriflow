@@ -4,6 +4,9 @@
  * (`GET/POST /api/sessions`, `GET /api/{session}/auth/qr`). Complementa o
  * `WahaNotifier`, que só cobre envio (`POST /api/sendText`).
  */
+/** Sem timeout, um WAHA travado prende o polling para sempre. */
+const WAHA_TIMEOUT_MS = 15_000;
+
 export type WahaSessionStatus = 'STARTING' | 'SCAN_QR_CODE' | 'WORKING' | 'FAILED' | 'STOPPED';
 
 export class WahaSessionGateway {
@@ -16,6 +19,7 @@ export class WahaSessionGateway {
   async getStatus(sessionName: string): Promise<WahaSessionStatus | null> {
     const response = await fetch(`${this.baseUrl}/api/sessions/${sessionName}`, {
       headers: { 'X-Api-Key': this.apiKey },
+      signal: AbortSignal.timeout(WAHA_TIMEOUT_MS),
     });
     if (response.status === 404) return null;
     if (!response.ok) throw new Error(await this.describeError(response, 'consultar sessão'));
@@ -30,11 +34,13 @@ export class WahaSessionGateway {
       ? await fetch(`${this.baseUrl}/api/sessions/${sessionName}/start`, {
           method: 'POST',
           headers: { 'X-Api-Key': this.apiKey },
+          signal: AbortSignal.timeout(WAHA_TIMEOUT_MS),
         })
       : await fetch(`${this.baseUrl}/api/sessions`, {
           method: 'POST',
           headers: { 'X-Api-Key': this.apiKey, 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: sessionName, start: true, config: {} }),
+          signal: AbortSignal.timeout(WAHA_TIMEOUT_MS),
         });
     if (!response.ok) throw new Error(await this.describeError(response, 'iniciar sessão'));
   }
@@ -43,6 +49,7 @@ export class WahaSessionGateway {
   async getQrBase64(sessionName: string): Promise<string> {
     const response = await fetch(`${this.baseUrl}/api/${sessionName}/auth/qr`, {
       headers: { 'X-Api-Key': this.apiKey },
+      signal: AbortSignal.timeout(WAHA_TIMEOUT_MS),
     });
     if (!response.ok) throw new Error(await this.describeError(response, 'obter QR code'));
     const buffer = Buffer.from(await response.arrayBuffer());
@@ -53,10 +60,12 @@ export class WahaSessionGateway {
     await fetch(`${this.baseUrl}/api/sessions/${sessionName}/logout`, {
       method: 'POST',
       headers: { 'X-Api-Key': this.apiKey },
+      signal: AbortSignal.timeout(WAHA_TIMEOUT_MS),
     }).catch(() => undefined);
     await fetch(`${this.baseUrl}/api/sessions/${sessionName}`, {
       method: 'DELETE',
       headers: { 'X-Api-Key': this.apiKey },
+      signal: AbortSignal.timeout(WAHA_TIMEOUT_MS),
     }).catch(() => undefined);
   }
 

@@ -1,4 +1,9 @@
-import { APP_INITIALIZER, ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
+import {
+  APP_INITIALIZER,
+  ApplicationConfig,
+  ErrorHandler,
+  provideZoneChangeDetection,
+} from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
@@ -11,6 +16,7 @@ import { provideSupabase } from './core/supabase/supabase-client';
 import { AuthService } from './core/auth/auth.service';
 import { requestIdInterceptor } from './core/http/request-id.interceptor';
 import { errorInterceptor } from './core/http/error.interceptor';
+import { GlobalErrorHandler } from './core/observability/global-error-handler';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -29,6 +35,7 @@ export const appConfig: ApplicationConfig = {
         },
       },
     }),
+    { provide: ErrorHandler, useClass: GlobalErrorHandler },
     MessageService,
     ConfirmationService,
     // Hidrata a sessão antes do primeiro render para os guards decidirem certo.

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Marca do JuriFlow: quadrado dourado (--jf-gold) com o prédio de colunas
+       (PrimeIcons "building-columns", MIT) em --jf-gold-foreground. -->
+  <rect width="32" height="32" rx="7" fill="#d7a040"/>
+  <path transform="translate(6 6)" d="M1 7L9.51436 2.2698C9.81639 2.10201 10.1836 2.10201 10.4856 2.2698L19 7M4.00001 10V15M8 7H12M8.00001 10V15M12 10V15M16 10V15M3.00001 18H17" fill="none" stroke="#2e1a01" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

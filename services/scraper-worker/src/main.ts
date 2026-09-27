@@ -8,7 +8,10 @@ import { SupabaseMovementRepository } from './infra/supabase-movement.repository
 import { SupabaseRecipientResolver } from './infra/supabase-recipient-resolver.js';
 import { SupabaseNotificationConfigResolver } from './infra/supabase-notification-config-resolver.js';
 import { SupabaseTemplateRepository } from './infra/supabase-template.repository.js';
+import { SupabaseMovementTypePolicy } from './infra/supabase-movement-type-policy.js';
 import { SupabaseNotificationLog } from './infra/supabase-notification-log.js';
+import { SupabaseWorkerStatus } from './infra/supabase-worker-status.js';
+import { ReportingDataSource } from './infra/reporting-data-source.js';
 import { WahaNotifier } from './infra/waha-notifier.js';
 import { WahaSessionGateway } from './infra/waha-session-gateway.js';
 import { SupabaseWhatsappSessionRepository } from './infra/supabase-whatsapp-session.repository.js';
@@ -17,6 +20,9 @@ import { TjamProjudiAdapter } from './adapters/tjam-projudi.adapter.js';
 import { TrackProcessUseCase } from './usecases/track-process.usecase.js';
 import { DailyCheckJob } from './jobs/daily-check.job.js';
 import { WhatsappSessionJob } from './jobs/whatsapp-session.job.js';
+import { CheckRequestJob } from './jobs/check-request.job.js';
+import { HeartbeatJob } from './jobs/heartbeat.job.js';
+import { SerialQueue } from './jobs/serial-queue.js';
 import { createHttpServer } from './http/server.js';
 
 /**
@@ -36,18 +42,25 @@ async function main(): Promise<void> {
   const notificationConfigResolver = new SupabaseNotificationConfigResolver(supabase);
   const templateRepository = new SupabaseTemplateRepository(supabase);
   const notificationLog = new SupabaseNotificationLog(supabase);
-  const notifier = new WahaNotifier(config.wahaBaseUrl, config.wahaApiKey);
+  const movementTypePolicy = new SupabaseMovementTypePolicy(supabase);
+  const notifier = new WahaNotifier(config.wahaBaseUrl, config.wahaApiKey, {
+    minIntervalMs: config.whatsappMinIntervalMs,
+    maxIntervalMs: config.whatsappMaxIntervalMs,
+  });
   const defaultTemplate = new GeneralMovementTemplate();
 
   const tjamAdapter = new TjamProjudiAdapter({
-    baseUrl: config.tjamProjudiBaseUrl,
     headless: config.scraperHeadless,
     logger,
   });
 
+  // Saúde do worker (P10): batimento + resultado da última consulta ao tribunal.
+  const workerStatus = new SupabaseWorkerStatus(supabase);
+  const reportingTjam = new ReportingDataSource(tjamAdapter, workerStatus, logger);
+
   const sourceRegistry = new SourceRegistry();
   // Único ponto de registro de fontes (ADR-0004). Uma nova fonte = 1 linha aqui.
-  sourceRegistry.register('projudi_tjam', () => tjamAdapter);
+  sourceRegistry.register('projudi_tjam', () => reportingTjam);
 
   const useCase = new TrackProcessUseCase(
     sourceRegistry,
@@ -58,19 +71,47 @@ async function main(): Promise<void> {
     templateRepository,
     notifier,
     notificationLog,
+    movementTypePolicy,
     defaultTemplate,
     logger,
   );
 
-  const dailyJob = new DailyCheckJob(useCase, processRepository, logger, config.scraperThrottleMs);
-  cron.schedule(config.dailyCheckCron, () => {
-    dailyJob
-      .run()
-      .catch((error) =>
-        logger.error('Rotina diária falhou de forma inesperada.', { error: String(error) }),
-      );
+  // Rotina diária, "consultar agora" e o endpoint HTTP dividem o mesmo
+  // navegador e a mesma fonte: toda coleta passa por esta fila única.
+  const trackingQueue = new SerialQueue();
+
+  const dailyJob = new DailyCheckJob(
+    useCase,
+    processRepository,
+    trackingQueue,
+    logger,
+    config.scraperThrottleMs,
+  );
+  cron.schedule(
+    config.dailyCheckCron,
+    () => {
+      dailyJob
+        .run()
+        .catch((error) =>
+          logger.error('Rotina diária falhou de forma inesperada.', { error: String(error) }),
+        );
+    },
+    { timezone: config.dailyCheckTimezone },
+  );
+  logger.info('Rotina diária agendada.', {
+    cron: config.dailyCheckCron,
+    timezone: config.dailyCheckTimezone,
   });
-  logger.info('Rotina diária agendada.', { cron: config.dailyCheckCron });
+
+  const checkRequestJob = new CheckRequestJob(useCase, processRepository, trackingQueue, logger);
+  const checkRequestInterval = setInterval(() => {
+    checkRequestJob.tick().catch((error) =>
+      logger.error('Polling de consultas manuais falhou de forma inesperada.', {
+        error: String(error),
+      }),
+    );
+  }, config.checkRequestPollMs);
+  logger.info('Polling de consultas manuais agendado.', { intervalMs: config.checkRequestPollMs });
 
   const whatsappSessionGateway = new WahaSessionGateway(config.wahaBaseUrl, config.wahaApiKey);
   const whatsappSessionRepository = new SupabaseWhatsappSessionRepository(supabase);
@@ -80,22 +121,32 @@ async function main(): Promise<void> {
     logger,
   );
   const whatsappSessionInterval = setInterval(() => {
-    whatsappSessionJob
-      .tick()
-      .catch((error) =>
-        logger.error('Polling de sessões WhatsApp falhou de forma inesperada.', {
-          error: String(error),
-        }),
-      );
+    whatsappSessionJob.tick().catch((error) =>
+      logger.error('Polling de sessões WhatsApp falhou de forma inesperada.', {
+        error: String(error),
+      }),
+    );
   }, config.wahaSessionPollMs);
   logger.info('Polling de sessões WhatsApp agendado.', { intervalMs: config.wahaSessionPollMs });
 
-  const server = createHttpServer(useCase, processRepository, logger);
+  const heartbeatJob = new HeartbeatJob(workerStatus, logger, config.healthcheckPingUrl);
+  const tickHeartbeat = (): void => {
+    void heartbeatJob.tick();
+  };
+  tickHeartbeat();
+  const heartbeatInterval = setInterval(tickHeartbeat, 60_000);
+  logger.info('Batimento do worker agendado.', {
+    monitorExterno: config.healthcheckPingUrl ? 'configurado' : 'NÃO configurado',
+  });
+
+  const server = createHttpServer(useCase, processRepository, trackingQueue, logger);
   server.listen(config.httpPort, () => logger.info('Worker no ar.', { port: config.httpPort }));
 
   const shutdown = async (): Promise<void> => {
     logger.info('Encerrando worker...');
     clearInterval(whatsappSessionInterval);
+    clearInterval(checkRequestInterval);
+    clearInterval(heartbeatInterval);
     server.close();
     await tjamAdapter.dispose();
     process.exit(0);

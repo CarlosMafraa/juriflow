@@ -23,7 +23,7 @@ export const COURT_TYPES = [
 ] as const;
 export type CourtType = (typeof COURT_TYPES)[number];
 
-export const RESPONSIBILITY_REASONS = ['process_created', 'transfer'] as const;
+export const RESPONSIBILITY_REASONS = ['process_created', 'transfer', 'added'] as const;
 export type ResponsibilityReason = (typeof RESPONSIBILITY_REASONS)[number];
 
 /** Catálogo global de tribunais. Sem `space_id`. */
@@ -41,14 +41,16 @@ export interface Court {
   updatedAt: IsoDateTime | null;
 }
 
-/** Processo jurídico. `assignedUserId` = responsável atual; `createdBy` = quem cadastrou. */
+/**
+ * Processo jurídico. `createdBy` = quem cadastrou. Os responsáveis (um ou
+ * mais) são os períodos abertos em `ProcessResponsibleHistoryEntry`.
+ */
 export interface Process {
   id: Uuid;
   spaceId: Uuid;
   cnjNumber: string | null;
   internalRef: string | null;
   courtId: Uuid;
-  assignedUserId: Uuid;
   createdBy: Uuid;
   status: ProcessStatus;
   /** Se falso, o worker de acompanhamento ignora o processo na rotina automática. */
@@ -72,7 +74,9 @@ export interface ProcessResponsibleHistoryEntry {
   assignedBy: Uuid | null;
   reason: ResponsibilityReason;
   startedAt: IsoDateTime;
+  /** NULL = responsável atual. */
   endedAt: IsoDateTime | null;
+  endedBy: Uuid | null;
   createdAt: IsoDateTime;
 }
 

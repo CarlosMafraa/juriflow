@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, guestGuard } from './core/auth/auth.guard';
-import { permissionGuard } from './core/authorization/permission.guard';
+import { permissionGuard, setupGuard, usersAreaGuard } from './core/authorization/permission.guard';
 import { AuthLayoutComponent } from './shared/layout/auth-layout.component';
 
 export const routes: Routes = [
@@ -22,11 +22,35 @@ export const routes: Routes = [
       import('./features/auth/reset-password.component').then((m) => m.ResetPasswordComponent),
   },
 
+  // ---- Primeiro acesso (link do convite): dados da pessoa e, para o ADMIN de
+  // escritório novo, dados do escritório. Fora do shell (sem menu). ----
+  {
+    path: 'primeiro-acesso',
+    loadComponent: () =>
+      import('./features/auth/first-access.component').then((m) => m.FirstAccessComponent),
+  },
+
+  // ---- Públicas (LGPD) — acessíveis logado ou não ----
+  {
+    path: 'privacidade',
+    data: { kind: 'privacy' },
+    title: 'Política de Privacidade — JuriFlow',
+    loadComponent: () =>
+      import('./features/legal/legal-page.component').then((m) => m.LegalPageComponent),
+  },
+  {
+    path: 'termos',
+    data: { kind: 'terms' },
+    title: 'Termos de Uso — JuriFlow',
+    loadComponent: () =>
+      import('./features/legal/legal-page.component').then((m) => m.LegalPageComponent),
+  },
+
   // ---- Autenticadas (shell com sidebar/header) ----
   {
     path: '',
     component: AuthLayoutComponent,
-    canActivate: [authGuard],
+    canActivate: [authGuard, setupGuard],
     children: [
       {
         path: '',
@@ -79,8 +103,10 @@ export const routes: Routes = [
           import('./features/clients/client-form.component').then((m) => m.ClientFormComponent),
       },
       {
-        // Catálogo global: visível a qualquer autenticado (SUPER_ADMIN gerencia).
+        // Catálogo global: só a plataforma. ADMIN/colaborador escolhem entre os
+        // tribunais ativos no cadastro do processo, sem tela própria.
         path: 'tribunais',
+        canActivate: [permissionGuard('platform.admin')],
         loadComponent: () =>
           import('./features/courts/court-list.component').then((m) => m.CourtListComponent),
       },
@@ -123,10 +149,9 @@ export const routes: Routes = [
           ),
       },
       {
-        // Sem permissionGuard de propósito: um usuário recém-convidado ainda não
-        // tem vínculo em nenhum espaço (por isso não teria `member.view`), mas
-        // precisa conseguir ver e aceitar o convite pendente nesta mesma tela.
+        // Só ADMIN — exceto quem ainda não tem espaço, que aceita convites aqui.
         path: 'configuracoes/usuarios',
+        canActivate: [usersAreaGuard],
         loadComponent: () =>
           import('./features/team/team-list.component').then((m) => m.TeamListComponent),
       },

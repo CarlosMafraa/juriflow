@@ -23,6 +23,8 @@ export class ActiveSpaceService {
         id: m.spaceId,
         name: m.spaceName ?? m.spaceId,
         role: m.role,
+        suspended: m.spaceSuspended,
+        setupPending: m.spaceSetupPending,
       })),
   );
 

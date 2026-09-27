@@ -20,6 +20,15 @@ export class ProfileService {
     if (error) throw error;
   }
 
+  /** Primeiro acesso concluído (senha criada e dados completos). */
+  async markOnboarded(id: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('profiles')
+      .update({ onboarded_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+  }
+
   /** Sempre sobrescreve `{userId}/avatar.{ext}` — sem acumular arquivos antigos. */
   async uploadAvatar(userId: string, file: File): Promise<string> {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();

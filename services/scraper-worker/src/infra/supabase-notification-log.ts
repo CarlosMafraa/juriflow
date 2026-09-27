@@ -5,8 +5,14 @@ import type { RecipientType } from '../ports/recipient-resolver.port.js';
 interface DeliveryKey {
   movementId: string;
   recipientType: RecipientType;
-  recipientClientId: string | null;
+  /** Cliente (recipient_client_id) ou perfil do responsável (recipient_profile_id). */
+  recipientId: string;
 }
+
+const RECIPIENT_COLUMN: Record<RecipientType, string> = {
+  client: 'recipient_client_id',
+  responsible: 'recipient_profile_id',
+};
 
 interface DeliveryWrite extends DeliveryKey {
   spaceId: string;
@@ -26,10 +32,22 @@ export class SupabaseNotificationLog implements NotificationLog {
   async wasAlreadySent(
     movementId: string,
     recipientType: RecipientType,
-    recipientClientId: string | null,
+    recipientId: string,
   ): Promise<boolean> {
-    const existing = await this.findExisting({ movementId, recipientType, recipientClientId });
+    const existing = await this.findExisting({ movementId, recipientType, recipientId });
     return existing?.status === 'sent';
+  }
+
+  async listRetryableMovementIds(processId: string, maxAttempts: number): Promise<string[]> {
+    const { data, error } = await this.client
+      .from('notification_deliveries')
+      .select('movement_id')
+      .eq('process_id', processId)
+      .eq('status', 'failed')
+      .lt('attempts', maxAttempts)
+      .returns<{ movement_id: string }[]>();
+    if (error) throw new Error(`Falha ao listar avisos para reenviar: ${error.message}`);
+    return [...new Set((data ?? []).map((r) => r.movement_id))];
   }
 
   async recordSent(input: {
@@ -37,7 +55,7 @@ export class SupabaseNotificationLog implements NotificationLog {
     processId: string;
     movementId: string;
     recipientType: RecipientType;
-    recipientClientId: string | null;
+    recipientId: string;
     phone: string;
   }): Promise<void> {
     await this.write(input, { status: 'sent', error: null, sentAt: new Date() });
@@ -48,25 +66,23 @@ export class SupabaseNotificationLog implements NotificationLog {
     processId: string;
     movementId: string;
     recipientType: RecipientType;
-    recipientClientId: string | null;
+    recipientId: string;
     phone: string;
     error: string;
   }): Promise<void> {
     await this.write(input, { status: 'failed', error: input.error, sentAt: null });
   }
 
-  private async findExisting(key: DeliveryKey): Promise<{ id: string; status: string } | null> {
-    let query = this.client
+  private async findExisting(
+    key: DeliveryKey,
+  ): Promise<{ id: string; status: string; attempts: number } | null> {
+    const { data, error } = await this.client
       .from('notification_deliveries')
-      .select('id, status')
+      .select('id, status, attempts')
       .eq('movement_id', key.movementId)
-      .eq('recipient_type', key.recipientType);
-
-    query = key.recipientClientId
-      ? query.eq('recipient_client_id', key.recipientClientId)
-      : query.is('recipient_client_id', null);
-
-    const { data, error } = await query.maybeSingle<{ id: string; status: string }>();
+      .eq('recipient_type', key.recipientType)
+      .eq(RECIPIENT_COLUMN[key.recipientType], key.recipientId)
+      .maybeSingle<{ id: string; status: string; attempts: number }>();
     if (error) throw new Error(`Falha ao consultar notification_deliveries: ${error.message}`);
     return data;
   }
@@ -77,6 +93,7 @@ export class SupabaseNotificationLog implements NotificationLog {
   ): Promise<void> {
     const existing = await this.findExisting(input);
     const payload = {
+      attempts: existing ? existing.attempts + 1 : 1,
       status: outcome.status,
       error: outcome.error,
       sent_at: outcome.sentAt?.toISOString() ?? null,
@@ -90,7 +107,7 @@ export class SupabaseNotificationLog implements NotificationLog {
           process_id: input.processId,
           movement_id: input.movementId,
           recipient_type: input.recipientType,
-          recipient_client_id: input.recipientClientId,
+          [RECIPIENT_COLUMN[input.recipientType]]: input.recipientId,
           ...payload,
         });
 

@@ -1,4 +1,5 @@
-export type WhatsappSessionStatus = 'disconnected' | 'connecting' | 'qr_ready' | 'connected' | 'failed';
+export type WhatsappSessionStatus =
+  'disconnected' | 'connecting' | 'qr_ready' | 'connected' | 'failed';
 
 export interface WhatsappSessionRow {
   readonly spaceId: string;

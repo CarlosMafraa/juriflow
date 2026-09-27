@@ -3,7 +3,7 @@
 -- Rode com: npm run db:test   (requer Docker + supabase start)
 -- =============================================================================
 begin;
-select plan(22);
+select plan(27);
 
 -- --- helper: define o "usuário logado" (claims do JWT). ----------------------
 -- A troca de ROLE é feita com `set local role` no próprio script (o runner
@@ -174,23 +174,51 @@ select throws_ok(
 select tests_as('00000000-0000-0000-0000-000000000001');
 
 select is(
-  (select count(*)::int from public.spaces),
+  (select count(*)::int from public.platform_spaces()),
   2,
-  'SUPER_ADMIN enxerga todos os espaços'
+  'SUPER_ADMIN sabe que todos os escritórios existem (pela lista da plataforma)'
 );
 select is(
-  (select count(*)::int from public.profiles),
-  4,
-  'SUPER_ADMIN enxerga todos os perfis'
+  (select count(*)::int from public.spaces where id = '10000000-0000-0000-0000-000000000002'),
+  0,
+  'SUPER_ADMIN não lê a tabela de um escritório do qual não faz parte'
+);
+select is(
+  (select count(*)::int from public.profiles where id = '00000000-0000-0000-0000-000000000004'),
+  0,
+  'SUPER_ADMIN não enxerga perfis de escritórios dos quais não faz parte'
 );
 select lives_ok(
-  $$ insert into public.spaces (name, slug) values ('Escritorio C', 'escritorio-c') $$,
-  'SUPER_ADMIN cria espaço'
+  $$ select * from public.create_space_for_admin('novo.admin@juriflow.test') $$,
+  'SUPER_ADMIN cria escritório convidando o ADMIN'
+);
+select throws_ok(
+  $$ select * from public.create_space_for_admin('super@juriflow.test') $$,
+  '42501', null,
+  'SUPER_ADMIN não pode se convidar como ADMIN de um escritório'
+);
+select throws_ok(
+  $$ insert into public.spaces (name, slug) values ('Direto', 'direto') $$,
+  '42501', null,
+  'Espaço só nasce pela RPC (INSERT direto bloqueado)'
+);
+-- (Neste roteiro o SUPER_ADMIN foi adicionado como colaborador do espaço A,
+-- então só os espaços B e C servem de prova.)
+select is(
+  (select count(*)::int from public.space_members
+   where space_id <> '10000000-0000-0000-0000-000000000001'),
+  0,
+  'SUPER_ADMIN não vê membros de espaços dos quais não faz parte'
+);
+select throws_ok(
+  $$ insert into public.space_members (space_id, profile_id, role, status)
+     values ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'ADMIN', 'active') $$,
+  '42501', null,
+  'SUPER_ADMIN não consegue se colocar dentro de um espaço'
 );
 select lives_ok(
-  $$ update public.spaces set status = 'suspended'
-     where id = '10000000-0000-0000-0000-000000000002' $$,
-  'SUPER_ADMIN suspende espaço'
+  $$ select public.platform_set_space_status('10000000-0000-0000-0000-000000000002', 'suspended') $$,
+  'SUPER_ADMIN suspende escritório (pela função da plataforma)'
 );
 
 -- ---- anônimo ----

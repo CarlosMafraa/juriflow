@@ -22,6 +22,8 @@ interface AuditLogRow {
 
 export interface AuditLogEntry extends AuditLog {
   actorName: string | null;
+  /** Número do processo / nome do cliente afetado, quando ainda visível. */
+  entityName: string | null;
 }
 
 export interface AuditFilters {
@@ -48,6 +50,7 @@ function toEntry(r: AuditLogRow): AuditLogEntry {
     context: r.context,
     createdAt: r.created_at,
     actorName: r.profiles?.full_name || r.profiles?.email || null,
+    entityName: null,
   };
 }
 
@@ -80,11 +83,41 @@ export class AuditService {
 
     const { data, error, count } = await q;
     if (error) throw error;
-    return {
-      rows: ((data ?? []) as unknown as AuditLogRow[]).map(toEntry),
-      total: count ?? 0,
-      page,
-      pageSize,
-    };
+    const rows = ((data ?? []) as unknown as AuditLogRow[]).map(toEntry);
+    await this.attachEntityNames(rows);
+    return { rows, total: count ?? 0, page, pageSize };
+  }
+
+  /**
+   * Muitas ações (arquivar, incluir responsável) não carregam o número do
+   * processo no próprio registro. Busca o identificador atual de processos e
+   * clientes da página — 2 consultas, não uma por linha.
+   */
+  private async attachEntityNames(rows: AuditLogEntry[]): Promise<void> {
+    const idsOf = (type: string) => [
+      ...new Set(rows.filter((r) => r.entityType === type && r.entityId).map((r) => r.entityId!)),
+    ];
+    const processIds = idsOf('process');
+    const clientIds = idsOf('client');
+    const [processes, clients] = await Promise.all([
+      processIds.length
+        ? this.supabase
+            .from('processes')
+            .select('id, cnj_number, internal_ref')
+            .in('id', processIds)
+        : Promise.resolve({ data: [] }),
+      clientIds.length
+        ? this.supabase.from('clients').select('id, name').in('id', clientIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+    const names = new Map<string, string>();
+    for (const p of (processes.data ?? []) as {
+      id: string;
+      cnj_number: string | null;
+      internal_ref: string | null;
+    }[])
+      names.set(p.id, p.cnj_number || p.internal_ref || '');
+    for (const c of (clients.data ?? []) as { id: string; name: string }[]) names.set(c.id, c.name);
+    for (const r of rows) r.entityName = (r.entityId && names.get(r.entityId)) || null;
   }
 }

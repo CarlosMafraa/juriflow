@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { GeneralMovementTemplate, PlaceholderMovementTemplate } from './message-template.js';
+import {
+  chunkForDigest,
+  GeneralMovementTemplate,
+  PlaceholderMovementTemplate,
+} from './message-template.js';
 
 describe('GeneralMovementTemplate', () => {
   it('inclui número do processo, data formatada e descrição da movimentação', () => {
@@ -42,5 +46,49 @@ describe('PlaceholderMovementTemplate', () => {
       movement: { description: 'x', occurredAt: null },
     });
     expect(message).toBe('ABC / ABC');
+  });
+});
+
+describe('mensagem agrupada (várias movimentações)', () => {
+  const movements = [
+    {
+      description: 'EXPEDIÇÃO DE INTIMAÇÃO\nPrazo de 15 dias',
+      occurredAt: '2025-10-31T17:57:30.000Z',
+    },
+    { description: 'ALVARÁ ENVIADO', occurredAt: '2026-09-08T14:41:19.000Z' },
+  ];
+
+  it('modelo padrão: cabeçalho com a quantidade e lista com data, tipo e detalhe', () => {
+    const text = new GeneralMovementTemplate().renderDigest({ cnjNumber: '123', movements });
+    expect(text).toBe(
+      'Olá! O processo 123 teve 2 movimentações:\n\n' +
+        '• 31/10/2025 — EXPEDIÇÃO DE INTIMAÇÃO\nPrazo de 15 dias\n\n' +
+        '• 08/09/2026 — ALVARÁ ENVIADO',
+    );
+  });
+
+  it('template do escritório: {{movimentacao}} vira a lista e {{data}} a mais recente', () => {
+    const template = new PlaceholderMovementTemplate(
+      '{{numero_processo}} ({{data}}):\n{{movimentacao}}',
+    );
+    const text = template.renderDigest({ cnjNumber: '123', movements });
+    expect(text.startsWith('123 (08/09/2026):\n• 31/10/2025 — EXPEDIÇÃO DE INTIMAÇÃO')).toBe(true);
+  });
+
+  it('uma movimentação só: igual à mensagem simples', () => {
+    const t = new GeneralMovementTemplate();
+    expect(t.renderDigest({ cnjNumber: '1', movements: [movements[1]] })).toBe(
+      t.render({ cnjNumber: '1', movement: movements[1] }),
+    );
+  });
+
+  it('divide por quantidade (10) e por tamanho do texto', () => {
+    const short = Array.from({ length: 23 }, () => ({ description: 'X', occurredAt: null }));
+    expect(chunkForDigest(short).map((c) => c.length)).toEqual([10, 10, 3]);
+    const long = Array.from({ length: 3 }, () => ({
+      description: 'Y'.repeat(2000),
+      occurredAt: null,
+    }));
+    expect(chunkForDigest(long).map((c) => c.length)).toEqual([1, 1, 1]);
   });
 });

@@ -25,4 +25,8 @@ export interface ProcessRepository {
   listTrackableProcesses(): Promise<TrackableProcess[]>;
   findTrackableProcessById(processId: string): Promise<TrackableProcess | null>;
   updateTrackingState(processId: string, update: TrackingStateUpdate): Promise<void>;
+  /** Pedidos de "consultar agora" pendentes (RN seção 39), mais antigos primeiro. */
+  listCheckRequestedIds(limit: number): Promise<string[]>;
+  /** Tira o processo da fila de consulta manual — com ou sem sucesso na coleta. */
+  clearCheckRequest(processId: string): Promise<void>;
 }

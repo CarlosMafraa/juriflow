@@ -4,7 +4,10 @@
 # Usa a imagem oficial do Playwright: já traz Chromium + as libs de sistema
 # necessárias para o modo headless (evita o problema clássico de "faltam .so"
 # ao instalar Playwright numa VPS crua).
-ARG PLAYWRIGHT_VERSION=1.47.2
+# DEVE ser igual à versão de `playwright` no package-lock.json: cada versão do
+# pacote procura o build de Chromium dela — versões diferentes = "Executable
+# doesn't exist" ao abrir o navegador no container.
+ARG PLAYWRIGHT_VERSION=1.63.0
 
 FROM mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy AS build
 WORKDIR /repo
@@ -40,4 +43,7 @@ COPY --from=build /repo/services/scraper-worker/dist ./dist
 COPY --from=build /repo/services/scraper-worker/package.json ./package.json
 
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+# O firewall do TJAM rejeita Chromium headless: o navegador roda "com janela"
+# numa tela virtual (Xvfb, já incluso na imagem do Playwright).
+ENV SCRAPER_HEADLESS=false
+CMD ["xvfb-run", "-a", "--server-args=-screen 0 1366x900x24", "node", "dist/main.js"]
