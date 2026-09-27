@@ -37,7 +37,6 @@ import {
   type LinkedClient,
   type MovementRow,
   type ProcessDetail,
-  TRACKING_SLOT_HOLD_DAYS,
 } from './process.service';
 import { ClientService } from '../clients/client.service';
 import { MovementTypeTogglesComponent } from '../settings/movement-type-toggles.component';
@@ -1016,11 +1015,13 @@ export class ProcessDetailComponent {
     const p = this.process();
     return !!p && (this.isAdmin() || p.createdBy === this.auth.userId());
   });
+  /** Carência anti-rodízio do plano do espaço (dias). */
+  private readonly holdDays = signal(30);
   /** Data em que a vaga de sincronização volta a ficar livre (anti-rodízio). */
   protected readonly slotHeldUntil = computed((): string | null => {
     const released = this.process()?.trackingReleasedAt;
     if (!released) return null;
-    const until = new Date(new Date(released).getTime() + TRACKING_SLOT_HOLD_DAYS * 86_400_000);
+    const until = new Date(new Date(released).getTime() + this.holdDays() * 86_400_000);
     return until.getTime() > Date.now() ? until.toLocaleDateString('pt-BR') : null;
   });
   private readonly reasonLabel: Record<HistoryRow['reason'], string> = {
@@ -1261,6 +1262,10 @@ export class ProcessDetailComponent {
       const tasks: Promise<unknown>[] = [
         this.service.listClients(p.id).then((c) => this.clients.set(c)),
         this.service
+          .planUsage()
+          .then((u) => this.holdDays.set(u.trackingHoldDays))
+          .catch(() => undefined),
+        this.service
           .movements(p.id)
           .then((m) => this.movements.set(m))
           .finally(() => this.movementsLoading.set(false)),
@@ -1465,10 +1470,11 @@ export class ProcessDetailComponent {
     confirmLabel: string;
     tone: 'danger';
   } {
-    const until = new Date(Date.now() + TRACKING_SLOT_HOLD_DAYS * 86_400_000);
+    const days = this.holdDays();
+    const until = new Date(Date.now() + days * 86_400_000);
     return {
       title: 'Desligar a sincronização automática',
-      message: `As movimentações do tribunal deixam de aparecer neste processo e os avisos delas param; as cadastradas à mão voltam a valer. A vaga do plano só fica livre em ${TRACKING_SLOT_HOLD_DAYS} dias (${until.toLocaleDateString('pt-BR')}) — religar este processo nesse período usa a mesma vaga.`,
+      message: `As movimentações do tribunal deixam de aparecer neste processo e os avisos delas param; as cadastradas à mão voltam a valer. A vaga do plano só fica livre em ${days} dias (${until.toLocaleDateString('pt-BR')}) — religar este processo nesse período usa a mesma vaga.`,
       confirmLabel: 'Desligar',
       tone: 'danger',
     };

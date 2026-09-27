@@ -55,6 +55,7 @@ export interface GrowthPoint {
 }
 
 export interface PlanGroup {
+  name: string;
   maxProcesses: number;
   maxTracked: number;
   spaces: number;
@@ -215,8 +216,10 @@ export class DashboardService {
   spacesByPlan(spaces: PlatformSpace[]): PlanGroup[] {
     const groups = new Map<string, PlanGroup>();
     for (const sp of spaces) {
-      const key = `${sp.maxProcesses}/${sp.maxTrackedProcesses}`;
+      // Pelo plano do catálogo (0049); exceções contam no plano de origem.
+      const key = sp.planId;
       const g = groups.get(key) ?? {
+        name: sp.planName,
         maxProcesses: sp.maxProcesses,
         maxTracked: sp.maxTrackedProcesses,
         spaces: 0,

@@ -81,6 +81,21 @@ select lives_ok($$ select public.update_manual_movement(
   current_date - 2, 'Audiência de conciliação', null) $$,
   'Quem cadastrou o processo corrige');
 reset role;
+
+-- ADMIN corrige e exclui mesmo sem ter cadastrado o processo (P1 é da colabA).
+select tests_as('00000000-0000-0000-0000-0000000000a1'); set local role authenticated;
+select lives_ok($$ select public.create_manual_movement('30000000-0000-0000-0000-000000000001',
+  current_date, 'Movimentação do ADMIN', null) $$, 'ADMIN cadastra manual');
+select lives_ok($$ select public.update_manual_movement(
+  (select id from public.process_movements where description = 'Movimentação do ADMIN'),
+  current_date, 'Movimentação do ADMIN corrigida', null) $$,
+  'ADMIN corrige movimentação de processo que não cadastrou');
+select lives_ok($$ select public.delete_manual_movement(
+  (select id from public.process_movements where description = 'Movimentação do ADMIN corrigida')) $$,
+  'ADMIN exclui movimentação de processo que não cadastrou');
+reset role;
+select ok(exists(select 1 from public.audit_logs where action = 'process.movement.manual.delete'),
+  'Exclusão auditada');
 select ok(exists(select 1 from public.audit_logs where action = 'process.movement.manual.update'),
   'Correção auditada');
 select ok(exists(select 1 from public.audit_logs where action = 'process.movement.manual.create'),

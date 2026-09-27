@@ -94,8 +94,8 @@ const BUILTIN_ROWS: Record<TemplateKind, TemplateRow[]> = {
     </div>
     <p class="hint">
       @if (kind() === 'birthday') {
-        Enviado no dia do aniversário (a partir das 9h) para a equipe e para os clientes que aceitam
-        avisos. Escolha qual template vale em Regras de notificação.
+        Enviado no dia do aniversário, às 9h (horário de Manaus), para a equipe e para os clientes
+        que aceitam avisos. Escolha qual template vale em Regras de notificação.
       }
       Placeholders disponíveis:
       @for (p of placeholders(); track p; let last = $last) {

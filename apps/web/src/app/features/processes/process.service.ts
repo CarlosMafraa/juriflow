@@ -31,10 +31,13 @@ export interface DeletedProcessRow {
 }
 
 export interface PlanUsage {
+  planName: string;
   maxProcesses: number;
   usedProcesses: number;
   maxTracked: number;
   usedTracked: number;
+  /** Anti-rodízio do plano: dias que a vaga fica presa depois de desligar. */
+  trackingHoldDays: number;
 }
 
 export interface ProcessDetail {
@@ -60,9 +63,6 @@ export interface ProcessDetail {
   /** Tinha movimentações manuais: a 1ª coleta registra o histórico sem avisar. */
   syncBaselinePending: boolean;
 }
-
-/** A vaga de sincronização fica presa por este tempo depois de desligar (anti-rodízio). */
-export const TRACKING_SLOT_HOLD_DAYS = 30;
 
 export interface ManualMovementInput {
   /** AAAA-MM-DD. */
@@ -343,12 +343,14 @@ export class ProcessService {
       .rpc('space_plan_usage', { p_space_id: this.spaceId() })
       .single();
     if (error) throw error;
-    const r = data as Record<string, number>;
+    const r = data as Record<string, number | string>;
     return {
-      maxProcesses: r['max_processes'] ?? 0,
-      usedProcesses: r['used_processes'] ?? 0,
-      maxTracked: r['max_tracked_processes'] ?? 0,
-      usedTracked: r['used_tracked'] ?? 0,
+      planName: (r['plan_name'] as string) ?? '',
+      maxProcesses: (r['max_processes'] as number) ?? 0,
+      usedProcesses: (r['used_processes'] as number) ?? 0,
+      maxTracked: (r['max_tracked_processes'] as number) ?? 0,
+      usedTracked: (r['used_tracked'] as number) ?? 0,
+      trackingHoldDays: (r['tracking_hold_days'] as number) ?? 30,
     };
   }
 

@@ -112,7 +112,7 @@ select throws_ok($$ insert into public.space_members (space_id, profile_id, role
   values ('10000000-0000-0000-0000-00000000000a','00000000-0000-0000-0000-0000000000f1','ADMIN','active') $$,
   '42501', null, 'SUPER_ADMIN não se coloca dentro do espaço');
 
-select lives_ok($$ select public.platform_set_space_plan('10000000-0000-0000-0000-00000000000a', 50, 10) $$,
+select lives_ok($$ select public.platform_set_space_plan('10000000-0000-0000-0000-00000000000a', (select id from public.plans where is_default), 50, 10) $$,
   'SUPER_ADMIN define o plano');
 select is(tests_rowcount($$ update public.spaces set name = 'Invasao'
   where id = '10000000-0000-0000-0000-00000000000a' $$), 0,

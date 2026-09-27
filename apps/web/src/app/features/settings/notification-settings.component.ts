@@ -97,8 +97,10 @@ const NO_TEMPLATE = '';
 
       <p-card header="Mensagem de aniversário" styleClass="types-card">
         <p class="hint">
-          No dia do aniversário, a partir das 9h, o WhatsApp do escritório envia os parabéns para a
-          equipe e para os clientes que aceitam avisos (quem tiver a data de nascimento cadastrada).
+          No dia do aniversário, às <strong>9h (horário de Manaus)</strong>, o WhatsApp do
+          escritório envia os parabéns para a equipe e para os clientes que aceitam avisos (quem
+          tiver a data de nascimento cadastrada). Se o WhatsApp estiver desconectado nessa hora, o
+          envio é tentado de novo a cada hora até as 20h.
         </p>
         <div class="birthday">
           @for (b of birthdayAudiences(); track b.audience) {

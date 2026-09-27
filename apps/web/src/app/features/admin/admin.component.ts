@@ -1,22 +1,45 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { InputTextModule } from 'primeng/inputtext';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToastService } from '../../shared/feedback/toast.service';
 import { DialogService } from '../../shared/ui/dialog.service';
 import { PageHeaderService } from '../../shared/layout/page-header.service';
 import { inviteStatus, type InviteStatusView } from '../team/invite-status';
-import { PlatformAdminService, type PlatformSpace } from './platform-admin.service';
+import {
+  PlatformAdminService,
+  type Plan,
+  type PlanInput,
+  type PlatformSpace,
+  type SpacePlanInput,
+} from './platform-admin.service';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-interface PlanDraft {
-  maxProcesses: number;
-  maxTrackedProcesses: number;
+type LimitField = 'maxProcesses' | 'maxTrackedProcesses' | 'trackingHoldDays';
+
+/** Linha em branco da tabela de planos (novo plano). */
+interface NewPlanRow extends Omit<Plan, 'id'> {
+  id: null;
+}
+
+const EMPTY_PLAN: PlanInput = {
+  name: '',
+  maxProcesses: 10,
+  maxTrackedProcesses: 3,
+  trackingHoldDays: 30,
+};
+
+/** Número do campo; vazio = null (na exceção: segue o plano). */
+function readNumber(event: Event): number | null {
+  const raw = (event.target as HTMLInputElement).value.trim();
+  if (raw === '') return null;
+  return Math.max(0, Math.floor(Number(raw) || 0));
 }
 
 /**
@@ -29,7 +52,9 @@ interface PlanDraft {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FormsModule,
     ReactiveFormsModule,
+    SelectModule,
     ButtonModule,
     CardModule,
     InputTextModule,
@@ -65,13 +90,86 @@ interface PlanDraft {
       </p>
     </p-card>
 
+    <p-card header="Planos" styleClass="section">
+      <p class="muted small top">
+        Cada escritório segue um plano: limite de processos, de processos com sincronização
+        automática e a carência anti-rodízio (dias que a vaga fica presa depois de desligar a
+        sincronização). Mudar um plano vale na hora para todos os escritórios dele.
+      </p>
+      <p-table [value]="planRows()" styleClass="p-datatable-sm">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Plano</th>
+            <th>Processos</th>
+            <th>Sincronizados</th>
+            <th>Carência (dias)</th>
+            <th>Escritórios</th>
+            <th></th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-p>
+          @let d = planDraft(p);
+          <tr>
+            <td>
+              <input
+                pInputText
+                class="name"
+                [attr.aria-label]="'Nome do plano ' + (p.name || 'novo')"
+                [placeholder]="p.id ? '' : 'Nome do novo plano'"
+                [value]="d.name"
+                (input)="setPlanName(p, $event)"
+              />
+              @if (p.isDefault) {
+                <p-tag severity="info" value="Padrão" styleClass="default-tag" />
+              }
+            </td>
+            @for (f of limitFields; track f.key) {
+              <td>
+                <input
+                  pInputText
+                  class="num"
+                  type="number"
+                  min="0"
+                  [attr.aria-label]="f.label + ' do plano ' + (p.name || 'novo')"
+                  [value]="d[f.key]"
+                  (input)="setPlanLimit(p, f.key, $event)"
+                />
+              </td>
+            }
+            <td>{{ p.id ? p.spacesCount : '—' }}</td>
+            <td class="actions">
+              <p-button
+                size="small"
+                [icon]="p.id ? 'pi pi-check' : 'pi pi-plus'"
+                [label]="p.id ? 'Salvar' : 'Adicionar plano'"
+                [disabled]="!planDirty(p)"
+                [loading]="savingPlanId() === (p.id ?? 'new')"
+                (onClick)="savePlanRow(p)"
+              />
+              @if (p.id && !p.isDefault) {
+                <p-button
+                  size="small"
+                  severity="secondary"
+                  [outlined]="true"
+                  icon="pi pi-trash"
+                  label="Excluir"
+                  (onClick)="deletePlan(p)"
+                />
+              }
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-card>
+
     <p-card header="Escritórios" styleClass="section">
       @if (loading()) {
         <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
       } @else {
         <p class="muted small">
           A plataforma só vê que o escritório existe, o administrador convidado, o status e o plano
-          — nunca o conteúdo.
+          — nunca o conteúdo. Exceção: preencha só o que for diferente do plano (vazio = segue o
+          plano).
         </p>
         <p-table [value]="spaces()" styleClass="p-datatable-sm">
           <ng-template pTemplate="header">
@@ -79,8 +177,8 @@ interface PlanDraft {
               <th>Escritório</th>
               <th>Administrador</th>
               <th>Status</th>
-              <th>Processos</th>
-              <th>Sincronizados</th>
+              <th>Plano</th>
+              <th>Exceção: processos · sincronizados · carência</th>
               <th></th>
             </tr>
           </ng-template>
@@ -112,26 +210,34 @@ interface PlanDraft {
                 />
               </td>
               <td>
-                <input
-                  pInputText
-                  class="num"
-                  type="number"
-                  min="0"
-                  [attr.aria-label]="'Limite de processos de ' + label(s)"
-                  [value]="draft(s).maxProcesses"
-                  (input)="setDraft(s, 'maxProcesses', $event)"
+                <p-select
+                  [options]="planOptions()"
+                  [ngModel]="draft(s).planId"
+                  (ngModelChange)="setDraftPlan(s, $event)"
+                  [attr.aria-label]="'Plano de ' + label(s)"
+                  appendTo="body"
                 />
+                <div class="muted small effective">
+                  Vale: {{ s.maxProcesses }} processos · {{ s.maxTrackedProcesses }} sincronizados ·
+                  {{ s.trackingHoldDays }} dias
+                  @if (hasOverride(s)) {
+                    <p-tag severity="warn" value="Exceção" />
+                  }
+                </div>
               </td>
-              <td>
-                <input
-                  pInputText
-                  class="num"
-                  type="number"
-                  min="0"
-                  [attr.aria-label]="'Limite de sincronizados de ' + label(s)"
-                  [value]="draft(s).maxTrackedProcesses"
-                  (input)="setDraft(s, 'maxTrackedProcesses', $event)"
-                />
+              <td class="overrides">
+                @for (f of limitFields; track f.key) {
+                  <input
+                    pInputText
+                    class="num"
+                    type="number"
+                    min="0"
+                    [attr.aria-label]="f.label + ' (exceção) de ' + label(s)"
+                    [placeholder]="planOf(draft(s).planId)?.[f.key] ?? ''"
+                    [value]="draft(s)[f.key] ?? ''"
+                    (input)="setDraftLimit(s, f.key, $event)"
+                  />
+                }
               </td>
               <td class="actions">
                 <p-button
@@ -223,6 +329,28 @@ interface PlanDraft {
       .num {
         width: 5.5rem;
       }
+      .name {
+        width: 12rem;
+      }
+      :host ::ng-deep .default-tag {
+        margin-left: 0.4rem;
+      }
+      .top {
+        margin: 0 0 0.75rem;
+      }
+      .effective {
+        margin: 0.35rem 0 0;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+      }
+      .overrides {
+        white-space: nowrap;
+      }
+      .overrides .num + .num {
+        margin-left: 0.3rem;
+      }
       .actions {
         white-space: nowrap;
         text-align: right;
@@ -244,7 +372,24 @@ export class AdminComponent {
   protected readonly resending = signal<string | null>(null);
   protected readonly savingPlan = signal<string | null>(null);
   protected readonly spaces = signal<PlatformSpace[]>([]);
-  private readonly planDrafts = signal<Record<string, PlanDraft>>({});
+  private readonly planDrafts = signal<Record<string, SpacePlanInput>>({});
+
+  protected readonly limitFields: { key: LimitField; label: string }[] = [
+    { key: 'maxProcesses', label: 'Processos' },
+    { key: 'maxTrackedProcesses', label: 'Sincronizados' },
+    { key: 'trackingHoldDays', label: 'Carência (dias)' },
+  ];
+  protected readonly plans = signal<Plan[]>([]);
+  /** Planos existentes + uma linha em branco para criar um novo. */
+  protected readonly planRows = computed((): (Plan | NewPlanRow)[] => [
+    ...this.plans(),
+    { id: null, ...EMPTY_PLAN, isDefault: false, spacesCount: 0 },
+  ]);
+  protected readonly planOptions = computed(() =>
+    this.plans().map((p) => ({ label: p.name, value: p.id })),
+  );
+  protected readonly savingPlanId = signal<string | null>(null);
+  private readonly catalogDrafts = signal<Record<string, PlanInput>>({});
 
   protected readonly form = this.fb.nonNullable.group({ adminEmail: '' });
 
@@ -307,30 +452,139 @@ export class AdminComponent {
     }
   }
 
-  protected draft(s: PlatformSpace): PlanDraft {
+  // ---------------------------------------------------------------- catálogo
+  protected planOf(id: string): Plan | undefined {
+    return this.plans().find((p) => p.id === id);
+  }
+
+  protected planDraft(p: Plan | NewPlanRow): PlanInput {
     return (
-      this.planDrafts()[s.id] ?? {
-        maxProcesses: s.maxProcesses,
-        maxTrackedProcesses: s.maxTrackedProcesses,
+      this.catalogDrafts()[p.id ?? 'new'] ?? {
+        name: p.name,
+        maxProcesses: p.maxProcesses,
+        maxTrackedProcesses: p.maxTrackedProcesses,
+        trackingHoldDays: p.trackingHoldDays,
       }
     );
   }
 
-  protected setDraft(s: PlatformSpace, field: keyof PlanDraft, event: Event): void {
-    const value = Math.max(0, Math.floor(Number((event.target as HTMLInputElement).value) || 0));
+  protected setPlanName(p: Plan | NewPlanRow, event: Event): void {
+    const name = (event.target as HTMLInputElement).value;
+    this.catalogDrafts.update((all) => ({
+      ...all,
+      [p.id ?? 'new']: { ...this.planDraft(p), name },
+    }));
+  }
+
+  protected setPlanLimit(p: Plan | NewPlanRow, field: LimitField, event: Event): void {
+    const value = readNumber(event) ?? 0;
+    this.catalogDrafts.update((all) => ({
+      ...all,
+      [p.id ?? 'new']: { ...this.planDraft(p), [field]: value },
+    }));
+  }
+
+  protected planDirty(p: Plan | NewPlanRow): boolean {
+    const d = this.planDraft(p);
+    if (!d.name.trim()) return false;
+    return (
+      d.name.trim() !== p.name ||
+      d.maxProcesses !== p.maxProcesses ||
+      d.maxTrackedProcesses !== p.maxTrackedProcesses ||
+      d.trackingHoldDays !== p.trackingHoldDays
+    );
+  }
+
+  protected async savePlanRow(p: Plan | NewPlanRow): Promise<void> {
+    const key = p.id ?? 'new';
+    this.savingPlanId.set(key);
+    try {
+      await this.service.savePlan(p.id, this.planDraft(p));
+      this.toast.success(
+        p.id ? `Plano "${this.planDraft(p).name.trim()}" atualizado.` : 'Plano criado.',
+      );
+      this.catalogDrafts.update(({ [key]: _, ...rest }) => rest);
+      await this.load();
+    } catch (err) {
+      const message = (err as { message?: string; code?: string }) ?? {};
+      this.toast.error(
+        message.code === '23505'
+          ? 'Já existe um plano com esse nome.'
+          : message.code === '23514'
+            ? 'Confira os números do plano (carência entre 0 e 365 dias).'
+            : 'Não foi possível salvar o plano.',
+      );
+    } finally {
+      this.savingPlanId.set(null);
+    }
+  }
+
+  protected async deletePlan(p: Plan): Promise<void> {
+    const ok = await this.dialogs.confirm({
+      title: 'Excluir plano',
+      message: `Excluir o plano "${p.name}"?`,
+      confirmLabel: 'Excluir',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await this.service.deletePlan(p.id);
+      this.toast.success('Plano excluído.');
+      await this.load();
+    } catch (err) {
+      const message = (err as { message?: string; code?: string }) ?? {};
+      this.toast.error(
+        message.code === '23514' && message.message
+          ? message.message
+          : 'Não foi possível excluir o plano.',
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------- escritórios
+  protected hasOverride(s: PlatformSpace): boolean {
+    return (
+      s.overrideMaxProcesses !== null ||
+      s.overrideMaxTrackedProcesses !== null ||
+      s.overrideTrackingHoldDays !== null
+    );
+  }
+
+  protected draft(s: PlatformSpace): SpacePlanInput {
+    return (
+      this.planDrafts()[s.id] ?? {
+        planId: s.planId,
+        maxProcesses: s.overrideMaxProcesses,
+        maxTrackedProcesses: s.overrideMaxTrackedProcesses,
+        trackingHoldDays: s.overrideTrackingHoldDays,
+      }
+    );
+  }
+
+  protected setDraftPlan(s: PlatformSpace, planId: string): void {
+    this.planDrafts.update((all) => ({ ...all, [s.id]: { ...this.draft(s), planId } }));
+  }
+
+  protected setDraftLimit(s: PlatformSpace, field: LimitField, event: Event): void {
+    const value = readNumber(event);
     this.planDrafts.update((all) => ({ ...all, [s.id]: { ...this.draft(s), [field]: value } }));
   }
 
   protected planChanged(s: PlatformSpace): boolean {
     const d = this.draft(s);
-    return d.maxProcesses !== s.maxProcesses || d.maxTrackedProcesses !== s.maxTrackedProcesses;
+    return (
+      d.planId !== s.planId ||
+      d.maxProcesses !== s.overrideMaxProcesses ||
+      d.maxTrackedProcesses !== s.overrideMaxTrackedProcesses ||
+      d.trackingHoldDays !== s.overrideTrackingHoldDays
+    );
   }
 
   protected async savePlan(s: PlatformSpace): Promise<void> {
     const d = this.draft(s);
     this.savingPlan.set(s.id);
     try {
-      await this.service.updatePlan(s.id, d.maxProcesses, d.maxTrackedProcesses);
+      await this.service.setSpacePlan(s.id, d);
       this.toast.success(`Plano de "${this.label(s)}" atualizado.`);
       this.planDrafts.update(({ [s.id]: _, ...rest }) => rest);
       await this.load();
@@ -363,7 +617,12 @@ export class AdminComponent {
 
   private async load(): Promise<void> {
     try {
-      this.spaces.set(await this.service.listSpaces());
+      const [spaces, plans] = await Promise.all([
+        this.service.listSpaces(),
+        this.service.listPlans(),
+      ]);
+      this.spaces.set(spaces);
+      this.plans.set(plans);
     } catch {
       this.toast.error('Não foi possível carregar os escritórios.');
     } finally {
