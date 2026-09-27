@@ -1,72 +1,44 @@
-# Infra da VPS — WAHA + scraper-worker (MVP)
+# Servidor do worker — WAHA + scraper-worker
 
-Uma VPS única roda 2 containers via Docker Compose: o WAHA (sessão do
-WhatsApp) e o `scraper-worker` (coleta Projudi/TJAM + envio de notificações).
-O banco (Supabase) fica na nuvem, fora desta VPS.
+Uma máquina sempre ligada roda 2 containers com Docker Compose: o **WAHA**
+(sessões do WhatsApp, uma por escritório) e o **scraper-worker** (coleta na
+consulta pública do TJAM + envio das notificações). O banco fica no Supabase,
+fora desta máquina.
 
-## Pré-requisitos na VPS
+Pode ser um **computador em casa** (recomendado para começar: o firewall do
+TJAM aceitou IP residencial no teste real) ou uma **VPS**. O passo a passo
+completo, com o mapa de todas as variáveis, está em
+[`docs/DEPLOY.md`](../../docs/DEPLOY.md) (seção 4).
 
-- Docker + Docker Compose plugin instalados.
-- Acesso SSH (para o túnel do QR code — nunca exponha as portas publicamente).
+## Resumo
 
-## Passo a passo
+```bash
+cp .env.example .env      # preencher: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+                          # WAHA_API_KEY (openssl rand -hex 32), HEALTHCHECK_PING_URL
+docker compose up -d --build
+docker compose ps         # nenhuma porta 0.0.0.0 publicada
+docker compose logs -f scraper-worker
+```
 
-1. **Supabase Cloud** (fora desta VPS, uma vez só):
+## Como funciona
 
-   ```bash
-   npx supabase link --project-ref <seu-projeto>
-   npx supabase db push
-   ```
-
-   Copie a `service_role` key do painel do projeto (Settings → API) — vai para
-   `SUPABASE_SERVICE_ROLE_KEY` abaixo. **Nunca** essa key no frontend.
-
-2. **Clonar o repo na VPS** e copiar o env:
-
-   ```bash
-   cp infra/vps/.env.example infra/vps/.env
-   # editar infra/vps/.env com os valores reais (Supabase, WAHA_API_KEY forte)
-   ```
-
-3. **Subir os containers**:
-
-   ```bash
-   cd infra/vps
-   docker compose up -d --build
-   ```
-
-4. **Conectar o WhatsApp (QR code)** — feito pelo ADMIN de cada espaço, direto
-   no app, em `/configuracoes/whatsapp`: ele clica em "Conectar", o
-   scraper-worker abre uma sessão nomeada para aquele espaço no WAHA (rede
-   interna do compose), busca o QR code e grava em `whatsapp_sessions`
-   (Supabase); a tela do app mostra o QR e atualiza o status assim que a
-   sessão conecta. A porta do WAHA não é exposta publicamente — só o
-   scraper-worker fala com ele. Para depuração administrativa avulsa (não é
-   o fluxo normal de conexão), ainda é possível abrir um túnel SSH:
-
-   ```bash
-   ssh -L 3000:localhost:3000 usuario@sua-vps
-   ```
-
-5. **Verificar que o worker está no ar** (ainda pelo túnel, na porta do
-   worker — ajuste a porta local do túnel se usar as duas ao mesmo tempo):
-   ```bash
-   curl http://localhost:3000/health
-   ```
+- **Nenhuma porta pública.** O app fala com o worker só pelo banco:
+  "Conectar WhatsApp" grava em `whatsapp_sessions` e "Consultar agora" em
+  `processes.check_requested_at`; o worker consulta essas filas.
+- **WhatsApp**: o ADMIN de cada escritório conecta pelo app
+  (`/configuracoes/whatsapp`) — o worker abre a sessão no WAHA, busca o QR code
+  e grava no banco; a tela mostra o QR e o status.
+- **TJAM**: o Chromium roda "com janela" numa tela virtual (`xvfb-run`), porque
+  o firewall do tribunal rejeita navegador headless.
+- **Saúde**: batimento a cada minuto no banco (painel da plataforma) e ping no
+  monitor externo (`HEALTHCHECK_PING_URL`), que avisa se o worker parar.
+- **Rotina diária**: `DAILY_CHECK_CRON` no fuso `DAILY_CHECK_TIMEZONE`
+  (padrão 08:00, America/Manaus).
 
 ## Operação
 
 - Logs: `docker compose logs -f scraper-worker`
-- A rotina diária roda sozinha (cron dentro do próprio worker, `DAILY_CHECK_CRON`
-  no fuso `DAILY_CHECK_TIMEZONE`, padrão `America/Manaus`).
-- "Consultar agora" no app grava o pedido em `processes.check_requested_at`; o
-  worker consome a fila a cada `CHECK_REQUEST_POLL_MS` (sem porta pública).
-  Para depuração avulsa ainda dá para usar o túnel SSH até a porta do worker e
-  `curl -X POST http://localhost:<porta>/check/<process-id>`.
-- Atualização de código: `git pull && docker compose up -d --build`.
-
-## Fora do escopo desta fase
-
-Rate limiting/CSP no worker (RN seção 16, "Hardening"), rotação de secrets,
-HTTPS público (não há endpoint público ainda), múltiplas VPS/alta
-disponibilidade.
+- Atualizar: `git pull && docker compose up -d --build`
+- Depuração avulsa (opcional, só numa VPS): túnel SSH até a porta interna,
+  ex.: `ssh -L 3000:localhost:3000 usuario@servidor` e
+  `curl http://localhost:3000/health`.

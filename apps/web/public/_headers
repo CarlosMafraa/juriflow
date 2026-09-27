@@ -1,0 +1,14 @@
+# Cloudflare (Workers static assets) — cabeçalhos de segurança (docs/DEPLOY.md, seção 3).
+# O Angular copia este arquivo para a raiz do build (apps/web/dist/web/browser).
+# Rotas do SPA: `not_found_handling: "single-page-application"` no
+# wrangler.jsonc — recarregar /processos/<id> devolve o index.html.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+
+# index.html nunca em cache: um deploy novo aparece na hora.
+/index.html
+  Cache-Control: no-cache

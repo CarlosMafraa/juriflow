@@ -34,6 +34,11 @@ services:
       - .env
     depends_on:
       - waha
+    # Recomendações do Playwright para Chromium em Docker: /dev/shm padrão
+    # (64 MB) derruba o navegador em páginas grandes; `init` recolhe os
+    # processos filhos do Chromium/Xvfb.
+    shm_size: 1gb
+    init: true
     # É o único componente que conhece a WAHA_API_KEY: fala com o WAHA na
     # rede interna do compose, atende os pedidos de conexão/QR/status gravados
     # em whatsapp_sessions e envia mensagens usando a sessão do espaço do

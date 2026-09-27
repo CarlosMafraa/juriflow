@@ -84,13 +84,13 @@ Legenda dos testes: `pgTAP 000N` = `supabase/tests/000N_*.test.sql`;
 
 ## 6. Forma de trabalho
 
-| #   | Regra                                                                                     |
-| --- | ----------------------------------------------------------------------------------------- |
-| T1  | Toda tela nova é testada no navegador (E2E), não só com build/typecheck.                  |
-| T2  | Nunca commitar direto na `master`: trabalhar em branch e dar push.                        |
-| T3  | Commits e PRs sem menção a IA.                                                            |
-| T4  | Preferir componentes de biblioteca (PrimeNG) quando facilitarem a manutenção.             |
-| T5  | Topologia da v1: frontend na Vercel, worker + WAHA em container, banco no Supabase Cloud. |
+| #   | Regra                                                                                                                                                                                                                                                                       |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T1  | Toda tela nova é testada no navegador (E2E), não só com build/typecheck.                                                                                                                                                                                                    |
+| T2  | Nunca commitar direto na `master`: trabalhar em branch e dar push.                                                                                                                                                                                                          |
+| T3  | Commits e PRs sem menção a IA.                                                                                                                                                                                                                                              |
+| T4  | Preferir componentes de biblioteca (PrimeNG) quando facilitarem a manutenção.                                                                                                                                                                                               |
+| T5  | Topologia da v1: frontend na **Cloudflare** (Workers só com arquivos estáticos) (Vercel Hobby proíbe uso comercial), worker + WAHA em Docker num computador sempre ligado (casa) ou VPS, banco no Supabase, e-mail pelo Resend, alerta pelo Healthchecks.io. Ver DEPLOY.md. |
 
 ---
 

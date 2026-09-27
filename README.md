@@ -16,7 +16,7 @@ Fonte Processual → Coletor → Normalizador → Processo/Estado → Histórico
 > processos/clientes/tribunais e auditoria estão prontos. O MVP corta escopo
 > do roadmap original (ver [ADR-0007](docs/adr/0007-mvp-tjam-projudi-scraping.md)):
 > só coleta Projudi/TJAM (sem DataJud), rodando num worker separado
-> (`services/scraper-worker`) numa VPS própria, com WAHA para o envio real de
+> (`services/scraper-worker`) num servidor próprio (casa ou VPS), com WAHA para o envio real de
 > WhatsApp. Plano completo: [`docs/PLANO-FASE-1.md`](docs/PLANO-FASE-1.md).
 
 ## Stack
@@ -44,9 +44,9 @@ juriflow/
 │  ├─ domain/             # autorização centralizada (RBAC) + catálogo de auditoria
 │  └─ collectors-core/    # porta ProcessDataSource + SourceRegistry
 ├─ services/
-│  └─ scraper-worker/     # worker Node (Playwright + WAHA) — roda numa VPS, não no Supabase
+│  └─ scraper-worker/     # worker Node (Playwright + WAHA) — roda num servidor próprio, não no Supabase
 ├─ infra/
-│  └─ vps/                # docker-compose + guia de deploy do worker/WAHA
+│  └─ vps/                # docker-compose do worker/WAHA (casa ou VPS)
 ├─ supabase/
 │  ├─ migrations/         # SQL versionado — schema, RLS, funções, triggers
 │  ├─ tests/              # pgTAP — isolamento por espaço, papéis, append-only
@@ -167,8 +167,10 @@ Ocultar uma opção de menu **não** substitui autorização no backend.
 
 - [`docs/REGRAS-DE-NEGOCIO.md`](docs/REGRAS-DE-NEGOCIO.md) — **regras do produto**:
   confira qualquer mudança contra elas antes de subir.
+- [`docs/REQUISITOS.md`](docs/REQUISITOS.md) — **tudo que a aplicação precisa**: serviços,
+  máquinas, versões, rede, segredos e o que cada escritório precisa ter.
 - [`docs/DEPLOY.md`](docs/DEPLOY.md) — checklist de produção (Supabase Cloud,
-  frontend, VPS do worker/WAHA, smoke test).
+  Cloudflare, servidor do worker/WAHA, Resend, Healthchecks, smoke test e mapa de variáveis).
 - [`docs/PLANO-FASE-1.md`](docs/PLANO-FASE-1.md) — análise, arquitetura, modelo de
   dados, roadmap, decisões pendentes, riscos.
 - [`docs/adr/`](docs/adr/) — decisões arquiteturais (stack, monorepo, RBAC, fontes
