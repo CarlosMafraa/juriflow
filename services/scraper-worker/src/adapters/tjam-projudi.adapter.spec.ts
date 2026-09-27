@@ -37,15 +37,17 @@ const PAGE = `
 </table>`;
 
 describe('readMovementTable (estrutura da consulta pública do TJAM)', () => {
-  let browser: Browser;
+  let browser: Browser | undefined;
   beforeAll(async () => {
     browser = await chromium.launch({ headless: true });
   });
   afterAll(async () => {
-    await browser.close();
+    // Se o navegador nem abriu, o erro que importa é o do beforeAll.
+    await browser?.close();
   });
 
   async function read(): Promise<Awaited<ReturnType<typeof readMovementTable>>> {
+    if (!browser) throw new Error('Chromium não abriu (npx playwright install chromium).');
     const page = await browser.newPage();
     await page.setContent(PAGE);
     try {

@@ -32,6 +32,11 @@ jobs:
       - name: Build (pacotes + Angular)
         run: npm run build
 
+      # O teste do scraper lê uma página com a estrutura do TJAM num Chromium
+      # de verdade (sem acessar o tribunal): o runner não traz o navegador.
+      - name: Navegador para os testes do scraper
+        run: npx playwright install --with-deps --only-shell chromium
+
       - name: Testes de pacotes (Vitest)
         run: npm test
 
