@@ -3,7 +3,7 @@
 // (`__WEB_SUPABASE_URL__`, `__WEB_SUPABASE_ANON_KEY__`) pelos valores das
 // variáveis de ambiente do pipeline de deploy, direto no bundle gerado.
 //
-// Funciona em qualquer hospedagem (Vercel, container nginx, S3...): basta
+// Funciona em qualquer hospedagem (Cloudflare, nginx, S3...): basta
 // definir WEB_SUPABASE_URL e WEB_SUPABASE_ANON_KEY no ambiente do build.
 //   - Variáveis ausentes: avisa e deixa os placeholders (o app mostra uma tela
 //     de "configuração ausente" em vez de quebrar). Com REQUIRE_WEB_ENV=true

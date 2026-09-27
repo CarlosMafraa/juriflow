@@ -1,0 +1,13 @@
+// Cloudflare Workers — só arquivos estáticos (o frontend Angular), sem código
+// de servidor: nenhuma requisição é cobrada. Build e variáveis: docs/DEPLOY.md,
+// seção 3.
+{
+  "name": "juriflow",
+  "compatibility_date": "2026-09-26",
+  "assets": {
+    // Saída do `npm run build` (apps/web). Inclui o `_headers` de segurança.
+    "directory": "./apps/web/dist/web/browser",
+    // Rota desconhecida (ex.: /processos/<id>) devolve o index.html do SPA.
+    "not_found_handling": "single-page-application"
+  }
+}
