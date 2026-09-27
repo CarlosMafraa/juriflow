@@ -19,14 +19,15 @@ order by c.relname;
 
 -- authenticated (app logado): toda tabela tem ao menos SELECT, exceto as
 -- internas do worker: a saúde (só a plataforma, pela função
--- platform_worker_status) e a fila de avisos pendentes (0046).
+-- platform_worker_status), a fila de avisos pendentes (0046) e o registro
+-- dos parabéns de aniversário (0048).
 select ok(
   has_table_privilege('authenticated', format('public.%I', c.relname), 'SELECT'),
   format('authenticated lê public.%s (a RLS decide as linhas)', c.relname)
 )
 from pg_class c
 join pg_namespace n on n.oid = c.relnamespace
-where n.nspname = 'public' and c.relkind = 'r' and c.relname not in ('worker_status', 'notification_catchup_requests')
+where n.nspname = 'public' and c.relkind = 'r' and c.relname not in ('worker_status', 'notification_catchup_requests', 'birthday_greetings')
 order by c.relname;
 
 select * from finish();

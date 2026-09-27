@@ -16,6 +16,7 @@ import { WahaNotifier } from './infra/waha-notifier.js';
 import { WahaSessionGateway } from './infra/waha-session-gateway.js';
 import { SupabaseWhatsappSessionRepository } from './infra/supabase-whatsapp-session.repository.js';
 import { SupabaseNotificationCatchupQueue } from './infra/supabase-notification-catchup-queue.js';
+import { SupabaseBirthdayRepository } from './infra/supabase-birthday.repository.js';
 import { GeneralMovementTemplate } from './domain/message-template.js';
 import { TjamProjudiAdapter } from './adapters/tjam-projudi.adapter.js';
 import { TrackProcessUseCase } from './usecases/track-process.usecase.js';
@@ -23,6 +24,7 @@ import { DailyCheckJob } from './jobs/daily-check.job.js';
 import { WhatsappSessionJob } from './jobs/whatsapp-session.job.js';
 import { CheckRequestJob } from './jobs/check-request.job.js';
 import { NotificationCatchupJob } from './jobs/notification-catchup.job.js';
+import { BirthdayJob } from './jobs/birthday.job.js';
 import { HeartbeatJob } from './jobs/heartbeat.job.js';
 import { SerialQueue } from './jobs/serial-queue.js';
 import { createHttpServer } from './http/server.js';
@@ -106,6 +108,27 @@ async function main(): Promise<void> {
     cron: config.dailyCheckCron,
     timezone: config.dailyCheckTimezone,
   });
+
+  const birthdayJob = new BirthdayJob(
+    new SupabaseBirthdayRepository(supabase),
+    whatsappSessionRepository,
+    notifier,
+    trackingQueue,
+    logger,
+    config.dailyCheckTimezone,
+  );
+  cron.schedule(
+    config.birthdayCron,
+    () => {
+      birthdayJob.run().catch((error) =>
+        logger.error('Parabéns de aniversário falharam de forma inesperada.', {
+          error: String(error),
+        }),
+      );
+    },
+    { timezone: config.dailyCheckTimezone },
+  );
+  logger.info('Parabéns de aniversário agendados.', { cron: config.birthdayCron });
 
   const checkRequestJob = new CheckRequestJob(useCase, processRepository, trackingQueue, logger);
   const checkRequestInterval = setInterval(() => {

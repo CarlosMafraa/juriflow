@@ -4,6 +4,8 @@ import { SUPABASE_CLIENT } from '../../core/supabase/supabase-client';
 export interface ProfileUpdateInput {
   fullName: string;
   phone: string | null;
+  /** Ausente = não mexe (o primeiro acesso não pergunta). */
+  birthDate?: string | null;
 }
 
 const AVATAR_BUCKET = 'avatars';
@@ -15,7 +17,11 @@ export class ProfileService {
   async updateProfile(id: string, input: ProfileUpdateInput): Promise<void> {
     const { error } = await this.supabase
       .from('profiles')
-      .update({ full_name: input.fullName.trim(), phone: input.phone })
+      .update({
+        full_name: input.fullName.trim(),
+        phone: input.phone,
+        ...(input.birthDate !== undefined ? { birth_date: input.birthDate } : {}),
+      })
       .eq('id', id);
     if (error) throw error;
   }

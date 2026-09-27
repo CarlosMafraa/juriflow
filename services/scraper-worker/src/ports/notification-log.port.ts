@@ -6,7 +6,8 @@ export interface DeliveryRecord {
   readonly recipientType: RecipientType;
   /** Cliente ou perfil do responsável. */
   readonly recipientId: string;
-  readonly status: 'sent' | 'failed';
+  /** skipped = histórico registrado sem aviso (já informado à mão, N13). */
+  readonly status: 'sent' | 'failed' | 'skipped';
   readonly attempts: number;
 }
 
@@ -20,6 +21,15 @@ export interface NotificationLog {
   listDeliveries(processId: string): Promise<readonly DeliveryRecord[]>;
 
   recordSent(input: {
+    spaceId: string;
+    processId: string;
+    movementId: string;
+    recipientType: RecipientType;
+    recipientId: string;
+    phone: string;
+  }): Promise<void>;
+
+  recordSkipped(input: {
     spaceId: string;
     processId: string;
     movementId: string;

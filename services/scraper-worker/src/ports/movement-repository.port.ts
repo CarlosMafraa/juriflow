@@ -1,4 +1,5 @@
 import type { RawMovement } from '@juriflow/collectors-core';
+import type { MovementMode } from './process-repository.port.js';
 
 /** Movimentação já persistida, com o id gerado pelo banco. */
 export interface StoredMovement {
@@ -21,8 +22,11 @@ export interface MovementRepository {
   /** Hashes já conhecidos para este processo — usado para deduplicar antes de inserir (RN16). */
   listKnownHashes(processId: string): Promise<ReadonlySet<string>>;
 
-  /** Todas as movimentações gravadas do processo, da mais antiga para a mais nova. */
-  listByProcess(processId: string): Promise<StoredMovement[]>;
+  /**
+   * Movimentações vigentes do processo na fonte pedida (tribunal ou manuais),
+   * da mais antiga para a mais nova. Manual excluída não entra.
+   */
+  listByProcess(processId: string, mode: MovementMode): Promise<StoredMovement[]>;
 
   /**
    * Insere só as movimentações cujo hash ainda não existe para o processo.

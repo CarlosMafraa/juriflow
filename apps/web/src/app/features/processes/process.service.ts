@@ -55,6 +55,20 @@ export interface ProcessDetail {
   lastCheckedAt: string | null;
   lastCheckError: string | null;
   checkRequestedAt: string | null;
+  /** Anti-rodízio: desde quando deixou de ocupar vaga (a vaga só libera 30 dias depois). */
+  trackingReleasedAt: string | null;
+  /** Tinha movimentações manuais: a 1ª coleta registra o histórico sem avisar. */
+  syncBaselinePending: boolean;
+}
+
+/** A vaga de sincronização fica presa por este tempo depois de desligar (anti-rodízio). */
+export const TRACKING_SLOT_HOLD_DAYS = 30;
+
+export interface ManualMovementInput {
+  /** AAAA-MM-DD. */
+  occurredOn: string;
+  title: string;
+  detail: string | null;
 }
 
 export interface DeliveryRow {
@@ -100,7 +114,6 @@ export interface LinkedClient {
   clientId: string;
   name: string;
   type: 'PF' | 'PJ';
-  document: string | null;
 }
 
 export interface MovementRow {
@@ -109,6 +122,8 @@ export interface MovementRow {
   occurredAt: string | null;
   collectedAt: string;
   sourceKind: string;
+  /** Cadastrada à mão no app (processo sem sincronização). */
+  manual: boolean;
 }
 
 export interface HistoryRow {
@@ -251,6 +266,8 @@ export class ProcessService {
       lastCheckedAt: (r['last_checked_at'] as string) ?? null,
       lastCheckError: (r['last_check_error'] as string) ?? null,
       checkRequestedAt: (r['check_requested_at'] as string) ?? null,
+      trackingReleasedAt: (r['tracking_released_at'] as string) ?? null,
+      syncBaselinePending: (r['sync_baseline_pending'] as boolean) ?? false,
     };
   }
 
@@ -286,6 +303,8 @@ export class ProcessService {
         'id, recipient_type, phone, status, error, sent_at, created_at, clients(name), process_movements(description)',
       )
       .eq('process_id', processId)
+      // "Já informado" (1ª sincronização sem histórico) não é envio.
+      .neq('status', 'skipped')
       .order('created_at', { ascending: false })
       .limit(50);
     if (error) throw error;
@@ -410,19 +429,18 @@ export class ProcessService {
   async listClients(processId: string): Promise<LinkedClient[]> {
     const { data, error } = await this.supabase
       .from('process_clients')
-      .select('id, client_id, clients(name, type, document)')
+      .select('id, client_id, clients(name, type)')
       .eq('process_id', processId)
       .is('deleted_at', null);
     if (error) throw error;
     return (data ?? []).map((r: Record<string, unknown>) => {
       const c = (Array.isArray(r['clients']) ? r['clients'][0] : r['clients']) as
-        { name: string; type: 'PF' | 'PJ'; document: string | null } | undefined;
+        { name: string; type: 'PF' | 'PJ' } | undefined;
       return {
         linkId: r['id'] as string,
         clientId: r['client_id'] as string,
         name: c?.name ?? '—',
         type: c?.type ?? 'PF',
-        document: c?.document ?? null,
       };
     });
   }
@@ -458,7 +476,37 @@ export class ProcessService {
       occurredAt: (r['occurred_at'] as string) ?? null,
       collectedAt: r['collected_at'] as string,
       sourceKind: r['source_kind'] as string,
+      manual: r['source_kind'] === 'manual',
     }));
+  }
+
+  /** Movimentação manual (processo sem sincronização). Avisa pela fila, em instantes. */
+  async createManualMovement(processId: string, input: ManualMovementInput): Promise<void> {
+    const { error } = await this.supabase.rpc('create_manual_movement', {
+      p_process_id: processId,
+      p_occurred_on: input.occurredOn,
+      p_title: input.title,
+      p_detail: input.detail,
+    });
+    if (error) throw error;
+  }
+
+  /** Correção (ADMIN ou quem cadastrou o processo). Não reenvia aviso. */
+  async updateManualMovement(movementId: string, input: ManualMovementInput): Promise<void> {
+    const { error } = await this.supabase.rpc('update_manual_movement', {
+      p_movement_id: movementId,
+      p_occurred_on: input.occurredOn,
+      p_title: input.title,
+      p_detail: input.detail,
+    });
+    if (error) throw error;
+  }
+
+  async deleteManualMovement(movementId: string): Promise<void> {
+    const { error } = await this.supabase.rpc('delete_manual_movement', {
+      p_movement_id: movementId,
+    });
+    if (error) throw error;
   }
 
   async history(processId: string): Promise<HistoryRow[]> {

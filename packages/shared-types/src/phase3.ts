@@ -85,8 +85,6 @@ export interface Client {
   spaceId: Uuid;
   type: ClientType;
   name: string;
-  /** CPF/CNPJ normalizado (só dígitos). */
-  document: string | null;
   email: string | null;
   phone: string | null;
   birthDate: string | null;

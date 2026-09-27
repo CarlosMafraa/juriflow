@@ -7,7 +7,6 @@ import type {
 interface Row {
   process_id: string;
   requested_at: string;
-  processes: { tracking_enabled: boolean } | null;
 }
 
 export class SupabaseNotificationCatchupQueue implements NotificationCatchupQueue {
@@ -16,7 +15,7 @@ export class SupabaseNotificationCatchupQueue implements NotificationCatchupQueu
   async list(limit: number): Promise<readonly CatchupRequest[]> {
     const { data, error } = await this.client
       .from('notification_catchup_requests')
-      .select('process_id, requested_at, processes(tracking_enabled)')
+      .select('process_id, requested_at')
       .order('requested_at')
       .limit(limit)
       .returns<Row[]>();
@@ -24,7 +23,6 @@ export class SupabaseNotificationCatchupQueue implements NotificationCatchupQueu
     return (data ?? []).map((row) => ({
       processId: row.process_id,
       requestedAt: row.requested_at,
-      trackingEnabled: row.processes?.tracking_enabled ?? false,
     }));
   }
 

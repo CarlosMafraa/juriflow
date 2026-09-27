@@ -4,6 +4,7 @@ import type {
   MovementToInsert,
   StoredMovement,
 } from '../ports/movement-repository.port.js';
+import type { MovementMode } from '../ports/process-repository.port.js';
 
 interface MovementRow {
   id: string;
@@ -36,13 +37,17 @@ export class SupabaseMovementRepository implements MovementRepository {
    * Cloud) e processo antigo passa disso. Sem data vai primeiro (é o que o
    * tribunal lista como mais antigo); empate de data segue a ordem de gravação.
    */
-  async listByProcess(processId: string): Promise<StoredMovement[]> {
+  async listByProcess(processId: string, mode: MovementMode): Promise<StoredMovement[]> {
     const result: StoredMovement[] = [];
     for (let from = 0; ; from += PAGE_SIZE) {
-      const { data, error } = await this.client
+      const base = this.client
         .from('process_movements')
         .select('id, content_hash, description, occurred_at, movement_type')
         .eq('process_id', processId)
+        .is('deleted_at', null);
+      const { data, error } = await (
+        mode === 'manual' ? base.eq('source_kind', 'manual') : base.neq('source_kind', 'manual')
+      )
         .order('occurred_at', { ascending: true, nullsFirst: true })
         .order('created_at', { ascending: true })
         .order('id', { ascending: true })

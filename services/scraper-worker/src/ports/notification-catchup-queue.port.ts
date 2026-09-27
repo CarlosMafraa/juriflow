@@ -2,8 +2,6 @@ export interface CatchupRequest {
   readonly processId: string;
   /** Usado ao limpar: pedido feito durante o envio não se perde. */
   readonly requestedAt: string;
-  /** Sincronização ainda ligada? Desligada depois do pedido = descarta sem enviar. */
-  readonly trackingEnabled: boolean;
 }
 
 /**

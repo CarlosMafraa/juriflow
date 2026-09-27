@@ -41,10 +41,9 @@ export class NotificationCatchupJob {
   private async handle(request: CatchupRequest): Promise<void> {
     const { processId } = request;
     try {
-      const process = request.trackingEnabled
-        ? await this.processRepository.findTrackableProcessById(processId)
-        : null;
-      if (!process) return; // sincronização desligada, processo excluído ou espaço suspenso
+      // Manual ou com sincronização: o modo decide qual fonte avisa.
+      const process = await this.processRepository.findNotifiableProcessById(processId);
+      if (!process) return; // processo arquivado/excluído ou espaço suspenso
       const outcome = await this.queue.run(() => this.useCase.notifyPending(process));
       if (outcome.sent > 0 || outcome.failed > 0 || outcome.channelOffline) {
         this.logger.info('Avisos pendentes processados.', { processId, ...outcome });

@@ -12,6 +12,8 @@ export interface Profile {
   email: string;
   /** E.164 quando presente. Ver DP-19. */
   phone: string | null;
+  /** Opcional (AAAA-MM-DD). Quem tiver recebe os parabéns do escritório. */
+  birthDate?: string | null;
   isSuperAdmin: boolean;
   avatarUrl: string | null;
   /** Concluiu o primeiro acesso (criou senha e completou os dados). */

@@ -50,6 +50,8 @@ export interface WorkerConfig {
   readonly whatsappMaxIntervalMs: number;
 
   readonly dailyCheckCron: string;
+  /** Parabéns de aniversário: de hora em hora das 9h às 20h (quem ficou sem, recebe na próxima). */
+  readonly birthdayCron: string;
   /** Fuso do cron diário — o container roda em UTC; sem isso "08:00" vira 04:00 em Manaus. */
   readonly dailyCheckTimezone: string;
   /**
@@ -82,6 +84,7 @@ export function loadConfig(): WorkerConfig {
     whatsappMaxIntervalMs: optionalInt('WHATSAPP_MAX_INTERVAL_MS', 60_000),
 
     dailyCheckCron: optional('DAILY_CHECK_CRON', '0 8 * * *'),
+    birthdayCron: optional('BIRTHDAY_CRON', '0 9-20 * * *'),
     dailyCheckTimezone: optional('DAILY_CHECK_TIMEZONE', 'America/Manaus'),
     checkRequestPollMs: optionalInt('CHECK_REQUEST_POLL_MS', 10000),
     httpPort: optionalInt('HTTP_PORT', 3000),

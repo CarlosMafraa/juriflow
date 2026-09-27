@@ -40,7 +40,6 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
     <p-card styleClass="section">
       <form class="filters" [formGroup]="form" (ngSubmit)="apply()">
         <input pInputText class="f" placeholder="Nome" formControlName="search" />
-        <input pInputText class="f" placeholder="CPF / CNPJ" formControlName="document" />
         <p-select
           class="f"
           [options]="typeOptions"
@@ -71,7 +70,6 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
           <tr>
             <th>Nome</th>
             <th>Tipo</th>
-            <th>Documento</th>
             <th>Contato</th>
             <th></th>
           </tr>
@@ -80,7 +78,6 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
           <tr>
             <td>{{ c.name }}</td>
             <td><p-tag severity="secondary" [value]="c.type" /></td>
-            <td>{{ c.document || '—' }}</td>
             <td>{{ c.phone || c.email || '—' }}</td>
             <td class="actions">
               <a [routerLink]="['/clientes', c.id]">
@@ -190,7 +187,6 @@ export class ClientListComponent {
 
   protected readonly form = this.fb.nonNullable.group({
     search: '',
-    document: '',
     type: '',
     phone: '',
     email: '',
@@ -209,7 +205,7 @@ export class ClientListComponent {
   }
 
   protected clear(): void {
-    this.form.reset({ search: '', document: '', type: '', phone: '', email: '' });
+    this.form.reset({ search: '', type: '', phone: '', email: '' });
     this.apply();
   }
 
@@ -225,7 +221,6 @@ export class ClientListComponent {
       this.page.set(
         await this.service.list({
           search: v.search,
-          document: v.document,
           type: (v.type as 'PF' | 'PJ' | '') || '',
           phone: v.phone,
           email: v.email,

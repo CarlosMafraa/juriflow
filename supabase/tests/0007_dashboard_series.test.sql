@@ -29,11 +29,12 @@ insert into public.space_members (space_id, profile_id, role, status) values
 insert into public.courts (id, name, type, jurisdiction, active, tracking_source_kind) values
  ('20000000-0000-0000-0000-000000000001','TJ Teste','TJ','ZZ', true, 'projudi_tjam');
 
-insert into public.processes (id, space_id, court_id, created_by, cnj_number) values
+-- Sincronização ligada: movimentações do tribunal só aparecem assim (0048).
+insert into public.processes (id, space_id, court_id, created_by, cnj_number, tracking_enabled) values
  ('30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-00000000000a',
-  '20000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-0000000000a2','0000001-23.2024.8.04.0001'),
+  '20000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-0000000000a2','0000001-23.2024.8.04.0001', true),
  ('30000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-00000000000a',
-  '20000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-0000000000a3','0000002-23.2024.8.04.0001');
+  '20000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-0000000000a3','0000002-23.2024.8.04.0001', true);
 insert into public.process_responsible_history (process_id, responsible_id, reason) values
  ('30000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-0000000000a2','process_created'),
  ('30000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-0000000000a3','process_created');

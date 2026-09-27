@@ -1,17 +1,19 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
+  DEFAULT_BIRTHDAY_TEMPLATES,
   DEFAULT_MESSAGE_TEMPLATE,
-  NOTIFICATION_AUDIENCES,
   type MessageTemplate,
   type NotificationAudience,
+  type TemplateKind,
 } from '@juriflow/shared-types';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { InputTextModule } from 'primeng/inputtext';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { SelectModule } from 'primeng/select';
+import { SelectButtonModule } from 'primeng/selectbutton';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
@@ -22,11 +24,42 @@ import { ToastService } from '../../shared/feedback/toast.service';
 import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 type TemplateRow =
-  (MessageTemplate & { builtin: false }) | { builtin: true; name: string; body: string };
+  | (MessageTemplate & { builtin: false })
+  | { builtin: true; name: string; body: string; audience: NotificationAudience | 'both' };
 
-const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
+const AUDIENCE_LABEL: Record<NotificationAudience | 'both', string> = {
   responsible: 'Responsável',
   client: 'Cliente',
+  team: 'Equipe do escritório',
+  both: 'Responsável e cliente',
+};
+
+/** Públicos de cada tipo de template (mesma regra da constraint do banco). */
+const KIND_AUDIENCES: Record<TemplateKind, NotificationAudience[]> = {
+  movement: ['responsible', 'client'],
+  birthday: ['team', 'client'],
+};
+
+const KIND_PLACEHOLDERS: Record<TemplateKind, string[]> = {
+  movement: ['{{numero_processo}}', '{{movimentacao}}', '{{data}}'],
+  birthday: ['{{nome}}', '{{escritorio}}'],
+};
+
+const BUILTIN_ROWS: Record<TemplateKind, TemplateRow[]> = {
+  movement: [
+    {
+      builtin: true,
+      name: DEFAULT_MESSAGE_TEMPLATE.name,
+      body: DEFAULT_MESSAGE_TEMPLATE.body,
+      audience: 'both',
+    },
+  ],
+  birthday: (['team', 'client'] as const).map((audience) => ({
+    builtin: true as const,
+    name: DEFAULT_BIRTHDAY_TEMPLATES[audience].name,
+    body: DEFAULT_BIRTHDAY_TEMPLATES[audience].body,
+    audience,
+  })),
 };
 
 @Component({
@@ -34,7 +67,9 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FormsModule,
     ReactiveFormsModule,
+    SelectButtonModule,
     ButtonModule,
     CardModule,
     InputTextModule,
@@ -46,9 +81,27 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
     WhatsappPreviewComponent,
   ],
   template: `
+    <div class="kinds">
+      <p-selectButton
+        [options]="kindOptions"
+        [ngModel]="kind()"
+        (ngModelChange)="selectKind($event)"
+        [allowEmpty]="false"
+        optionLabel="label"
+        optionValue="value"
+        aria-label="Tipo de template"
+      />
+    </div>
     <p class="hint">
-      Placeholders disponíveis: <code>{{ '{{numero_processo}}' }}</code>,
-      <code>{{ '{{movimentacao}}' }}</code>, <code>{{ '{{data}}' }}</code>.
+      @if (kind() === 'birthday') {
+        Enviado no dia do aniversário (a partir das 9h) para a equipe e para os clientes que aceitam
+        avisos. Escolha qual template vale em Regras de notificação.
+      }
+      Placeholders disponíveis:
+      @for (p of placeholders(); track p; let last = $last) {
+        <code>{{ p }}</code
+        >{{ last ? '.' : ',' }}
+      }
     </p>
 
     <div class="editor-grid">
@@ -58,12 +111,12 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
       >
         <form class="form" [formGroup]="form" (ngSubmit)="save()">
           <input pInputText class="f" placeholder="Nome do template" formControlName="name" />
-          <p-select class="f" [options]="audienceOptions" formControlName="audience" />
+          <p-select class="f" [options]="audienceOptions()" formControlName="audience" />
           <textarea
             pTextarea
             class="body"
             rows="8"
-            placeholder="Olá! Houve uma nova movimentação no processo {{ '{{numero_processo}}' }}: {{ '{{movimentacao}}' }} (em {{ '{{data}}' }})."
+            [placeholder]="bodyPlaceholder()"
             formControlName="body"
           ></textarea>
           <div class="actions">
@@ -114,7 +167,7 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
                 >
               </td>
               <td class="tags-cell">
-                <p-tag severity="secondary" value="Responsável e cliente" />
+                <p-tag severity="secondary" [value]="audienceLabel(t.audience)" />
               </td>
               <td class="body-cell">{{ t.body }}</td>
               <td>
@@ -124,7 +177,7 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
                     [text]="true"
                     icon="pi pi-copy"
                     label="Usar como base"
-                    (onClick)="useAsBase()"
+                    (onClick)="useAsBase(t)"
                   />
                 </div>
               </td>
@@ -231,6 +284,9 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
         font-size: 0.75rem;
         color: var(--jf-text-muted, #64748b);
       }
+      .kinds {
+        margin-bottom: 0.75rem;
+      }
     `,
   ],
 })
@@ -241,11 +297,20 @@ export class TemplateListComponent {
   private readonly toast = inject(ToastService);
   private readonly pageHeader = inject(PageHeaderService);
 
-  protected readonly audiences = NOTIFICATION_AUDIENCES;
-  protected readonly audienceOptions = NOTIFICATION_AUDIENCES.map((a) => ({
-    label: AUDIENCE_LABEL[a],
-    value: a,
-  }));
+  protected readonly kindOptions = [
+    { label: 'Movimentação', value: 'movement' as TemplateKind },
+    { label: 'Aniversário', value: 'birthday' as TemplateKind },
+  ];
+  protected readonly kind = signal<TemplateKind>('movement');
+  protected readonly audienceOptions = computed(() =>
+    KIND_AUDIENCES[this.kind()].map((a) => ({ label: AUDIENCE_LABEL[a], value: a })),
+  );
+  protected readonly placeholders = computed(() => KIND_PLACEHOLDERS[this.kind()]);
+  protected readonly bodyPlaceholder = computed(() =>
+    this.kind() === 'birthday'
+      ? 'Feliz aniversário, {{nome}}! O {{escritorio}} deseja um dia incrível.'
+      : 'Olá! Houve uma nova movimentação no processo {{numero_processo}}: {{movimentacao}} (em {{data}}).',
+  );
   protected readonly loading = signal(true);
   protected readonly templates = signal<MessageTemplate[]>([]);
   protected readonly saving = signal(false);
@@ -270,12 +335,10 @@ export class TemplateListComponent {
 
   /** O padrão do sistema entra na lista (só leitura) para todo mundo saber o que é enviado. */
   protected readonly rows = computed((): TemplateRow[] => [
-    {
-      builtin: true,
-      name: DEFAULT_MESSAGE_TEMPLATE.name,
-      body: DEFAULT_MESSAGE_TEMPLATE.body,
-    },
-    ...this.templates().map((t) => ({ ...t, builtin: false as const })),
+    ...BUILTIN_ROWS[this.kind()],
+    ...this.templates()
+      .filter((t) => t.kind === this.kind())
+      .map((t) => ({ ...t, builtin: false as const })),
   ]);
 
   constructor() {
@@ -283,8 +346,14 @@ export class TemplateListComponent {
     void this.load();
   }
 
-  protected audienceLabel(a: NotificationAudience): string {
+  protected audienceLabel(a: NotificationAudience | 'both'): string {
     return AUDIENCE_LABEL[a];
+  }
+
+  protected selectKind(kind: TemplateKind): void {
+    if (!kind || kind === this.kind()) return;
+    this.kind.set(kind);
+    this.resetForm();
   }
 
   private async load(): Promise<void> {
@@ -303,14 +372,18 @@ export class TemplateListComponent {
     this.form.setValue({ name: t.name, audience: t.audience, body: t.body });
   }
 
-  protected useAsBase(): void {
+  protected useAsBase(row: TemplateRow): void {
     this.editingId.set(null);
-    this.form.patchValue({ name: '', body: DEFAULT_MESSAGE_TEMPLATE.body });
+    const audience =
+      row.audience === 'both'
+        ? KIND_AUDIENCES[this.kind()][0]
+        : (row.audience as NotificationAudience);
+    this.form.patchValue({ name: '', audience, body: row.body });
   }
 
   protected resetForm(): void {
     this.editingId.set(null);
-    this.form.reset({ name: '', audience: 'responsible', body: '' });
+    this.form.reset({ name: '', audience: KIND_AUDIENCES[this.kind()][0], body: '' });
   }
 
   protected async save(): Promise<void> {
@@ -320,7 +393,7 @@ export class TemplateListComponent {
     }
     this.saving.set(true);
     try {
-      const v = this.form.getRawValue();
+      const v = { ...this.form.getRawValue(), kind: this.kind() };
       const id = this.editingId();
       if (id) {
         await this.service.update(id, v);

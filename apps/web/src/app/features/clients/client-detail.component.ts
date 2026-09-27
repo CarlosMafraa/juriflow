@@ -55,8 +55,6 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
     } @else {
       <p-card header="Dados" styleClass="section">
         <dl class="grid">
-          <dt>Documento</dt>
-          <dd>{{ client()!.document || '—' }}</dd>
           <dt>Telefone</dt>
           <dd>{{ client()!.phone || '—' }}</dd>
           <dt>E-mail</dt>

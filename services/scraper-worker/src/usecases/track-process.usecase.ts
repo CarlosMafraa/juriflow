@@ -7,6 +7,7 @@ import {
   type MessageTemplate,
 } from '../domain/message-template.js';
 import { normalizeMovementType } from '../domain/movement-type.js';
+import type { EffectiveNotificationConfig } from '../domain/notification-config.js';
 import type { MessagingChannel } from '../ports/messaging-channel.port.js';
 import type { NotificationConfigResolver } from '../ports/notification-config.port.js';
 import type { DeliveryRecord, NotificationLog } from '../ports/notification-log.port.js';
@@ -17,7 +18,12 @@ import type {
   StoredMovement,
 } from '../ports/movement-repository.port.js';
 import type { MovementTypePolicy } from '../ports/movement-type-policy.port.js';
-import type { ProcessRepository, TrackableProcess } from '../ports/process-repository.port.js';
+import {
+  asNotifiable,
+  type NotifiableProcess,
+  type ProcessRepository,
+  type TrackableProcess,
+} from '../ports/process-repository.port.js';
 import type {
   NotificationRecipient,
   RecipientResolver,
@@ -94,13 +100,15 @@ export class TrackProcessUseCase {
       const movements = await this.collect(process);
       const { insertedCount, allKnownHashes } = await this.persist(process, movements);
 
-      if (isFirstSync && insertedCount > 0) {
+      if (process.syncBaselinePending) {
+        await this.registerBaseline(process);
+      } else if (isFirstSync && insertedCount > 0) {
         this.logger.info('1ª sincronização do processo — avisando o histórico filtrado (N4).', {
           processId: process.id,
           movementsFound: movements.length,
         });
       }
-      const outcome = await this.notifyPending(process);
+      const outcome = await this.notifyPending(asNotifiable(process));
 
       await this.processRepository.updateTrackingState(process.id, {
         lastStateHash: computeStateHash(allKnownHashes),
@@ -123,7 +131,9 @@ export class TrackProcessUseCase {
         lastCheckError: message,
       });
       // Os avisos pendentes não dependem do tribunal: saem mesmo com a consulta falhando.
-      await this.notifyPending(process).catch((notifyError) =>
+      // (Menos na 1ª sincronização sem histórico: sem a coleta, não há baseline.)
+      if (process.syncBaselinePending) throw error;
+      await this.notifyPending(asNotifiable(process)).catch((notifyError) =>
         this.logger.error('Falha ao enviar avisos pendentes.', {
           processId: process.id,
           error: notifyError instanceof Error ? notifyError.message : String(notifyError),
@@ -138,33 +148,8 @@ export class TrackProcessUseCase {
    * consultar o tribunal. Roda ao fim de cada consulta e pela fila de avisos
    * pendentes (configuração mudou, entrou destinatário, WhatsApp conectou).
    */
-  async notifyPending(process: TrackableProcess): Promise<NotifyOutcome> {
-    const config = await this.notificationConfigResolver.resolve(process.id, process.spaceId);
-    const recipients = (await this.recipientResolver.resolveRecipients(process.id)).filter((r) =>
-      r.type === 'responsible' ? config.notifyResponsible : config.notifyClients,
-    );
-    if (recipients.length === 0) return NOTHING_TO_DO;
-
-    const [movements, deliveries, audiencesFor] = await Promise.all([
-      this.movementRepository.listByProcess(process.id),
-      this.notificationLog.listDeliveries(process.id),
-      this.movementTypePolicy.resolve(process.id, process.spaceId),
-    ]);
-    const settled = settledDeliveries(deliveries);
-
-    const work = recipients
-      .map((recipient) => ({
-        recipient,
-        pending: movements.filter((movement) => {
-          const audiences = audiencesFor(movement.movementType);
-          const wanted =
-            recipient.type === 'responsible' ? audiences.responsible : audiences.client;
-          return (
-            wanted && !settled.has(deliveryKey(movement.id, recipient.type, recipient.recipientId))
-          );
-        }),
-      }))
-      .filter((w) => w.pending.length > 0);
+  async notifyPending(process: NotifiableProcess): Promise<NotifyOutcome> {
+    const { config, work } = await this.pendingWork(process);
     if (work.length === 0) return NOTHING_TO_DO;
 
     if (!(await this.messagingChannel.isConnected(process.spaceId))) {
@@ -190,8 +175,70 @@ export class TrackProcessUseCase {
     return { sent, failed, channelOffline: false };
   }
 
+  /**
+   * O que falta avisar, por destinatário, na fonte que vale agora (manual ou
+   * tribunal): o que a configuração manda e ainda não foi entregue/registrado.
+   */
+  private async pendingWork(process: NotifiableProcess): Promise<{
+    config: EffectiveNotificationConfig;
+    work: { recipient: NotificationRecipient; pending: StoredMovement[] }[];
+  }> {
+    const config = await this.notificationConfigResolver.resolve(process.id, process.spaceId);
+    const recipients = (await this.recipientResolver.resolveRecipients(process.id)).filter((r) =>
+      r.type === 'responsible' ? config.notifyResponsible : config.notifyClients,
+    );
+    if (recipients.length === 0) return { config, work: [] };
+
+    const [movements, deliveries, audiencesFor] = await Promise.all([
+      this.movementRepository.listByProcess(process.id, process.mode),
+      this.notificationLog.listDeliveries(process.id),
+      this.movementTypePolicy.resolve(process.id, process.spaceId),
+    ]);
+    const settled = settledDeliveries(deliveries);
+
+    const work = recipients
+      .map((recipient) => ({
+        recipient,
+        pending: movements.filter((movement) => {
+          const audiences = audiencesFor(movement.movementType);
+          const wanted =
+            recipient.type === 'responsible' ? audiences.responsible : audiences.client;
+          return (
+            wanted && !settled.has(deliveryKey(movement.id, recipient.type, recipient.recipientId))
+          );
+        }),
+      }))
+      .filter((w) => w.pending.length > 0);
+    return { config, work };
+  }
+
+  /**
+   * 1ª sincronização de processo que tinha movimentações manuais (N13): quem
+   * seria avisado já foi informado à mão — o histórico do tribunal é
+   * registrado como "já informado", sem mensagem. Dali em diante, só o novo.
+   */
+  private async registerBaseline(process: TrackableProcess): Promise<void> {
+    const { work } = await this.pendingWork(asNotifiable(process));
+    for (const { recipient, pending } of work) {
+      for (const m of pending)
+        await this.notificationLog.recordSkipped({
+          spaceId: process.spaceId,
+          processId: process.id,
+          movementId: m.id,
+          recipientType: recipient.type,
+          recipientId: recipient.recipientId,
+          phone: recipient.phone,
+        });
+    }
+    await this.processRepository.clearSyncBaseline(process.id);
+    this.logger.info('1ª sincronização após movimentações manuais — histórico sem aviso (N13).', {
+      processId: process.id,
+      registeredRecipients: work.length,
+    });
+  }
+
   private async deliver(
-    process: TrackableProcess,
+    process: NotifiableProcess,
     recipient: NotificationRecipient,
     template: MessageTemplate,
     pending: readonly StoredMovement[],
@@ -206,7 +253,7 @@ export class TrackProcessUseCase {
       phone: recipient.phone,
     };
     for (const group of chunkForDigest(pending)) {
-      const message = template.renderDigest({ cnjNumber: process.cnjNumber, movements: group });
+      const message = template.renderDigest({ cnjNumber: process.reference, movements: group });
       try {
         await this.notifier.sendText(process.spaceId, recipient.phone, message);
         for (const m of group)
@@ -270,11 +317,13 @@ function deliveryKey(movementId: string, type: RecipientType, recipientId: strin
   return `${movementId}|${type}|${recipientId}`;
 }
 
-/** Entregue, ou já falhou vezes demais (N7): não entra mais como pendente. */
+/** Entregue, já informado (N13) ou falhou vezes demais (N7): não entra mais como pendente. */
 function settledDeliveries(deliveries: readonly DeliveryRecord[]): Set<string> {
   return new Set(
     deliveries
-      .filter((d) => d.status === 'sent' || d.attempts >= MAX_DELIVERY_ATTEMPTS)
+      .filter(
+        (d) => d.status === 'sent' || d.status === 'skipped' || d.attempts >= MAX_DELIVERY_ATTEMPTS,
+      )
       .map((d) => deliveryKey(d.movementId, d.recipientType, d.recipientId)),
   );
 }

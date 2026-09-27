@@ -97,6 +97,8 @@ function buildHarness(options: {
   const processRepository: ProcessRepository = {
     listTrackableProcesses: async () => [PROCESS],
     findTrackableProcessById: async () => PROCESS,
+    findNotifiableProcessById: async () => null,
+    clearSyncBaseline: vi.fn(async () => {}),
     updateTrackingState: async () => {},
     listCheckRequestedIds: async () => [],
     clearCheckRequest: async () => {},
@@ -152,6 +154,7 @@ function buildHarness(options: {
 
   const notifier = { sendText: vi.fn(async () => {}) };
 
+  const skipped: DeliveryRecord[] = [];
   const notificationLog: NotificationLog = {
     listDeliveries: async () =>
       options.alreadySent
@@ -164,9 +167,19 @@ function buildHarness(options: {
               attempts: 1,
             })),
           )
-        : (options.deliveries ?? []),
+        : [...(options.deliveries ?? []), ...skipped],
     recordSent: vi.fn(async () => {}),
     recordFailed: vi.fn(async () => {}),
+    // Como no banco: o "já informado" gravado volta na próxima leitura.
+    recordSkipped: vi.fn(async (input) => {
+      skipped.push({
+        movementId: input.movementId,
+        recipientType: input.recipientType,
+        recipientId: input.recipientId,
+        status: 'skipped',
+        attempts: 1,
+      });
+    }),
   };
   const messagingChannel = { isConnected: vi.fn(async () => options.channelConnected ?? true) };
 
@@ -418,6 +431,84 @@ describe('TrackProcessUseCase — motor de notificações', () => {
       const { useCase, messagingChannel } = buildHarness({ alreadySent: true });
       await useCase.execute(PROCESS);
       expect(messagingChannel.isConnected).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('1ª sincronização de processo que tinha movimentações manuais (N13)', () => {
+    it('registra o histórico do tribunal como já informado, sem mensagem', async () => {
+      const { useCase, notifier, notificationLog } = buildHarness({});
+      const result = await useCase.execute({
+        ...PROCESS,
+        lastStateHash: null,
+        syncBaselinePending: true,
+      });
+
+      expect(result.newMovementsCount).toBe(1);
+      expect(result.notificationsSent).toBe(0);
+      expect(notifier.sendText).not.toHaveBeenCalled();
+      expect(notificationLog.recordSkipped).toHaveBeenCalledTimes(2); // responsável + cliente
+    });
+
+    it('já informado não volta como pendente', async () => {
+      const { useCase, notifier } = buildHarness({
+        movements: [],
+        stored: [OLD],
+        deliveries: [
+          {
+            movementId: OLD.id,
+            recipientType: 'responsible',
+            recipientId: 'profile-1',
+            status: 'skipped',
+            attempts: 1,
+          },
+          {
+            movementId: OLD.id,
+            recipientType: 'client',
+            recipientId: 'client-1',
+            status: 'skipped',
+            attempts: 1,
+          },
+        ],
+      });
+      await useCase.execute(PROCESS);
+      expect(notifier.sendText).not.toHaveBeenCalled();
+    });
+
+    it('tribunal fora do ar na 1ª sincronização: nada é enviado (sem baseline, sem aviso)', async () => {
+      const { useCase, notifier, notificationLog } = buildHarness({
+        failFetch: true,
+        stored: [OLD],
+      });
+      await expect(
+        useCase.execute({ ...PROCESS, lastStateHash: null, syncBaselinePending: true }),
+      ).rejects.toThrow('Request Rejected');
+      expect(notifier.sendText).not.toHaveBeenCalled();
+      expect(notificationLog.recordSkipped).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('processo manual (sem sincronização)', () => {
+    it('avisa as movimentações manuais, com a referência interna quando não há CNJ', async () => {
+      const MANUAL: StoredMovement = {
+        id: 'manual-1',
+        contentHash: 'manual:x',
+        description: 'Audiência realizada',
+        occurredAt: '2026-09-25T16:00:00.000Z',
+        movementType: null,
+      };
+      const { useCase, notifier } = buildHarness({ movements: [], stored: [MANUAL] });
+      const outcome = await useCase.notifyPending({
+        id: PROCESS.id,
+        spaceId: PROCESS.spaceId,
+        reference: 'REF-123',
+        mode: 'manual',
+      });
+      expect(outcome.sent).toBe(2);
+      expect(notifier.sendText).toHaveBeenCalledWith(
+        PROCESS.spaceId,
+        '+5592900000002',
+        expect.stringContaining('REF-123'),
+      );
     });
   });
 

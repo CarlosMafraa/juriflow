@@ -28,6 +28,7 @@ import { SelectModule } from 'primeng/select';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { TextareaModule } from 'primeng/textarea';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import {
   ProcessService,
@@ -36,6 +37,7 @@ import {
   type LinkedClient,
   type MovementRow,
   type ProcessDetail,
+  TRACKING_SLOT_HOLD_DAYS,
 } from './process.service';
 import { ClientService } from '../clients/client.service';
 import { MovementTypeTogglesComponent } from '../settings/movement-type-toggles.component';
@@ -71,6 +73,12 @@ function initialTab(requested: string | null): Tab {
 
 const DEFAULT_TEMPLATE_NAME = DEFAULT_MESSAGE_TEMPLATE.name;
 
+/** AAAA-MM-DD no fuso do navegador (valor de <input type="date">). */
+function isoDay(d: Date): string {
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 type SavedOverride = Pick<
   ProcessNotificationConfig,
   'notifyResponsible' | 'notifyClients' | 'responsibleTemplateId' | 'clientTemplateId'
@@ -95,6 +103,7 @@ type SavedOverride = Pick<
     SelectButtonModule,
     TableModule,
     TagModule,
+    TextareaModule,
     ToggleSwitchModule,
     PageHeaderActionsDirective,
     WhatsappPreviewComponent,
@@ -274,6 +283,19 @@ type SavedOverride = Pick<
                 >
               </label>
             </div>
+            @if (process()!.trackingEnabled && process()!.syncBaselinePending) {
+              <p-message severity="info" styleClass="w-full tracking__error">
+                Este processo tinha movimentações cadastradas à mão. Na primeira consulta ao
+                tribunal, o histórico será registrado <strong>sem aviso</strong> aos clientes e
+                responsáveis (eles já foram informados). Só o que for novo a partir daí é avisado.
+              </p-message>
+            }
+            @if (slotHeldUntil(); as until) {
+              <p class="muted small">
+                A vaga de sincronização deste processo continua ocupada até {{ until }} (regra do
+                plano contra rodízio). Religar este processo nesse período usa a mesma vaga.
+              </p>
+            }
             @if (process()!.lastCheckError && !process()!.checkRequestedAt) {
               <p-message
                 severity="warn"
@@ -285,13 +307,95 @@ type SavedOverride = Pick<
         }
 
         @case ('movimentacoes') {
+          @if (process()!.trackingEnabled) {
+            <p-message severity="info" styleClass="w-full section">
+              Sincronização automática ligada: as movimentações vêm do tribunal. As cadastradas à
+              mão ficam guardadas e voltam a aparecer se a sincronização for desligada.
+            </p-message>
+          } @else {
+            <p-message severity="secondary" styleClass="w-full section">
+              Processo sem sincronização automática: as movimentações são cadastradas aqui, à mão, e
+              avisadas aos clientes e responsáveis como as do tribunal.
+            </p-message>
+          }
+
+          @if (canAddManual()) {
+            <p-card header="Nova movimentação" styleClass="section">
+              <form class="manual" (ngSubmit)="saveManual()">
+                <div class="field">
+                  <label for="manualDate">Data</label>
+                  <input
+                    pInputText
+                    id="manualDate"
+                    type="date"
+                    name="manualDate"
+                    [max]="today"
+                    [ngModel]="manualDate()"
+                    (ngModelChange)="manualDate.set($event)"
+                  />
+                </div>
+                <div class="field">
+                  <label for="manualTitle">O que aconteceu</label>
+                  <input
+                    pInputText
+                    id="manualTitle"
+                    name="manualTitle"
+                    placeholder="Ex.: Audiência de conciliação realizada"
+                    [ngModel]="manualTitle()"
+                    (ngModelChange)="manualTitle.set($event)"
+                  />
+                </div>
+                <div class="field field--full">
+                  <label for="manualDetail">Detalhes (opcional)</label>
+                  <textarea
+                    pTextarea
+                    id="manualDetail"
+                    name="manualDetail"
+                    rows="3"
+                    [ngModel]="manualDetail()"
+                    (ngModelChange)="manualDetail.set($event)"
+                  ></textarea>
+                </div>
+                <div class="core-actions field--full">
+                  @if (editingMovementId()) {
+                    <p-button
+                      type="button"
+                      size="small"
+                      severity="secondary"
+                      [text]="true"
+                      icon="pi pi-times"
+                      label="Cancelar"
+                      (onClick)="resetManualForm()"
+                    />
+                  }
+                  <p-button
+                    type="submit"
+                    size="small"
+                    [icon]="editingMovementId() ? 'pi pi-check' : 'pi pi-plus'"
+                    [label]="editingMovementId() ? 'Salvar correção' : 'Adicionar movimentação'"
+                    [loading]="savingManual()"
+                  />
+                </div>
+                @if (editingMovementId()) {
+                  <p class="muted small field--full">
+                    A correção não reenvia a mensagem para quem já foi avisado.
+                  </p>
+                }
+              </form>
+            </p-card>
+          }
+
           <p-card header="Movimentações" styleClass="section">
             @if (movementsLoading()) {
               <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
             } @else if (movements().length === 0) {
               <p class="muted">
-                Nenhuma movimentação coletada. Com a sincronização ligada, a coleta roda diariamente
-                e as movimentações aparecem aqui assim que forem encontradas.
+                @if (process()!.trackingEnabled) {
+                  Nenhuma movimentação coletada ainda. A coleta roda diariamente e as movimentações
+                  aparecem aqui assim que forem encontradas.
+                } @else {
+                  Nenhuma movimentação cadastrada.
+                }
               </p>
             } @else {
               <ol class="movements">
@@ -299,12 +403,37 @@ type SavedOverride = Pick<
                   <li>
                     <div class="movements__meta">
                       <span class="movements__date">{{
-                        m.occurredAt ? fmt(m.occurredAt) : 'Sem data'
+                        m.occurredAt ? fmtDate(m.occurredAt) : 'Sem data'
                       }}</span>
-                      <p-tag severity="secondary" [value]="sourceLabel(m.sourceKind)" />
+                      <p-tag
+                        [severity]="m.manual ? 'info' : 'secondary'"
+                        [value]="m.manual ? 'Manual' : sourceLabel(m.sourceKind)"
+                      />
+                      @if (m.manual && canManageManual() && !process()!.trackingEnabled) {
+                        <span class="movements__actions">
+                          <p-button
+                            size="small"
+                            [text]="true"
+                            icon="pi pi-pencil"
+                            label="Corrigir"
+                            (onClick)="editManual(m)"
+                          />
+                          <p-button
+                            size="small"
+                            [text]="true"
+                            severity="danger"
+                            icon="pi pi-trash"
+                            label="Excluir"
+                            (onClick)="deleteManual(m)"
+                          />
+                        </span>
+                      }
                     </div>
                     <p class="movements__desc">{{ m.description }}</p>
-                    <span class="movements__collected">coletado em {{ fmt(m.collectedAt) }}</span>
+                    <span class="movements__collected"
+                      >{{ m.manual ? 'cadastrada em' : 'coletado em' }}
+                      {{ fmt(m.collectedAt) }}</span
+                    >
                   </li>
                 }
               </ol>
@@ -555,7 +684,9 @@ type SavedOverride = Pick<
                 @for (c of clients(); track c.linkId) {
                   <li>
                     <a [routerLink]="['/clientes', c.clientId]">{{ c.name }}</a>
-                    <span class="muted">{{ c.type }} · {{ c.document || 's/ documento' }}</span>
+                    <span class="muted">{{
+                      c.type === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física'
+                    }}</span>
                     @if (canEdit()) {
                       <p-button
                         size="small"
@@ -770,6 +901,28 @@ type SavedOverride = Pick<
         margin-bottom: 1rem;
         overflow-x: auto;
       }
+      .manual {
+        display: grid;
+        grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr);
+        gap: 0.85rem 1.25rem;
+      }
+      @media (max-width: 40rem) {
+        .manual {
+          grid-template-columns: 1fr;
+        }
+      }
+      .manual textarea {
+        width: 100%;
+        resize: vertical;
+      }
+      .movements__actions {
+        margin-left: auto;
+        display: flex;
+        gap: 0.25rem;
+      }
+      .movements__desc {
+        white-space: pre-wrap;
+      }
       .outgoing {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -845,6 +998,31 @@ export class ProcessDetailComponent {
   protected readonly savingResponsible = signal(false);
   protected readonly newResponsible = signal('');
   protected readonly savingTracking = signal(false);
+
+  /** Hoje (AAAA-MM-DD, fuso local): limite do campo de data da movimentação manual. */
+  protected readonly today = isoDay(new Date());
+  protected readonly manualDate = signal(isoDay(new Date()));
+  protected readonly manualTitle = signal('');
+  protected readonly manualDetail = signal('');
+  protected readonly savingManual = signal(false);
+  protected readonly editingMovementId = signal<string | null>(null);
+  /** ADMIN ou responsável cadastram; só em processo ativo sem sincronização. */
+  protected readonly canAddManual = computed(() => {
+    const p = this.process();
+    return !!p && this.canEdit() && p.status === 'active' && !p.trackingEnabled;
+  });
+  /** Corrigir/excluir: ADMIN ou quem cadastrou o processo (0048). */
+  protected readonly canManageManual = computed(() => {
+    const p = this.process();
+    return !!p && (this.isAdmin() || p.createdBy === this.auth.userId());
+  });
+  /** Data em que a vaga de sincronização volta a ficar livre (anti-rodízio). */
+  protected readonly slotHeldUntil = computed((): string | null => {
+    const released = this.process()?.trackingReleasedAt;
+    if (!released) return null;
+    const until = new Date(new Date(released).getTime() + TRACKING_SLOT_HOLD_DAYS * 86_400_000);
+    return until.getTime() > Date.now() ? until.toLocaleDateString('pt-BR') : null;
+  });
   private readonly reasonLabel: Record<HistoryRow['reason'], string> = {
     process_created: 'Cadastro',
     transfer: 'Transferência',
@@ -1116,7 +1294,7 @@ export class ProcessDetailComponent {
       const [config, spaceConfig, templates] = await Promise.all([
         this.notifConfigService.getForProcess(processId),
         this.notifConfigService.getForSpace(),
-        this.templateService.list(),
+        this.templateService.list('movement'),
       ]);
       this.notifTemplates.set(templates);
       this.spaceNotifConfig.set(spaceConfig);
@@ -1240,19 +1418,131 @@ export class ProcessDetailComponent {
   protected async setTracking(enabled: boolean): Promise<void> {
     const p = this.process();
     if (!p) return;
+    const ok = await this.dialog.confirm(
+      enabled ? this.enableTrackingDialog() : this.disableTrackingDialog(),
+    );
+    if (!ok) {
+      this.process.set({ ...p }); // devolve o switch
+      return;
+    }
     this.savingTracking.set(true);
     try {
       await this.service.setTracking(p.id, enabled);
-      this.process.set({ ...p, trackingEnabled: enabled });
       this.toast.success(
         enabled ? 'Sincronização automática ligada.' : 'Sincronização automática desligada.',
       );
+      // A fonte das movimentações mudou (tribunal ↔ manuais): recarrega tudo.
+      await this.load();
     } catch (err) {
       // Volta o switch para o valor real e explica (ex.: limite do plano).
       this.process.set({ ...p });
       this.toast.error(this.humanize(err));
     } finally {
       this.savingTracking.set(false);
+    }
+  }
+
+  private enableTrackingDialog(): {
+    title: string;
+    message: string;
+    confirmLabel: string;
+  } {
+    const hasManual = this.movements().some((m) => m.manual);
+    return {
+      title: 'Ligar a sincronização automática',
+      message:
+        'As movimentações passam a vir do tribunal. As cadastradas à mão ficam guardadas e voltam se a sincronização for desligada.' +
+        (hasManual
+          ? ' Como este processo já tem movimentações manuais, o histórico do tribunal da primeira consulta NÃO será enviado aos clientes e responsáveis (eles já foram informados). Só o que for novo a partir daí será avisado.'
+          : ' Na primeira consulta, o histórico do tribunal é enviado aos clientes e responsáveis numa mensagem.'),
+      confirmLabel: 'Ligar',
+    };
+  }
+
+  private disableTrackingDialog(): {
+    title: string;
+    message: string;
+    confirmLabel: string;
+    tone: 'danger';
+  } {
+    const until = new Date(Date.now() + TRACKING_SLOT_HOLD_DAYS * 86_400_000);
+    return {
+      title: 'Desligar a sincronização automática',
+      message: `As movimentações do tribunal deixam de aparecer neste processo e os avisos delas param; as cadastradas à mão voltam a valer. A vaga do plano só fica livre em ${TRACKING_SLOT_HOLD_DAYS} dias (${until.toLocaleDateString('pt-BR')}) — religar este processo nesse período usa a mesma vaga.`,
+      confirmLabel: 'Desligar',
+      tone: 'danger',
+    };
+  }
+
+  protected fmtDate(iso: string): string {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('pt-BR');
+  }
+
+  protected editManual(m: MovementRow): void {
+    const [title, ...detail] = m.description.split('\n');
+    this.editingMovementId.set(m.id);
+    this.manualDate.set(m.occurredAt ? isoDay(new Date(m.occurredAt)) : this.today);
+    this.manualTitle.set(title ?? '');
+    this.manualDetail.set(detail.join('\n'));
+  }
+
+  protected resetManualForm(): void {
+    this.editingMovementId.set(null);
+    this.manualDate.set(this.today);
+    this.manualTitle.set('');
+    this.manualDetail.set('');
+  }
+
+  protected async saveManual(): Promise<void> {
+    const p = this.process();
+    if (!p) return;
+    if (!this.manualTitle().trim() || !this.manualDate()) {
+      this.toast.error('Informe a data e o que aconteceu.');
+      return;
+    }
+    const input = {
+      occurredOn: this.manualDate(),
+      title: this.manualTitle(),
+      detail: this.manualDetail().trim() || null,
+    };
+    const editing = this.editingMovementId();
+    this.savingManual.set(true);
+    try {
+      if (editing) {
+        await this.service.updateManualMovement(editing, input);
+        this.toast.success('Movimentação corrigida.');
+      } else {
+        await this.service.createManualMovement(p.id, input);
+        this.toast.success('Movimentação cadastrada. Os avisos saem em instantes.');
+      }
+      this.resetManualForm();
+      this.movements.set(await this.service.movements(p.id));
+    } catch (err) {
+      this.toast.error(this.humanize(err));
+    } finally {
+      this.savingManual.set(false);
+    }
+  }
+
+  protected async deleteManual(m: MovementRow): Promise<void> {
+    const p = this.process();
+    if (!p) return;
+    const ok = await this.dialog.confirm({
+      title: 'Excluir movimentação',
+      message:
+        'Excluir esta movimentação? Quem já recebeu o aviso não é avisado da exclusão. Fica registrado na auditoria.',
+      confirmLabel: 'Excluir',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await this.service.deleteManualMovement(m.id);
+      if (this.editingMovementId() === m.id) this.resetManualForm();
+      this.toast.success('Movimentação excluída.');
+      this.movements.set(await this.service.movements(p.id));
+    } catch (err) {
+      this.toast.error(this.humanize(err));
     }
   }
 

@@ -128,7 +128,7 @@ export class AuthService {
         this.supabase
           .from('profiles')
           .select(
-            'id, full_name, email, phone, is_super_admin, avatar_url, onboarded_at, created_at, updated_at',
+            'id, full_name, email, phone, birth_date, is_super_admin, avatar_url, onboarded_at, created_at, updated_at',
           )
           .eq('id', userId)
           .maybeSingle(),
@@ -162,6 +162,7 @@ export class AuthService {
             fullName: profileRow.full_name,
             email: profileRow.email,
             phone: profileRow.phone,
+            birthDate: profileRow.birth_date,
             isSuperAdmin: profileRow.is_super_admin,
             avatarUrl: profileRow.avatar_url,
             onboardedAt: profileRow.onboarded_at,

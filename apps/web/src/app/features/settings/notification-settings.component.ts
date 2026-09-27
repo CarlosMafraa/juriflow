@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import type { MessageTemplate } from '@juriflow/shared-types';
+import { DEFAULT_BIRTHDAY_TEMPLATES, type MessageTemplate } from '@juriflow/shared-types';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -10,6 +10,7 @@ import { SelectModule } from 'primeng/select';
 import { MovementTypeTogglesComponent } from './movement-type-toggles.component';
 import { NotificationConfigService } from './notification-config.service';
 import { TemplateService } from './template.service';
+import { WhatsappPreviewComponent, renderMessagePreview } from './whatsapp-preview.component';
 import { ToastService } from '../../shared/feedback/toast.service';
 import { PageHeaderService } from '../../shared/layout/page-header.service';
 
@@ -28,6 +29,7 @@ const NO_TEMPLATE = '';
     ProgressSpinnerModule,
     SelectModule,
     MovementTypeTogglesComponent,
+    WhatsappPreviewComponent,
   ],
   template: `
     <p class="hint">
@@ -93,6 +95,39 @@ const NO_TEMPLATE = '';
         </div>
       </p-card>
 
+      <p-card header="Mensagem de aniversário" styleClass="types-card">
+        <p class="hint">
+          No dia do aniversário, a partir das 9h, o WhatsApp do escritório envia os parabéns para a
+          equipe e para os clientes que aceitam avisos (quem tiver a data de nascimento cadastrada).
+        </p>
+        <div class="birthday">
+          @for (b of birthdayAudiences(); track b.audience) {
+            <div class="birthday__item">
+              <label [for]="'birthday-' + b.audience"
+                ><strong>{{ b.title }}</strong></label
+              >
+              <p-select
+                [inputId]="'birthday-' + b.audience"
+                [options]="b.options"
+                [ngModel]="b.selected"
+                (ngModelChange)="b.select($event)"
+                [ngModelOptions]="{ standalone: true }"
+              />
+              <jf-whatsapp-preview [title]="b.title" [text]="b.preview" />
+            </div>
+          }
+        </div>
+        <div class="actions">
+          <p-button
+            size="small"
+            icon="pi pi-check"
+            (onClick)="saveBirthday()"
+            [loading]="savingBirthday()"
+            label="Salvar aniversário"
+          />
+        </div>
+      </p-card>
+
       <p-card header="Tipos de movimentação avisados" styleClass="types-card">
         <p class="hint">
           Padrão do escritório: para cada tipo, escolha se avisa os responsáveis e/ou os clientes.
@@ -149,6 +184,21 @@ const NO_TEMPLATE = '';
       :host ::ng-deep .types-card {
         margin-top: 1rem;
       }
+      .birthday {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.25rem;
+      }
+      @media (max-width: 48rem) {
+        .birthday {
+          grid-template-columns: 1fr;
+        }
+      }
+      .birthday__item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
     `,
   ],
 })
@@ -169,10 +219,37 @@ export class NotificationSettingsComponent {
 
   private readonly templates = signal<MessageTemplate[]>([]);
   protected readonly responsibleTemplates = computed(() =>
-    this.templates().filter((t) => t.audience === 'responsible'),
+    this.templates().filter((t) => t.kind === 'movement' && t.audience === 'responsible'),
   );
   protected readonly clientTemplates = computed(() =>
-    this.templates().filter((t) => t.audience === 'client'),
+    this.templates().filter((t) => t.kind === 'movement' && t.audience === 'client'),
+  );
+
+  protected readonly savingBirthday = signal(false);
+  private readonly teamBirthdayTemplateId = signal<string>(NO_TEMPLATE);
+  private readonly clientBirthdayTemplateId = signal<string>(NO_TEMPLATE);
+  /** Equipe e clientes: template escolhido (ou padrão do sistema) e a prévia. */
+  protected readonly birthdayAudiences = computed(() =>
+    (
+      [
+        ['team', 'Equipe do escritório', this.teamBirthdayTemplateId],
+        ['client', 'Clientes', this.clientBirthdayTemplateId],
+      ] as const
+    ).map(([audience, title, selected]) => {
+      const own = this.templates().filter((t) => t.kind === 'birthday' && t.audience === audience);
+      const chosen = own.find((t) => t.id === selected());
+      return {
+        audience,
+        title,
+        selected: selected(),
+        select: (id: string) => selected.set(id ?? NO_TEMPLATE),
+        options: [
+          { label: 'Padrão do sistema', value: NO_TEMPLATE },
+          ...own.map((t) => ({ label: t.name, value: t.id })),
+        ],
+        preview: renderMessagePreview(chosen?.body ?? DEFAULT_BIRTHDAY_TEMPLATES[audience].body),
+      };
+    }),
   );
   protected readonly responsibleOptions = computed(() => [
     { label: 'Padrão do sistema', value: NO_TEMPLATE },
@@ -201,11 +278,28 @@ export class NotificationSettingsComponent {
         this.notifyClients.set(config.notifyClients);
         this.responsibleTemplateId.set(config.responsibleTemplateId ?? NO_TEMPLATE);
         this.clientTemplateId.set(config.clientTemplateId ?? NO_TEMPLATE);
+        this.teamBirthdayTemplateId.set(config.teamBirthdayTemplateId ?? NO_TEMPLATE);
+        this.clientBirthdayTemplateId.set(config.clientBirthdayTemplateId ?? NO_TEMPLATE);
       }
     } catch {
       this.toast.error('Não foi possível carregar a configuração de notificações.');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  protected async saveBirthday(): Promise<void> {
+    this.savingBirthday.set(true);
+    try {
+      await this.configService.setBirthdayTemplates({
+        teamTemplateId: this.teamBirthdayTemplateId() || null,
+        clientTemplateId: this.clientBirthdayTemplateId() || null,
+      });
+      this.toast.success('Mensagem de aniversário salva.');
+    } catch {
+      this.toast.error('Não foi possível salvar a mensagem de aniversário.');
+    } finally {
+      this.savingBirthday.set(false);
     }
   }
 

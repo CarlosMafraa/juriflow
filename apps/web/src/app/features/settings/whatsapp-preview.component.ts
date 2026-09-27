@@ -6,6 +6,8 @@ const SAMPLE: Record<string, string> = {
   numero_processo: '0001234-56.2026.8.04.0001',
   movimentacao: 'Juntada de petição pelo autor.',
   data: '24/09/2026',
+  nome: 'Maria',
+  escritorio: 'Silva & Associados',
 };
 
 /** Texto do template com os placeholders trocados pelo exemplo. */

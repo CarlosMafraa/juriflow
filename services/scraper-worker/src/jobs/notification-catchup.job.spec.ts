@@ -22,11 +22,16 @@ function trackable(id: string): TrackableProcess {
   };
 }
 
-function request(processId: string, trackingEnabled = true): CatchupRequest {
-  return { processId, requestedAt: '2026-10-03T12:00:00.000Z', trackingEnabled };
+function request(processId: string): CatchupRequest {
+  return { processId, requestedAt: '2026-10-03T12:00:00.000Z' };
 }
 
-function setup(options: { requests: CatchupRequest[]; failOn?: Set<string> }): {
+function setup(options: {
+  requests: CatchupRequest[];
+  failOn?: Set<string>;
+  /** Processos arquivados/excluídos ou de espaço suspenso. */
+  gone?: Set<string>;
+}): {
   job: NotificationCatchupJob;
   notified: string[];
   cleared: CatchupRequest[];
@@ -41,10 +46,13 @@ function setup(options: { requests: CatchupRequest[]; failOn?: Set<string> }): {
     },
   };
   const repository = {
-    findTrackableProcessById: async (id: string) => trackable(id),
+    findNotifiableProcessById: async (id: string) =>
+      options.gone?.has(id)
+        ? null
+        : { id, spaceId: trackable(id).spaceId, reference: 'REF', mode: 'manual' },
   } as unknown as ProcessRepository;
   const useCase = {
-    notifyPending: async (process: TrackableProcess) => {
+    notifyPending: async (process: { id: string }) => {
       notified.push(process.id);
       if (options.failOn?.has(process.id)) throw new Error('WAHA fora do ar');
       return { sent: 1, failed: 0, channelOffline: false };
@@ -73,9 +81,9 @@ describe('NotificationCatchupJob', () => {
     expect(cleared).toEqual([r]);
   });
 
-  it('sincronização desligada depois do pedido: descarta sem enviar', async () => {
-    const r = request('p1', false);
-    const { job, notified, cleared } = setup({ requests: [r] });
+  it('processo arquivado/excluído depois do pedido: descarta sem enviar', async () => {
+    const r = request('p1');
+    const { job, notified, cleared } = setup({ requests: [r], gone: new Set(['p1']) });
     await job.tick();
     expect(notified).toEqual([]);
     expect(cleared).toEqual([r]);

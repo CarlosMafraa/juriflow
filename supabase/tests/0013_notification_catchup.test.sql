@@ -79,7 +79,7 @@ select lives_ok($$ select public.add_process_responsible((select p2 from ids),
   '00000000-0000-0000-0000-0000000000a3') $$, 'ADMIN inclui responsável no P2');
 reset role;
 select ok(tests_queued((select p1 from ids)), 'Responsável novo enfileira o P1');
-select ok(not tests_queued((select p2 from ids)), 'P2 sem sincronização não entra na fila');
+select ok(tests_queued((select p2 from ids)), 'P2 manual (sem sincronização) também entra: avisa as movimentações manuais (0048)');
 select tests_clear_queue();
 
 -- =============================================================================
@@ -144,7 +144,7 @@ values ('10000000-0000-0000-0000-00000000000a', 'space_a', 'qr_ready');
 select ok(not tests_queued((select p1 from ids)), 'Sessão ainda aguardando QR: nada na fila');
 update public.whatsapp_sessions set status = 'connected' where space_id = '10000000-0000-0000-0000-00000000000a';
 select ok(tests_queued((select p1 from ids)), 'WhatsApp conectou: processos acompanhados entram na fila');
-select ok(not tests_queued((select p2 from ids)), 'Processo sem sincronização continua fora');
+select ok(tests_queued((select p2 from ids)), 'Processo manual também entra (0048)');
 select tests_clear_queue();
 update public.whatsapp_sessions set last_checked_at = now() where space_id = '10000000-0000-0000-0000-00000000000a';
 select ok(not tests_queued((select p1 from ids)), 'Conferência da sessão já conectada não reenfileira');

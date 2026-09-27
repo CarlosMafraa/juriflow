@@ -19,7 +19,7 @@ interface DeliveryRow {
   recipient_type: RecipientType;
   recipient_client_id: string | null;
   recipient_profile_id: string | null;
-  status: 'sent' | 'failed';
+  status: 'sent' | 'failed' | 'skipped';
   attempts: number;
 }
 
@@ -83,6 +83,10 @@ export class SupabaseNotificationLog implements NotificationLog {
     await this.write(input, { status: 'sent', error: null, sentAt: new Date() });
   }
 
+  async recordSkipped(input: DeliveryWrite & { movementId: string }): Promise<void> {
+    await this.write(input, { status: 'skipped', error: null, sentAt: null });
+  }
+
   async recordFailed(input: {
     spaceId: string;
     processId: string;
@@ -111,7 +115,7 @@ export class SupabaseNotificationLog implements NotificationLog {
 
   private async write(
     input: DeliveryWrite,
-    outcome: { status: 'sent' | 'failed'; error: string | null; sentAt: Date | null },
+    outcome: { status: 'sent' | 'failed' | 'skipped'; error: string | null; sentAt: Date | null },
   ): Promise<void> {
     const existing = await this.findExisting(input);
     const payload = {

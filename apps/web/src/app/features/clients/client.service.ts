@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-import { onlyDigits } from '@juriflow/domain';
 import type { Client, ClientType } from '@juriflow/shared-types';
 import { SUPABASE_CLIENT } from '../../core/supabase/supabase-client';
 import { AuthService } from '../../core/auth/auth.service';
@@ -11,7 +10,6 @@ interface ClientRow {
   space_id: string;
   type: ClientType;
   name: string;
-  document: string | null;
   email: string | null;
   phone: string | null;
   birth_date: string | null;
@@ -25,7 +23,6 @@ interface ClientRow {
 
 export interface ClientFilters {
   search?: string;
-  document?: string;
   type?: ClientType | '';
   phone?: string;
   email?: string;
@@ -36,7 +33,6 @@ export interface ClientFilters {
 export interface ClientInput {
   type: ClientType;
   name: string;
-  document?: string | null;
   email?: string | null;
   phone?: string | null;
   birthDate?: string | null;
@@ -56,7 +52,6 @@ function toClient(r: ClientRow): Client {
     spaceId: r.space_id,
     type: r.type,
     name: r.name,
-    document: r.document,
     email: r.email,
     phone: r.phone,
     birthDate: r.birth_date,
@@ -97,8 +92,6 @@ export class ClientService {
 
     if (filters.search?.trim()) q = q.ilike('name', likeContains(filters.search));
     if (filters.type) q = q.eq('type', filters.type);
-    if (filters.document?.trim())
-      q = q.ilike('document', likeContains(onlyDigits(filters.document)));
     if (filters.phone?.trim()) q = q.ilike('phone', likeContains(filters.phone));
     if (filters.email?.trim()) q = q.ilike('email', likeContains(filters.email));
 
@@ -143,7 +136,6 @@ export class ClientService {
         created_by: this.auth.userId(),
         type: input.type,
         name: input.name.trim(),
-        document: input.document?.trim() || null,
         email: input.email?.trim() || null,
         phone: input.phone?.trim() || null,
         birth_date: input.type === 'PF' ? input.birthDate || null : null,
@@ -163,7 +155,6 @@ export class ClientService {
       .update({
         type: input.type,
         name: input.name.trim(),
-        document: input.document?.trim() || null,
         email: input.email?.trim() || null,
         phone: input.phone?.trim() || null,
         birth_date: input.type === 'PF' ? input.birthDate || null : null,
