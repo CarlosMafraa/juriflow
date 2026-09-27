@@ -15,12 +15,14 @@ import { ReportingDataSource } from './infra/reporting-data-source.js';
 import { WahaNotifier } from './infra/waha-notifier.js';
 import { WahaSessionGateway } from './infra/waha-session-gateway.js';
 import { SupabaseWhatsappSessionRepository } from './infra/supabase-whatsapp-session.repository.js';
+import { SupabaseNotificationCatchupQueue } from './infra/supabase-notification-catchup-queue.js';
 import { GeneralMovementTemplate } from './domain/message-template.js';
 import { TjamProjudiAdapter } from './adapters/tjam-projudi.adapter.js';
 import { TrackProcessUseCase } from './usecases/track-process.usecase.js';
 import { DailyCheckJob } from './jobs/daily-check.job.js';
 import { WhatsappSessionJob } from './jobs/whatsapp-session.job.js';
 import { CheckRequestJob } from './jobs/check-request.job.js';
+import { NotificationCatchupJob } from './jobs/notification-catchup.job.js';
 import { HeartbeatJob } from './jobs/heartbeat.job.js';
 import { SerialQueue } from './jobs/serial-queue.js';
 import { createHttpServer } from './http/server.js';
@@ -48,6 +50,7 @@ async function main(): Promise<void> {
     maxIntervalMs: config.whatsappMaxIntervalMs,
   });
   const defaultTemplate = new GeneralMovementTemplate();
+  const whatsappSessionRepository = new SupabaseWhatsappSessionRepository(supabase);
 
   const tjamAdapter = new TjamProjudiAdapter({
     headless: config.scraperHeadless,
@@ -72,6 +75,7 @@ async function main(): Promise<void> {
     notifier,
     notificationLog,
     movementTypePolicy,
+    whatsappSessionRepository,
     defaultTemplate,
     logger,
   );
@@ -113,8 +117,23 @@ async function main(): Promise<void> {
   }, config.checkRequestPollMs);
   logger.info('Polling de consultas manuais agendado.', { intervalMs: config.checkRequestPollMs });
 
+  const catchupJob = new NotificationCatchupJob(
+    useCase,
+    processRepository,
+    new SupabaseNotificationCatchupQueue(supabase),
+    trackingQueue,
+    logger,
+  );
+  const catchupInterval = setInterval(() => {
+    catchupJob.tick().catch((error) =>
+      logger.error('Polling de avisos pendentes falhou de forma inesperada.', {
+        error: String(error),
+      }),
+    );
+  }, config.checkRequestPollMs);
+  logger.info('Polling de avisos pendentes agendado.', { intervalMs: config.checkRequestPollMs });
+
   const whatsappSessionGateway = new WahaSessionGateway(config.wahaBaseUrl, config.wahaApiKey);
-  const whatsappSessionRepository = new SupabaseWhatsappSessionRepository(supabase);
   const whatsappSessionJob = new WhatsappSessionJob(
     whatsappSessionGateway,
     whatsappSessionRepository,
@@ -128,6 +147,16 @@ async function main(): Promise<void> {
     );
   }, config.wahaSessionPollMs);
   logger.info('Polling de sessões WhatsApp agendado.', { intervalMs: config.wahaSessionPollMs });
+  const whatsappHealthInterval = setInterval(() => {
+    whatsappSessionJob.checkConnected().catch((error) =>
+      logger.error('Conferência das sessões WhatsApp falhou de forma inesperada.', {
+        error: String(error),
+      }),
+    );
+  }, config.wahaHealthPollMs);
+  logger.info('Conferência das sessões WhatsApp conectadas agendada.', {
+    intervalMs: config.wahaHealthPollMs,
+  });
 
   const heartbeatJob = new HeartbeatJob(workerStatus, logger, config.healthcheckPingUrl);
   const tickHeartbeat = (): void => {
@@ -145,6 +174,8 @@ async function main(): Promise<void> {
   const shutdown = async (): Promise<void> => {
     logger.info('Encerrando worker...');
     clearInterval(whatsappSessionInterval);
+    clearInterval(whatsappHealthInterval);
+    clearInterval(catchupInterval);
     clearInterval(checkRequestInterval);
     clearInterval(heartbeatInterval);
     server.close();

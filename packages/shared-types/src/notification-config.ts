@@ -46,3 +46,17 @@ export interface ProcessNotificationConfig {
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime | null;
 }
+
+/**
+ * Mensagem padrão do sistema: vale quando nem o processo nem o escritório
+ * escolheram um template. É a MESMA que o worker envia (scraper-worker
+ * `GeneralMovementTemplate`), por isso fica aqui — a tela mostra exatamente o
+ * que o cliente/responsável recebe. Placeholders como nos templates;
+ * `{{quantidade}}` só na versão com várias movimentações numa mensagem.
+ */
+export const DEFAULT_MESSAGE_TEMPLATE = {
+  name: 'Padrão do sistema',
+  body: 'Olá! Houve uma nova movimentação no processo {{numero_processo}}.\n\nData: {{data}}\nMovimentação: {{movimentacao}}',
+  digestBody:
+    'Olá! O processo {{numero_processo}} teve {{quantidade}} movimentações:\n\n{{movimentacao}}',
+} as const;

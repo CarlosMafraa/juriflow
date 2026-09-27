@@ -21,13 +21,13 @@ export interface MovementRepository {
   /** Hashes já conhecidos para este processo — usado para deduplicar antes de inserir (RN16). */
   listKnownHashes(processId: string): Promise<ReadonlySet<string>>;
 
+  /** Todas as movimentações gravadas do processo, da mais antiga para a mais nova. */
+  listByProcess(processId: string): Promise<StoredMovement[]>;
+
   /**
    * Insere só as movimentações cujo hash ainda não existe para o processo.
    * Retorna as que de fato foram inseridas (as novas), na ordem recebida.
    */
-  /** Movimentações já gravadas deste processo, pelos ids (para reenviar avisos). */
-  getByIds(processId: string, ids: readonly string[]): Promise<StoredMovement[]>;
-
   insertNewMovements(
     processId: string,
     spaceId: string,

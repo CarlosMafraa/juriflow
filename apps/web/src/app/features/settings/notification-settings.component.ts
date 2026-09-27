@@ -83,7 +83,13 @@ const NO_TEMPLATE = '';
         </div>
 
         <div class="actions">
-          <p-button size="small" icon="pi pi-check" (onClick)="save()" [loading]="saving()" label="Salvar" />
+          <p-button
+            size="small"
+            icon="pi pi-check"
+            (onClick)="save()"
+            [loading]="saving()"
+            label="Salvar"
+          />
         </div>
       </p-card>
 
@@ -169,11 +175,11 @@ export class NotificationSettingsComponent {
     this.templates().filter((t) => t.audience === 'client'),
   );
   protected readonly responsibleOptions = computed(() => [
-    { label: 'Mensagem genérica embutida', value: NO_TEMPLATE },
+    { label: 'Padrão do sistema', value: NO_TEMPLATE },
     ...this.responsibleTemplates().map((t) => ({ label: t.name, value: t.id })),
   ]);
   protected readonly clientOptions = computed(() => [
-    { label: 'Mensagem genérica embutida', value: NO_TEMPLATE },
+    { label: 'Padrão do sistema', value: NO_TEMPLATE },
     ...this.clientTemplates().map((t) => ({ label: t.name, value: t.id })),
   ]);
 

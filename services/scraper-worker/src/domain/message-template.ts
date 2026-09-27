@@ -1,3 +1,5 @@
+import { DEFAULT_MESSAGE_TEMPLATE } from '@juriflow/shared-types';
+
 export interface MessageMovement {
   readonly description: string;
   readonly occurredAt: string | null;
@@ -51,20 +53,28 @@ export function formatMovementList(movements: readonly MessageMovement[]): strin
 
 export class GeneralMovementTemplate implements MessageTemplate {
   render({ cnjNumber, movement }: MovementMessageInput): string {
-    return (
-      `Olá! Houve uma nova movimentação no processo ${cnjNumber}.\n\n` +
-      `Data: ${formatDate(movement.occurredAt)}\n` +
-      `Movimentação: ${movement.description}`
-    );
+    return fillPlaceholders(DEFAULT_MESSAGE_TEMPLATE.body, {
+      numero_processo: cnjNumber,
+      data: formatDate(movement.occurredAt),
+      movimentacao: movement.description,
+    });
   }
 
   renderDigest({ cnjNumber, movements }: MovementDigestInput): string {
     if (movements.length === 1) return this.render({ cnjNumber, movement: movements[0] });
-    return (
-      `Olá! O processo ${cnjNumber} teve ${movements.length} movimentações:\n\n` +
-      formatMovementList(movements)
-    );
+    return fillPlaceholders(DEFAULT_MESSAGE_TEMPLATE.digestBody, {
+      numero_processo: cnjNumber,
+      quantidade: String(movements.length),
+      movimentacao: formatMovementList(movements),
+    });
   }
+}
+
+function fillPlaceholders(body: string, values: Record<string, string>): string {
+  return Object.entries(values).reduce(
+    (text, [key, value]) => text.replaceAll(`{{${key}}}`, value),
+    body,
+  );
 }
 
 /**

@@ -10,13 +10,13 @@ import type { EffectiveNotificationConfig } from '../domain/notification-config.
 import { mergeMovementTypeAudiences, type MovementTypeAudiences } from '../domain/movement-type.js';
 import type { MovementTypePolicy } from '../ports/movement-type-policy.port.js';
 import type { NotificationConfigResolver } from '../ports/notification-config.port.js';
-import type { NotificationLog } from '../ports/notification-log.port.js';
+import type { DeliveryRecord, NotificationLog } from '../ports/notification-log.port.js';
 import type { Notifier } from '../ports/notifier.port.js';
 import type { MovementRepository, StoredMovement } from '../ports/movement-repository.port.js';
 import type { ProcessRepository, TrackableProcess } from '../ports/process-repository.port.js';
 import type { NotificationRecipient, RecipientResolver } from '../ports/recipient-resolver.port.js';
 import type { TemplateRepository } from '../ports/template-repository.port.js';
-import { TrackProcessUseCase } from './track-process.usecase.js';
+import { MAX_DELIVERY_ATTEMPTS, TrackProcessUseCase } from './track-process.usecase.js';
 
 const PROCESS: TrackableProcess = {
   id: 'process-1',
@@ -66,6 +66,7 @@ interface Harness {
   notifier: { sendText: ReturnType<typeof vi.fn> };
   notificationLog: NotificationLog;
   recipients: NotificationRecipient[];
+  messagingChannel: { isConnected: ReturnType<typeof vi.fn> };
 }
 
 function buildHarness(options: {
@@ -79,8 +80,10 @@ function buildHarness(options: {
   processTypes?: Record<string, MovementTypeAudiences>;
   /** Movimentações já gravadas antes desta consulta. */
   stored?: StoredMovement[];
-  /** Movimentações com aviso que falhou e ainda pode ser reenviado. */
-  retryableIds?: string[];
+  /** Registros de envio já existentes (entregues ou com falha). */
+  deliveries?: DeliveryRecord[];
+  /** WhatsApp do espaço conectado? Padrão: sim. */
+  channelConnected?: boolean;
   /** Fonte fora do ar / bloqueada. */
   failFetch?: boolean;
 }): Harness {
@@ -100,17 +103,27 @@ function buildHarness(options: {
   };
 
   let storedIdSeq = 0;
+  const store: StoredMovement[] = [...(options.stored ?? [])];
   const movementRepository: MovementRepository = {
-    getByIds: async (_processId, ids) => (options.stored ?? []).filter((m) => ids.includes(m.id)),
-    listKnownHashes: async () => new Set((options.stored ?? []).map((m) => m.contentHash)),
-    insertNewMovements: async (_processId, _spaceId, movements) =>
-      movements.map((m): StoredMovement => ({
+    listKnownHashes: async () => new Set(store.map((m) => m.contentHash)),
+    // Mesma ordem do banco: pela data da movimentação.
+    listByProcess: async () =>
+      [...store].sort(
+        (a, b) =>
+          (a.occurredAt ? Date.parse(a.occurredAt) : 0) -
+          (b.occurredAt ? Date.parse(b.occurredAt) : 0),
+      ),
+    insertNewMovements: async (_processId, _spaceId, movements) => {
+      const inserted = movements.map((m): StoredMovement => ({
         id: `stored-${++storedIdSeq}`,
         contentHash: m.contentHash,
         description: m.description,
         occurredAt: m.occurredAt,
         movementType: m.movementType,
-      })),
+      }));
+      store.push(...inserted);
+      return inserted;
+    },
   };
 
   const registeredTypes: string[] = [];
@@ -140,11 +153,22 @@ function buildHarness(options: {
   const notifier = { sendText: vi.fn(async () => {}) };
 
   const notificationLog: NotificationLog = {
-    listRetryableMovementIds: async () => options.retryableIds ?? [],
-    wasAlreadySent: async () => options.alreadySent ?? false,
+    listDeliveries: async () =>
+      options.alreadySent
+        ? store.flatMap((m) =>
+            recipients.map((r): DeliveryRecord => ({
+              movementId: m.id,
+              recipientType: r.type,
+              recipientId: r.recipientId,
+              status: 'sent',
+              attempts: 1,
+            })),
+          )
+        : (options.deliveries ?? []),
     recordSent: vi.fn(async () => {}),
     recordFailed: vi.fn(async () => {}),
   };
+  const messagingChannel = { isConnected: vi.fn(async () => options.channelConnected ?? true) };
 
   const useCase = new TrackProcessUseCase(
     registry,
@@ -156,11 +180,12 @@ function buildHarness(options: {
     notifier as unknown as Notifier,
     notificationLog,
     movementTypePolicy,
+    messagingChannel,
     new GeneralMovementTemplate(),
     buildLogger(),
   );
 
-  return { useCase, notifier, notificationLog, recipients, registeredTypes };
+  return { useCase, notifier, notificationLog, recipients, registeredTypes, messagingChannel };
 }
 
 describe('TrackProcessUseCase — motor de notificações', () => {
@@ -247,20 +272,38 @@ describe('TrackProcessUseCase — motor de notificações', () => {
     expect(notifier.sendText).not.toHaveBeenCalled();
   });
 
-  describe('reenvio de avisos que falharam (N7)', () => {
-    const OLD: StoredMovement = {
-      id: 'stored-old',
-      contentHash: 'hash-old',
-      description: 'ALVARÁ ENVIADO\nAlvará número 1',
-      occurredAt: '2026-09-08T14:41:19.000Z',
-      movementType: 'ALVARÁ ENVIADO',
-    };
+  const OLD: StoredMovement = {
+    id: 'stored-old',
+    contentHash: 'hash-old',
+    description: 'ALVARÁ ENVIADO\nAlvará número 1',
+    occurredAt: '2026-09-08T14:41:19.000Z',
+    movementType: 'ALVARÁ ENVIADO',
+  };
+  const failedFor = (
+    movementId: string,
+    recipientId: string,
+    attempts: number,
+  ): DeliveryRecord => ({
+    movementId,
+    recipientType: 'responsible',
+    recipientId,
+    status: 'failed',
+    attempts,
+  });
+  const sentFor = (movementId: string, recipientId: string): DeliveryRecord => ({
+    movementId,
+    recipientType: 'responsible',
+    recipientId,
+    status: 'sent',
+    attempts: 1,
+  });
 
+  describe('reenvio de avisos que falharam (N7)', () => {
     it('consulta sem movimentação nova ainda reenvia o aviso que falhou', async () => {
       const { useCase, notifier } = buildHarness({
         movements: [],
         stored: [OLD],
-        retryableIds: [OLD.id],
+        deliveries: [failedFor(OLD.id, 'profile-1', 1)],
         recipients: [{ type: 'responsible', phone: '+5592900000001', recipientId: 'profile-1' }],
       });
       const result = await useCase.execute(PROCESS);
@@ -273,7 +316,7 @@ describe('TrackProcessUseCase — motor de notificações', () => {
       const { useCase, notifier } = buildHarness({
         failFetch: true,
         stored: [OLD],
-        retryableIds: [OLD.id],
+        deliveries: [failedFor(OLD.id, 'profile-1', 2)],
         recipients: [{ type: 'responsible', phone: '+5592900000001', recipientId: 'profile-1' }],
       });
       await expect(useCase.execute(PROCESS)).rejects.toThrow('Request Rejected');
@@ -284,11 +327,97 @@ describe('TrackProcessUseCase — motor de notificações', () => {
       const { useCase, notifier } = buildHarness({
         movements: [],
         stored: [OLD],
-        retryableIds: [OLD.id],
+        deliveries: [failedFor(OLD.id, 'profile-1', 1)],
         processTypes: { 'ALVARÁ ENVIADO': { responsible: false, client: false } },
       });
       await useCase.execute(PROCESS);
       expect(notifier.sendText).not.toHaveBeenCalled();
+    });
+
+    it('desiste depois do limite de tentativas', async () => {
+      const { useCase, notifier } = buildHarness({
+        movements: [],
+        stored: [OLD],
+        deliveries: [failedFor(OLD.id, 'profile-1', MAX_DELIVERY_ATTEMPTS)],
+        recipients: [{ type: 'responsible', phone: '+5592900000001', recipientId: 'profile-1' }],
+      });
+      await useCase.execute(PROCESS);
+      expect(notifier.sendText).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('avisos pendentes (N10/N11)', () => {
+    const OLDER: StoredMovement = {
+      id: 'stored-older',
+      contentHash: 'hash-older',
+      description: 'EXPEDIÇÃO DE INTIMAÇÃO',
+      occurredAt: '2026-08-01T10:00:00.000Z',
+      movementType: 'EXPEDIÇÃO DE INTIMAÇÃO',
+    };
+    const veteran: NotificationRecipient = {
+      type: 'responsible',
+      phone: '+5592900000001',
+      recipientId: 'profile-1',
+    };
+    const newcomer: NotificationRecipient = {
+      type: 'responsible',
+      phone: '+5592900000009',
+      recipientId: 'profile-2',
+    };
+
+    it('responsável incluído depois recebe o histórico numa mensagem; quem já recebeu, nada', async () => {
+      const { useCase, notifier, notificationLog } = buildHarness({
+        movements: [],
+        stored: [OLD, OLDER],
+        recipients: [veteran, newcomer],
+        deliveries: [sentFor(OLD.id, 'profile-1'), sentFor(OLDER.id, 'profile-1')],
+      });
+      const outcome = await useCase.notifyPending(PROCESS);
+
+      expect(outcome).toEqual({ sent: 2, failed: 0, channelOffline: false });
+      expect(notifier.sendText).toHaveBeenCalledTimes(1);
+      const [, phone, text] = notifier.sendText.mock.calls[0] as [string, string, string];
+      expect(phone).toBe(newcomer.phone);
+      expect(text).toContain('2 movimentações');
+      expect(text.indexOf('INTIMAÇÃO')).toBeLessThan(text.indexOf('ALVARÁ'));
+      expect(notificationLog.recordSent).toHaveBeenCalledTimes(2);
+    });
+
+    it('configuração mudada vale para o que ficou para trás (clientes ligados depois)', async () => {
+      const { useCase, notifier } = buildHarness({
+        movements: [],
+        stored: [OLD],
+        deliveries: [sentFor(OLD.id, 'profile-1')], // na época, só o responsável era avisado
+      });
+      await useCase.notifyPending(PROCESS);
+      expect(notifier.sendText).toHaveBeenCalledTimes(1);
+      expect(notifier.sendText).toHaveBeenCalledWith(
+        PROCESS.spaceId,
+        '+5592900000002',
+        expect.stringContaining('ALVARÁ ENVIADO'),
+      );
+    });
+
+    it('WhatsApp desconectado: nada é tentado nem registrado como falha — fica pendente', async () => {
+      const { useCase, notifier, notificationLog } = buildHarness({ channelConnected: false });
+      const result = await useCase.execute(PROCESS);
+
+      expect(result.newMovementsCount).toBe(1);
+      expect(result.notificationsSent).toBe(0);
+      expect(result.notificationsFailed).toBe(0);
+      expect(notifier.sendText).not.toHaveBeenCalled();
+      expect(notificationLog.recordFailed).not.toHaveBeenCalled();
+      expect(await useCase.notifyPending(PROCESS)).toEqual({
+        sent: 0,
+        failed: 0,
+        channelOffline: true,
+      });
+    });
+
+    it('sem nada pendente, nem pergunta pelo WhatsApp', async () => {
+      const { useCase, messagingChannel } = buildHarness({ alreadySent: true });
+      await useCase.execute(PROCESS);
+      expect(messagingChannel.isConnected).not.toHaveBeenCalled();
     });
   });
 

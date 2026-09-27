@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { NotificationLog } from '../ports/notification-log.port.js';
+import type { DeliveryRecord, NotificationLog } from '../ports/notification-log.port.js';
 import type { RecipientType } from '../ports/recipient-resolver.port.js';
 
 interface DeliveryKey {
@@ -13,6 +13,17 @@ const RECIPIENT_COLUMN: Record<RecipientType, string> = {
   client: 'recipient_client_id',
   responsible: 'recipient_profile_id',
 };
+
+interface DeliveryRow {
+  movement_id: string;
+  recipient_type: RecipientType;
+  recipient_client_id: string | null;
+  recipient_profile_id: string | null;
+  status: 'sent' | 'failed';
+  attempts: number;
+}
+
+const PAGE_SIZE = 1000;
 
 interface DeliveryWrite extends DeliveryKey {
   spaceId: string;
@@ -29,25 +40,36 @@ interface DeliveryWrite extends DeliveryKey {
 export class SupabaseNotificationLog implements NotificationLog {
   constructor(private readonly client: SupabaseClient) {}
 
-  async wasAlreadySent(
-    movementId: string,
-    recipientType: RecipientType,
-    recipientId: string,
-  ): Promise<boolean> {
-    const existing = await this.findExisting({ movementId, recipientType, recipientId });
-    return existing?.status === 'sent';
-  }
-
-  async listRetryableMovementIds(processId: string, maxAttempts: number): Promise<string[]> {
-    const { data, error } = await this.client
-      .from('notification_deliveries')
-      .select('movement_id')
-      .eq('process_id', processId)
-      .eq('status', 'failed')
-      .lt('attempts', maxAttempts)
-      .returns<{ movement_id: string }[]>();
-    if (error) throw new Error(`Falha ao listar avisos para reenviar: ${error.message}`);
-    return [...new Set((data ?? []).map((r) => r.movement_id))];
+  async listDeliveries(processId: string): Promise<readonly DeliveryRecord[]> {
+    const result: DeliveryRecord[] = [];
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await this.client
+        .from('notification_deliveries')
+        .select(
+          'movement_id, recipient_type, recipient_client_id, recipient_profile_id, status, attempts',
+        )
+        .eq('process_id', processId)
+        .order('id')
+        .range(from, from + PAGE_SIZE - 1)
+        .returns<DeliveryRow[]>();
+      if (error)
+        throw new Error(`Falha ao listar envios do processo ${processId}: ${error.message}`);
+      const rows = data ?? [];
+      for (const row of rows) {
+        const recipientId =
+          row.recipient_type === 'client' ? row.recipient_client_id : row.recipient_profile_id;
+        // Perfil apagado (on delete set null): não há mais a quem enviar.
+        if (!recipientId) continue;
+        result.push({
+          movementId: row.movement_id,
+          recipientType: row.recipient_type,
+          recipientId,
+          status: row.status,
+          attempts: row.attempts,
+        });
+      }
+      if (rows.length < PAGE_SIZE) return result;
+    }
   }
 
   async recordSent(input: {

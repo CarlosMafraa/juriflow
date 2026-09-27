@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
+  DEFAULT_MESSAGE_TEMPLATE,
   NOTIFICATION_AUDIENCES,
   type MessageTemplate,
   type NotificationAudience,
@@ -15,9 +16,13 @@ import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import { TemplateService } from './template.service';
+import { WhatsappPreviewComponent, renderMessagePreview } from './whatsapp-preview.component';
 import { DialogService } from '../../shared/ui/dialog.service';
 import { ToastService } from '../../shared/feedback/toast.service';
 import { PageHeaderService } from '../../shared/layout/page-header.service';
+
+type TemplateRow =
+  (MessageTemplate & { builtin: false }) | { builtin: true; name: string; body: string };
 
 const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
   responsible: 'Responsável',
@@ -38,6 +43,7 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
     TableModule,
     TagModule,
     TextareaModule,
+    WhatsappPreviewComponent,
   ],
   template: `
     <p class="hint">
@@ -46,7 +52,10 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
     </p>
 
     <div class="editor-grid">
-      <p-card [header]="editingId() ? 'Editar template' : 'Novo template'" styleClass="template-card">
+      <p-card
+        [header]="editingId() ? 'Editar template' : 'Novo template'"
+        styleClass="template-card"
+      >
         <form class="form" [formGroup]="form" (ngSubmit)="save()">
           <input pInputText class="f" placeholder="Nome do template" formControlName="name" />
           <p-select class="f" [options]="audienceOptions" formControlName="audience" />
@@ -66,39 +75,27 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
               [label]="editingId() ? 'Salvar' : 'Criar template'"
             />
             @if (editingId()) {
-              <p-button type="button" size="small" severity="secondary" [text]="true" icon="pi pi-times" label="Cancelar" (onClick)="resetForm()" />
+              <p-button
+                type="button"
+                size="small"
+                severity="secondary"
+                [text]="true"
+                icon="pi pi-times"
+                label="Cancelar"
+                (onClick)="resetForm()"
+              />
             }
           </div>
         </form>
       </p-card>
 
-      <!-- Preview: como a mensagem chega no WhatsApp, com os placeholders já
-           substituídos por um exemplo — não é envio real, só visual. -->
-      <div class="wa-preview">
-        <div class="wa-preview__header">
-          <span class="wa-preview__avatar"><i class="pi pi-user" aria-hidden="true"></i></span>
-          <p class="wa-preview__name">{{ previewAudienceLabel() }}</p>
-        </div>
-        <div class="wa-preview__chat">
-          @if (previewText().trim()) {
-            <div class="wa-bubble">
-              <p>{{ previewText() }}</p>
-              <span class="wa-bubble__meta">
-                09:41
-                <i class="pi pi-check" aria-hidden="true"></i><i class="pi pi-check" aria-hidden="true"></i>
-              </span>
-            </div>
-          } @else {
-            <p class="wa-preview__empty">Digite a mensagem para ver como ela vai aparecer no WhatsApp.</p>
-          }
-        </div>
-      </div>
+      <jf-whatsapp-preview [title]="previewAudienceLabel()" [text]="previewText()" />
     </div>
 
     @if (loading()) {
       <div class="center"><p-progressSpinner styleClass="spinner-sm" /></div>
     } @else {
-      <p-table [value]="templates()" styleClass="p-datatable-sm">
+      <p-table [value]="rows()" styleClass="p-datatable-sm">
         <ng-template pTemplate="header">
           <tr>
             <th>Nome</th>
@@ -108,20 +105,55 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-t>
-          <tr>
-            <td>{{ t.name }}</td>
-            <td><p-tag severity="info" [value]="audienceLabel(t.audience)" /></td>
-            <td class="body-cell">{{ t.body }}</td>
-            <td class="actions-cell">
-              <p-button size="small" [text]="true" icon="pi pi-pencil" label="Editar" (onClick)="edit(t)" />
-              <p-button size="small" [text]="true" icon="pi pi-trash" label="Excluir" (onClick)="remove(t)" />
-            </td>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="emptymessage">
-          <tr>
-            <td colspan="4">Nenhum template cadastrado. Sem templates, o worker usa a mensagem genérica embutida.</td>
-          </tr>
+          @if (t.builtin) {
+            <tr class="builtin-row">
+              <td>
+                {{ t.name }}
+                <small class="builtin-hint"
+                  >Vale quando o processo e o escritório não escolhem um template.</small
+                >
+              </td>
+              <td class="tags-cell">
+                <p-tag severity="secondary" value="Responsável e cliente" />
+              </td>
+              <td class="body-cell">{{ t.body }}</td>
+              <td>
+                <div class="actions-cell">
+                  <p-button
+                    size="small"
+                    [text]="true"
+                    icon="pi pi-copy"
+                    label="Usar como base"
+                    (onClick)="useAsBase()"
+                  />
+                </div>
+              </td>
+            </tr>
+          } @else {
+            <tr>
+              <td>{{ t.name }}</td>
+              <td><p-tag severity="info" [value]="audienceLabel(t.audience)" /></td>
+              <td class="body-cell">{{ t.body }}</td>
+              <td>
+                <div class="actions-cell">
+                  <p-button
+                    size="small"
+                    [text]="true"
+                    icon="pi pi-pencil"
+                    label="Editar"
+                    (onClick)="edit(t)"
+                  />
+                  <p-button
+                    size="small"
+                    [text]="true"
+                    icon="pi pi-trash"
+                    label="Excluir"
+                    (onClick)="remove(t)"
+                  />
+                </div>
+              </td>
+            </tr>
+          }
         </ng-template>
       </p-table>
     }
@@ -190,82 +222,14 @@ const AUDIENCE_LABEL: Record<NotificationAudience, string> = {
         gap: 0.25rem;
         white-space: nowrap;
       }
-      /* Preview do WhatsApp: só decorativo (não envia nada), pra dar a
-         mesma ideia de like/aparência de um chat real. */
-      .wa-preview {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        border-radius: 1rem;
-        overflow: hidden;
-        box-shadow: var(--jf-shadow-card);
+      .builtin-row td {
+        background: var(--jf-surface-muted, #f8fafc);
       }
-      .wa-preview__header {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        padding: 0.6rem 0.9rem;
-        background: var(--jf-primary, #1f385d);
-        color: #fff;
-      }
-      .wa-preview__avatar {
-        width: 2rem;
-        height: 2rem;
-        border-radius: 999px;
-        background: rgb(255 255 255 / 20%);
-        display: grid;
-        place-items: center;
-        font-size: 0.9rem;
-      }
-      .wa-preview__name {
-        margin: 0;
-        font-weight: 600;
-        font-size: 0.9rem;
-      }
-      .wa-preview__chat {
-        flex: 1;
-        min-height: 14rem;
-        background: #e5ddd5;
-        padding: 1rem;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-      }
-      .wa-preview__empty {
-        margin: 0;
-        font-size: 0.8rem;
-        color: #667781;
-        text-align: center;
-      }
-      .wa-bubble {
-        align-self: flex-end;
-        max-width: 88%;
-        background: #dcf8c6;
-        border-radius: 0.5rem;
-        padding: 0.45rem 0.55rem 0.35rem;
-        box-shadow: 0 1px 1px rgb(0 0 0 / 10%);
-      }
-      .wa-bubble p {
-        margin: 0;
-        font-size: 0.85rem;
-        white-space: pre-wrap;
-        color: #111b21;
-      }
-      .wa-bubble__meta {
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        gap: 0;
-        margin-top: 0.15rem;
-        font-size: 0.68rem;
-        color: #667781;
-      }
-      .wa-bubble__meta .pi-check {
-        font-size: 0.65rem;
-        color: #53bdeb;
-      }
-      .wa-bubble__meta .pi-check + .pi-check {
-        margin-left: -0.4rem;
+      .builtin-hint {
+        display: block;
+        margin-top: 0.2rem;
+        font-size: 0.75rem;
+        color: var(--jf-text-muted, #64748b);
       }
     `,
   ],
@@ -302,12 +266,17 @@ export class TemplateListComponent {
     initialValue: this.form.controls.audience.value,
   });
   protected readonly previewAudienceLabel = computed(() => AUDIENCE_LABEL[this.audienceValue()]);
-  protected readonly previewText = computed(() =>
-    this.bodyValue()
-      .replaceAll('{{numero_processo}}', '0001234-56.2026.8.04.0001')
-      .replaceAll('{{movimentacao}}', 'Juntada de petição pelo autor.')
-      .replaceAll('{{data}}', '24/09/2026'),
-  );
+  protected readonly previewText = computed(() => renderMessagePreview(this.bodyValue()));
+
+  /** O padrão do sistema entra na lista (só leitura) para todo mundo saber o que é enviado. */
+  protected readonly rows = computed((): TemplateRow[] => [
+    {
+      builtin: true,
+      name: DEFAULT_MESSAGE_TEMPLATE.name,
+      body: DEFAULT_MESSAGE_TEMPLATE.body,
+    },
+    ...this.templates().map((t) => ({ ...t, builtin: false as const })),
+  ]);
 
   constructor() {
     this.pageHeader.set('Templates de mensagem');
@@ -332,6 +301,11 @@ export class TemplateListComponent {
   protected edit(t: MessageTemplate): void {
     this.editingId.set(t.id);
     this.form.setValue({ name: t.name, audience: t.audience, body: t.body });
+  }
+
+  protected useAsBase(): void {
+    this.editingId.set(null);
+    this.form.patchValue({ name: '', body: DEFAULT_MESSAGE_TEMPLATE.body });
   }
 
   protected resetForm(): void {
@@ -367,7 +341,7 @@ export class TemplateListComponent {
   protected async remove(t: MessageTemplate): Promise<void> {
     const ok = await this.dialogs.confirm({
       title: 'Excluir template',
-      message: `Excluir "${t.name}"? Configurações que usam este template passam a usar a mensagem genérica embutida.`,
+      message: `Excluir "${t.name}"? Configurações que usam este template passam a usar o padrão do sistema.`,
       confirmLabel: 'Excluir',
       tone: 'danger',
     });

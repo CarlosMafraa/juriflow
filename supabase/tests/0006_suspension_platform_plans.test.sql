@@ -52,8 +52,11 @@ select lives_ok($$ select public.create_process('10000000-0000-0000-0000-0000000
   '20000000-0000-0000-0000-000000000001','0000002-23.2024.8.04.0001', null,
   array['00000000-0000-0000-0000-0000000000a2']::uuid[]) $$, '2º processo');
 
-select is((select count(*)::int from public.processes where tracking_enabled), 1,
-  'Só 1 processo entra com sincronização (limite do plano = 1); o 2º entra sem');
+select is((select count(*)::int from public.processes where tracking_enabled), 0,
+  'Processo novo nasce sem sincronização automática (0046)');
+select lives_ok($$ update public.processes set tracking_enabled = true
+  where cnj_number = '0000001-23.2024.8.04.0001' $$,
+  'Ligar a sincronização dentro do limite do plano');
 select is((select used_tracked from public.space_plan_usage('10000000-0000-0000-0000-00000000000a')), 1,
   'space_plan_usage informa 1 sincronizado');
 

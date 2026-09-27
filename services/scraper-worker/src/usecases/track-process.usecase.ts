@@ -7,8 +7,9 @@ import {
   type MessageTemplate,
 } from '../domain/message-template.js';
 import { normalizeMovementType } from '../domain/movement-type.js';
+import type { MessagingChannel } from '../ports/messaging-channel.port.js';
 import type { NotificationConfigResolver } from '../ports/notification-config.port.js';
-import type { NotificationLog } from '../ports/notification-log.port.js';
+import type { DeliveryRecord, NotificationLog } from '../ports/notification-log.port.js';
 import type { Notifier } from '../ports/notifier.port.js';
 import type {
   MovementRepository,
@@ -17,7 +18,11 @@ import type {
 } from '../ports/movement-repository.port.js';
 import type { MovementTypePolicy } from '../ports/movement-type-policy.port.js';
 import type { ProcessRepository, TrackableProcess } from '../ports/process-repository.port.js';
-import type { RecipientResolver } from '../ports/recipient-resolver.port.js';
+import type {
+  NotificationRecipient,
+  RecipientResolver,
+  RecipientType,
+} from '../ports/recipient-resolver.port.js';
 import type { TemplateRepository } from '../ports/template-repository.port.js';
 
 export interface TrackProcessResult {
@@ -27,8 +32,17 @@ export interface TrackProcessResult {
   readonly notificationsFailed: number;
 }
 
+export interface NotifyOutcome {
+  readonly sent: number;
+  readonly failed: number;
+  /** true = WhatsApp do espaço desconectado: nada foi tentado, tudo segue pendente. */
+  readonly channelOffline: boolean;
+}
+
 /** Tentativas de um aviso antes de desistir (N7). */
 export const MAX_DELIVERY_ATTEMPTS = 5;
+
+const NOTHING_TO_DO: NotifyOutcome = { sent: 0, failed: 0, channelOffline: false };
 
 /**
  * Orquestrador único do pipeline (RN seção 21):
@@ -39,11 +53,18 @@ export const MAX_DELIVERY_ATTEMPTS = 5;
  * Regras (docs/REGRAS-DE-NEGOCIO.md):
  *   - N4: a 1ª sincronização TAMBÉM avisa — tudo o que passar no filtro,
  *     AGRUPADO numa mensagem por destinatário (dividida só se ficar grande),
- *     da mais antiga para a mais nova. O registro de envio (por movimentação
- *     e destinatário) garante que depois só vai o que é novo. O ritmo entre
- *     mensagens e o "digitando…" ficam no Notifier (anti-bloqueio do WhatsApp).
+ *     da mais antiga para a mais nova. O ritmo entre mensagens e o
+ *     "digitando…" ficam no Notifier (anti-bloqueio do WhatsApp).
  *   - N5/N6: cada tipo de movimentação avisa responsáveis e/ou clientes
  *     conforme o padrão do escritório ou a personalização do processo.
+ *   - N7: aviso que falhou é tentado de novo, até MAX_DELIVERY_ATTEMPTS.
+ *   - N10: cada destinatário recebe TUDO o que ainda não recebeu e que a
+ *     configuração vigente manda avisar, não só o que a consulta trouxe de
+ *     novo. Quem entra depois no processo recebe o histórico; configuração
+ *     mudada vale para o que ficou para trás. O registro de envio (por
+ *     movimentação e destinatário) impede mandar a mesma coisa duas vezes.
+ *   - N11: com o WhatsApp do espaço desconectado nada é tentado — fica
+ *     pendente, sem gastar tentativas, e sai quando conectar.
  *
  * Depende só de portas (SourceRegistry do collectors-core + as ports locais).
  * Nenhuma classe aqui sabe o que é Postgres, Playwright ou WAHA — isso é
@@ -60,6 +81,7 @@ export class TrackProcessUseCase {
     private readonly notifier: Notifier,
     private readonly notificationLog: NotificationLog,
     private readonly movementTypePolicy: MovementTypePolicy,
+    private readonly messagingChannel: MessagingChannel,
     /** Fallback quando espaço/processo não têm template próprio configurado. */
     private readonly defaultTemplate: MessageTemplate,
     private readonly logger: Logger,
@@ -70,29 +92,15 @@ export class TrackProcessUseCase {
 
     try {
       const movements = await this.collect(process);
-      const { insertedMovements, allKnownHashes } = await this.persist(process, movements);
+      const { insertedCount, allKnownHashes } = await this.persist(process, movements);
 
-      let sent = 0;
-      let failed = 0;
-      const retries = await this.failedDeliveriesToRetry(process, insertedMovements);
-      const toNotify = [...retries, ...insertedMovements];
-      if (toNotify.length > 0) {
-        if (isFirstSync) {
-          this.logger.info('1ª sincronização do processo — avisando o histórico filtrado (N4).', {
-            processId: process.id,
-            movementsFound: movements.length,
-          });
-        }
-        if (retries.length > 0) {
-          this.logger.info('Reenviando avisos que falharam (N7).', {
-            processId: process.id,
-            movements: retries.length,
-          });
-        }
-        const outcome = await this.notifyAboutNewMovements(process, toNotify);
-        sent = outcome.sent;
-        failed = outcome.failed;
+      if (isFirstSync && insertedCount > 0) {
+        this.logger.info('1ª sincronização do processo — avisando o histórico filtrado (N4).', {
+          processId: process.id,
+          movementsFound: movements.length,
+        });
       }
+      const outcome = await this.notifyPending(process);
 
       await this.processRepository.updateTrackingState(process.id, {
         lastStateHash: computeStateHash(allKnownHashes),
@@ -102,9 +110,9 @@ export class TrackProcessUseCase {
 
       return {
         processId: process.id,
-        newMovementsCount: insertedMovements.length,
-        notificationsSent: sent,
-        notificationsFailed: failed,
+        newMovementsCount: insertedCount,
+        notificationsSent: outcome.sent,
+        notificationsFailed: outcome.failed,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -114,27 +122,108 @@ export class TrackProcessUseCase {
         lastCheckedAt: new Date(),
         lastCheckError: message,
       });
-      // O reenvio (N7) não depende do tribunal: sai mesmo com a consulta falhando.
-      await this.retryFailedDeliveriesOnly(process);
+      // Os avisos pendentes não dependem do tribunal: saem mesmo com a consulta falhando.
+      await this.notifyPending(process).catch((notifyError) =>
+        this.logger.error('Falha ao enviar avisos pendentes.', {
+          processId: process.id,
+          error: notifyError instanceof Error ? notifyError.message : String(notifyError),
+        }),
+      );
       throw error;
     }
   }
 
-  private async retryFailedDeliveriesOnly(process: TrackableProcess): Promise<void> {
-    try {
-      const retries = await this.failedDeliveriesToRetry(process, []);
-      if (retries.length === 0) return;
-      this.logger.info('Consulta falhou; reenviando mesmo assim os avisos pendentes (N7).', {
+  /**
+   * Envia a cada destinatário o que ele ainda não recebeu (N7/N10), sem
+   * consultar o tribunal. Roda ao fim de cada consulta e pela fila de avisos
+   * pendentes (configuração mudou, entrou destinatário, WhatsApp conectou).
+   */
+  async notifyPending(process: TrackableProcess): Promise<NotifyOutcome> {
+    const config = await this.notificationConfigResolver.resolve(process.id, process.spaceId);
+    const recipients = (await this.recipientResolver.resolveRecipients(process.id)).filter((r) =>
+      r.type === 'responsible' ? config.notifyResponsible : config.notifyClients,
+    );
+    if (recipients.length === 0) return NOTHING_TO_DO;
+
+    const [movements, deliveries, audiencesFor] = await Promise.all([
+      this.movementRepository.listByProcess(process.id),
+      this.notificationLog.listDeliveries(process.id),
+      this.movementTypePolicy.resolve(process.id, process.spaceId),
+    ]);
+    const settled = settledDeliveries(deliveries);
+
+    const work = recipients
+      .map((recipient) => ({
+        recipient,
+        pending: movements.filter((movement) => {
+          const audiences = audiencesFor(movement.movementType);
+          const wanted =
+            recipient.type === 'responsible' ? audiences.responsible : audiences.client;
+          return (
+            wanted && !settled.has(deliveryKey(movement.id, recipient.type, recipient.recipientId))
+          );
+        }),
+      }))
+      .filter((w) => w.pending.length > 0);
+    if (work.length === 0) return NOTHING_TO_DO;
+
+    if (!(await this.messagingChannel.isConnected(process.spaceId))) {
+      this.logger.warn('WhatsApp do espaço desconectado — avisos ficam pendentes (N11).', {
         processId: process.id,
-        movements: retries.length,
+        spaceId: process.spaceId,
+        pendingRecipients: work.length,
       });
-      await this.notifyAboutNewMovements(process, retries);
-    } catch (error) {
-      this.logger.error('Falha ao reenviar avisos pendentes.', {
-        processId: process.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      return { sent: 0, failed: 0, channelOffline: true };
     }
+
+    const responsibleTemplate = await this.resolveTemplate(config.responsibleTemplateId);
+    const clientTemplate = await this.resolveTemplate(config.clientTemplateId);
+
+    let sent = 0;
+    let failed = 0;
+    for (const { recipient, pending } of work) {
+      const template = recipient.type === 'responsible' ? responsibleTemplate : clientTemplate;
+      const outcome = await this.deliver(process, recipient, template, pending);
+      sent += outcome.sent;
+      failed += outcome.failed;
+    }
+    return { sent, failed, channelOffline: false };
+  }
+
+  private async deliver(
+    process: TrackableProcess,
+    recipient: NotificationRecipient,
+    template: MessageTemplate,
+    pending: readonly StoredMovement[],
+  ): Promise<{ sent: number; failed: number }> {
+    let sent = 0;
+    let failed = 0;
+    const delivery = {
+      spaceId: process.spaceId,
+      processId: process.id,
+      recipientType: recipient.type,
+      recipientId: recipient.recipientId,
+      phone: recipient.phone,
+    };
+    for (const group of chunkForDigest(pending)) {
+      const message = template.renderDigest({ cnjNumber: process.cnjNumber, movements: group });
+      try {
+        await this.notifier.sendText(process.spaceId, recipient.phone, message);
+        for (const m of group)
+          await this.notificationLog.recordSent({ ...delivery, movementId: m.id });
+        sent += group.length;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        for (const m of group)
+          await this.notificationLog.recordFailed({
+            ...delivery,
+            movementId: m.id,
+            error: errorMessage,
+          });
+        failed += group.length;
+      }
+    }
+    return { sent, failed };
   }
 
   private async collect(process: TrackableProcess): Promise<readonly RawMovement[]> {
@@ -147,7 +236,7 @@ export class TrackProcessUseCase {
   private async persist(
     process: TrackableProcess,
     movements: readonly RawMovement[],
-  ): Promise<{ insertedMovements: readonly StoredMovement[]; allKnownHashes: readonly string[] }> {
+  ): Promise<{ insertedCount: number; allKnownHashes: readonly string[] }> {
     const known = await this.movementRepository.listKnownHashes(process.id);
     const prepared: MovementToInsert[] = movements.map((m) => ({
       ...m,
@@ -165,87 +254,9 @@ export class TrackProcessUseCase {
     await this.movementTypePolicy.registerTypes(process.spaceId, newTypes);
 
     return {
-      insertedMovements: chronological(inserted, prepared),
+      insertedCount: inserted.length,
       allKnownHashes: [...known, ...inserted.map((m) => m.contentHash)],
     };
-  }
-
-  /** Movimentações antigas com aviso que falhou e ainda cabe nova tentativa (N7). */
-  private async failedDeliveriesToRetry(
-    process: TrackableProcess,
-    insertedMovements: readonly StoredMovement[],
-  ): Promise<StoredMovement[]> {
-    const justInserted = new Set(insertedMovements.map((m) => m.id));
-    const ids = (
-      await this.notificationLog.listRetryableMovementIds(process.id, MAX_DELIVERY_ATTEMPTS)
-    ).filter((id) => !justInserted.has(id));
-    const movements = await this.movementRepository.getByIds(process.id, ids);
-    return movements.sort(
-      (a, b) =>
-        (a.occurredAt ? Date.parse(a.occurredAt) : 0) -
-        (b.occurredAt ? Date.parse(b.occurredAt) : 0),
-    );
-  }
-
-  private async notifyAboutNewMovements(
-    process: TrackableProcess,
-    insertedMovements: readonly StoredMovement[],
-  ): Promise<{ sent: number; failed: number }> {
-    const config = await this.notificationConfigResolver.resolve(process.id, process.spaceId);
-
-    const allRecipients = await this.recipientResolver.resolveRecipients(process.id);
-    const recipients = allRecipients.filter((r) =>
-      r.type === 'responsible' ? config.notifyResponsible : config.notifyClients,
-    );
-    if (recipients.length === 0) return { sent: 0, failed: 0 };
-
-    const audiencesFor = await this.movementTypePolicy.resolve(process.id, process.spaceId);
-    const responsibleTemplate = await this.resolveTemplate(config.responsibleTemplateId);
-    const clientTemplate = await this.resolveTemplate(config.clientTemplateId);
-
-    let sent = 0;
-    let failed = 0;
-    for (const recipient of recipients) {
-      const pending: StoredMovement[] = [];
-      for (const movement of insertedMovements) {
-        const audiences = audiencesFor(movement.movementType);
-        if (recipient.type === 'responsible' ? !audiences.responsible : !audiences.client) continue;
-        const alreadySent = await this.notificationLog.wasAlreadySent(
-          movement.id,
-          recipient.type,
-          recipient.recipientId,
-        );
-        if (!alreadySent) pending.push(movement);
-      }
-
-      const template = recipient.type === 'responsible' ? responsibleTemplate : clientTemplate;
-      for (const group of chunkForDigest(pending)) {
-        const message = template.renderDigest({ cnjNumber: process.cnjNumber, movements: group });
-        const delivery = {
-          spaceId: process.spaceId,
-          processId: process.id,
-          recipientType: recipient.type,
-          recipientId: recipient.recipientId,
-          phone: recipient.phone,
-        };
-        try {
-          await this.notifier.sendText(process.spaceId, recipient.phone, message);
-          for (const m of group)
-            await this.notificationLog.recordSent({ ...delivery, movementId: m.id });
-          sent += group.length;
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          for (const m of group)
-            await this.notificationLog.recordFailed({
-              ...delivery,
-              movementId: m.id,
-              error: errorMessage,
-            });
-          failed += group.length;
-        }
-      }
-    }
-    return { sent, failed };
   }
 
   private async resolveTemplate(templateId: string | null): Promise<MessageTemplate> {
@@ -255,19 +266,15 @@ export class TrackProcessUseCase {
   }
 }
 
-/**
- * Da mais antiga para a mais nova. Empate de data (várias movimentações no
- * mesmo segundo) segue a ordem inversa da fonte, que lista a mais nova primeiro.
- */
-function chronological(
-  inserted: readonly StoredMovement[],
-  sourceOrder: readonly MovementToInsert[],
-): StoredMovement[] {
-  const position = new Map(sourceOrder.map((m, i) => [m.contentHash, i]));
-  return [...inserted].sort((a, b) => {
-    const ta = a.occurredAt ? Date.parse(a.occurredAt) : 0;
-    const tb = b.occurredAt ? Date.parse(b.occurredAt) : 0;
-    if (ta !== tb) return ta - tb;
-    return (position.get(b.contentHash) ?? 0) - (position.get(a.contentHash) ?? 0);
-  });
+function deliveryKey(movementId: string, type: RecipientType, recipientId: string): string {
+  return `${movementId}|${type}|${recipientId}`;
+}
+
+/** Entregue, ou já falhou vezes demais (N7): não entra mais como pendente. */
+function settledDeliveries(deliveries: readonly DeliveryRecord[]): Set<string> {
+  return new Set(
+    deliveries
+      .filter((d) => d.status === 'sent' || d.attempts >= MAX_DELIVERY_ATTEMPTS)
+      .map((d) => deliveryKey(d.movementId, d.recipientType, d.recipientId)),
+  );
 }
