@@ -613,8 +613,8 @@ export class DashboardComponent {
     const groups = this.plans();
     const head = groups.length > 4 ? groups.slice(0, 3) : groups;
     const segments = head.map((g, i) => ({
-      key: `${g.maxProcesses}/${g.maxTracked}`,
-      label: `${g.maxProcesses} processos · ${g.maxTracked} sincronizados`,
+      key: g.name,
+      label: g.name,
       value: g.spaces,
       color: ramp[i]!,
     }));

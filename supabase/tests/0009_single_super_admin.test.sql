@@ -71,7 +71,7 @@ select ok(
     where k like '%color%'
   ),
   'A lista da plataforma não traz colunas internas do escritório (cores)');
-select lives_ok($$ select public.platform_set_space_plan('10000000-0000-0000-0000-00000000000a', 20, 5) $$,
+select lives_ok($$ select public.platform_set_space_plan('10000000-0000-0000-0000-00000000000a', (select id from public.plans where is_default), 20, 5) $$,
   'Plano pela função da plataforma');
 select is(tests_rowcount($$ update public.spaces set status = 'suspended'
   where id = '10000000-0000-0000-0000-00000000000a' $$), 0,

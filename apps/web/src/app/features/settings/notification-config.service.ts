@@ -10,6 +10,8 @@ interface SpaceConfigRow {
   notify_clients: boolean;
   responsible_template_id: string | null;
   client_template_id: string | null;
+  team_birthday_template_id: string | null;
+  client_birthday_template_id: string | null;
   updated_by: string | null;
   created_at: string;
   updated_at: string | null;
@@ -46,6 +48,8 @@ function toSpaceConfig(r: SpaceConfigRow): SpaceNotificationConfig {
     notifyClients: r.notify_clients,
     responsibleTemplateId: r.responsible_template_id,
     clientTemplateId: r.client_template_id,
+    teamBirthdayTemplateId: r.team_birthday_template_id,
+    clientBirthdayTemplateId: r.client_birthday_template_id,
     updatedBy: r.updated_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -95,6 +99,20 @@ export class NotificationConfigService {
       notify_clients: input.notifyClients,
       responsible_template_id: input.responsibleTemplateId,
       client_template_id: input.clientTemplateId,
+      updated_by: this.auth.userId(),
+    });
+    if (error) throw error;
+  }
+
+  /** Templates de aniversário do escritório (null = padrão do sistema). Só o ADMIN. */
+  async setBirthdayTemplates(input: {
+    teamTemplateId: string | null;
+    clientTemplateId: string | null;
+  }): Promise<void> {
+    const { error } = await this.supabase.from('space_notification_configs').upsert({
+      space_id: this.spaceId(),
+      team_birthday_template_id: input.teamTemplateId,
+      client_birthday_template_id: input.clientTemplateId,
       updated_by: this.auth.userId(),
     });
     if (error) throw error;

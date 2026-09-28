@@ -1,25 +1,35 @@
 import type { RecipientType } from './recipient-resolver.port.js';
 
+/** Situação do aviso de uma movimentação para um destinatário. */
+export interface DeliveryRecord {
+  readonly movementId: string;
+  readonly recipientType: RecipientType;
+  /** Cliente ou perfil do responsável. */
+  readonly recipientId: string;
+  /** skipped = histórico registrado sem aviso (já informado à mão, N13). */
+  readonly status: 'sent' | 'failed' | 'skipped';
+  readonly attempts: number;
+}
+
 /**
  * Porta de idempotência de envio (`notification_deliveries`). Garante que o
  * mesmo destinatário nunca recebe a mesma movimentação duas vezes, mesmo que
- * o pipeline rode de novo (retry, consulta manual repetida).
+ * o pipeline rode de novo (retry, consulta manual repetida, avisos pendentes).
  */
 export interface NotificationLog {
-  /** true se já existe um envio BEM-SUCEDIDO para este (movement, destinatário). */
-  wasAlreadySent(
-    movementId: string,
-    recipientType: RecipientType,
-    recipientId: string,
-  ): Promise<boolean>;
-
-  /**
-   * Movimentações do processo com aviso que FALHOU e ainda pode ser tentado de
-   * novo (menos de `maxAttempts` tentativas) — regra N7.
-   */
-  listRetryableMovementIds(processId: string, maxAttempts: number): Promise<string[]>;
+  /** Todos os registros de envio do processo — o pipeline decide o que falta. */
+  listDeliveries(processId: string): Promise<readonly DeliveryRecord[]>;
 
   recordSent(input: {
+    spaceId: string;
+    processId: string;
+    movementId: string;
+    recipientType: RecipientType;
+    recipientId: string;
+    phone: string;
+  }): Promise<void>;
+
+  recordSkipped(input: {
     spaceId: string;
     processId: string;
     movementId: string;

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
+  NotifiableProcess,
   ProcessRepository,
   TrackableProcess,
   TrackingStateUpdate,
@@ -11,6 +12,7 @@ interface ProcessRow {
   cnj_number: string | null;
   court_id: string;
   last_state_hash: string | null;
+  sync_baseline_pending: boolean;
   courts: { tracking_source_kind: string | null } | null;
 }
 
@@ -18,7 +20,7 @@ const PAGE_SIZE = 500;
 
 // spaces!inner + filtro de status: espaço suspenso não é coletado nem notificado.
 const SELECT_COLUMNS =
-  'id, space_id, cnj_number, court_id, last_state_hash, courts!inner(tracking_source_kind), spaces!inner(status)';
+  'id, space_id, cnj_number, court_id, last_state_hash, sync_baseline_pending, courts!inner(tracking_source_kind), spaces!inner(status)';
 
 function toTrackable(row: ProcessRow): TrackableProcess | null {
   const sourceKind = row.courts?.tracking_source_kind;
@@ -30,6 +32,7 @@ function toTrackable(row: ProcessRow): TrackableProcess | null {
     courtId: row.court_id,
     sourceKind,
     lastStateHash: row.last_state_hash,
+    syncBaselinePending: row.sync_baseline_pending,
   };
 }
 
@@ -74,6 +77,42 @@ export class SupabaseProcessRepository implements ProcessRepository {
 
     if (error) throw new Error(`Falha ao buscar processo ${processId}: ${error.message}`);
     return data ? toTrackable(data) : null;
+  }
+
+  async findNotifiableProcessById(processId: string): Promise<NotifiableProcess | null> {
+    const { data, error } = await this.client
+      .from('processes')
+      .select('id, space_id, cnj_number, internal_ref, tracking_enabled, spaces!inner(status)')
+      .eq('id', processId)
+      .eq('status', 'active')
+      .is('deleted_at', null)
+      .eq('spaces.status', 'active')
+      .maybeSingle<{
+        id: string;
+        space_id: string;
+        cnj_number: string | null;
+        internal_ref: string | null;
+        tracking_enabled: boolean;
+      }>();
+    if (error) throw new Error(`Falha ao buscar processo ${processId}: ${error.message}`);
+    if (!data) return null;
+    return {
+      id: data.id,
+      spaceId: data.space_id,
+      reference: data.cnj_number ?? data.internal_ref ?? 'sem número',
+      mode: data.tracking_enabled ? 'automatic' : 'manual',
+    };
+  }
+
+  async clearSyncBaseline(processId: string): Promise<void> {
+    const { error } = await this.client
+      .from('processes')
+      .update({ sync_baseline_pending: false })
+      .eq('id', processId);
+    if (error)
+      throw new Error(
+        `Falha ao concluir a 1ª sincronização do processo ${processId}: ${error.message}`,
+      );
   }
 
   async updateTrackingState(processId: string, update: TrackingStateUpdate): Promise<void> {

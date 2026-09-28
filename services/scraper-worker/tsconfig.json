@@ -6,7 +6,10 @@
     "composite": true,
     "types": ["node"]
   },
-  "references": [{ "path": "../../packages/collectors-core" }],
+  "references": [
+    { "path": "../../packages/collectors-core" },
+    { "path": "../../packages/shared-types" }
+  ],
   "include": ["src/**/*.ts"],
   "exclude": ["**/*.spec.ts", "dist"]
 }

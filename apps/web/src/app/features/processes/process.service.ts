@@ -31,10 +31,13 @@ export interface DeletedProcessRow {
 }
 
 export interface PlanUsage {
+  planName: string;
   maxProcesses: number;
   usedProcesses: number;
   maxTracked: number;
   usedTracked: number;
+  /** Anti-rodízio do plano: dias que a vaga fica presa depois de desligar. */
+  trackingHoldDays: number;
 }
 
 export interface ProcessDetail {
@@ -55,7 +58,21 @@ export interface ProcessDetail {
   lastCheckedAt: string | null;
   lastCheckError: string | null;
   checkRequestedAt: string | null;
+  /** Anti-rodízio: desde quando deixou de ocupar vaga (a vaga só libera 30 dias depois). */
+  trackingReleasedAt: string | null;
+  /** Tinha movimentações manuais: a 1ª coleta registra o histórico sem avisar. */
+  syncBaselinePending: boolean;
 }
+
+export interface ManualMovementInput {
+  /** AAAA-MM-DD. */
+  occurredOn: string;
+  title: string;
+  detail: string | null;
+}
+
+/** Envios por página no histórico do processo. */
+export const DELIVERIES_PAGE_SIZE = 10;
 
 export interface DeliveryRow {
   id: string;
@@ -100,7 +117,6 @@ export interface LinkedClient {
   clientId: string;
   name: string;
   type: 'PF' | 'PJ';
-  document: string | null;
 }
 
 export interface MovementRow {
@@ -109,6 +125,8 @@ export interface MovementRow {
   occurredAt: string | null;
   collectedAt: string;
   sourceKind: string;
+  /** Cadastrada à mão no app (processo sem sincronização). */
+  manual: boolean;
 }
 
 export interface HistoryRow {
@@ -251,6 +269,8 @@ export class ProcessService {
       lastCheckedAt: (r['last_checked_at'] as string) ?? null,
       lastCheckError: (r['last_check_error'] as string) ?? null,
       checkRequestedAt: (r['check_requested_at'] as string) ?? null,
+      trackingReleasedAt: (r['tracking_released_at'] as string) ?? null,
+      syncBaselinePending: (r['sync_baseline_pending'] as boolean) ?? false,
     };
   }
 
@@ -279,31 +299,44 @@ export class ProcessService {
   }
 
   /** Histórico de envios de WhatsApp deste processo (notification_deliveries). */
-  async deliveries(processId: string): Promise<DeliveryRow[]> {
-    const { data, error } = await this.supabase
+  /** Uma página do histórico de envios (mais recentes primeiro) e o total. */
+  async deliveries(
+    processId: string,
+    page = 0,
+    pageSize = DELIVERIES_PAGE_SIZE,
+  ): Promise<{ rows: DeliveryRow[]; total: number }> {
+    const from = page * pageSize;
+    const { data, error, count } = await this.supabase
       .from('notification_deliveries')
       .select(
-        'id, recipient_type, phone, status, error, sent_at, created_at, clients(name), process_movements(description)',
+        'id, recipient_type, phone, status, error, sent_at, created_at, clients(name), profile:profiles!notification_deliveries_recipient_profile_id_fkey(full_name), process_movements(description)',
+        { count: 'exact' },
       )
       .eq('process_id', processId)
+      // "Já informado" (1ª sincronização sem histórico) não é envio.
+      .neq('status', 'skipped')
       .order('created_at', { ascending: false })
-      .limit(50);
+      .order('id')
+      .range(from, from + pageSize - 1);
     if (error) throw error;
     const one = <T>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
-    return (data ?? []).map((r: Record<string, unknown>) => ({
+    const rows = (data ?? []).map((r: Record<string, unknown>) => ({
       id: r['id'] as string,
       recipientType: r['recipient_type'] as 'responsible' | 'client',
       recipientName:
         r['recipient_type'] === 'responsible'
-          ? 'Responsável'
+          ? (one(r['profile'] as { full_name: string | null } | null)?.full_name ?? 'Responsável')
           : (one(r['clients'] as { name: string } | null)?.name ?? 'Cliente'),
       phone: r['phone'] as string,
       status: r['status'] as 'sent' | 'failed',
       error: (r['error'] as string) ?? null,
+      // A movimentação pode não estar visível (fonte trocada): mostra só o envio.
       movementDescription:
-        one(r['process_movements'] as { description: string } | null)?.description ?? '—',
+        one(r['process_movements'] as { description: string } | null)?.description.split('\n')[0] ??
+        '—',
       at: ((r['sent_at'] as string) ?? r['created_at']) as string,
     }));
+    return { rows, total: count ?? rows.length };
   }
 
   /** Cadastro atômico (processo + responsáveis) e sujeito ao limite do plano. */
@@ -324,12 +357,14 @@ export class ProcessService {
       .rpc('space_plan_usage', { p_space_id: this.spaceId() })
       .single();
     if (error) throw error;
-    const r = data as Record<string, number>;
+    const r = data as Record<string, number | string>;
     return {
-      maxProcesses: r['max_processes'] ?? 0,
-      usedProcesses: r['used_processes'] ?? 0,
-      maxTracked: r['max_tracked_processes'] ?? 0,
-      usedTracked: r['used_tracked'] ?? 0,
+      planName: (r['plan_name'] as string) ?? '',
+      maxProcesses: (r['max_processes'] as number) ?? 0,
+      usedProcesses: (r['used_processes'] as number) ?? 0,
+      maxTracked: (r['max_tracked_processes'] as number) ?? 0,
+      usedTracked: (r['used_tracked'] as number) ?? 0,
+      trackingHoldDays: (r['tracking_hold_days'] as number) ?? 30,
     };
   }
 
@@ -410,19 +445,18 @@ export class ProcessService {
   async listClients(processId: string): Promise<LinkedClient[]> {
     const { data, error } = await this.supabase
       .from('process_clients')
-      .select('id, client_id, clients(name, type, document)')
+      .select('id, client_id, clients(name, type)')
       .eq('process_id', processId)
       .is('deleted_at', null);
     if (error) throw error;
     return (data ?? []).map((r: Record<string, unknown>) => {
       const c = (Array.isArray(r['clients']) ? r['clients'][0] : r['clients']) as
-        { name: string; type: 'PF' | 'PJ'; document: string | null } | undefined;
+        { name: string; type: 'PF' | 'PJ' } | undefined;
       return {
         linkId: r['id'] as string,
         clientId: r['client_id'] as string,
         name: c?.name ?? '—',
         type: c?.type ?? 'PF',
-        document: c?.document ?? null,
       };
     });
   }
@@ -458,7 +492,37 @@ export class ProcessService {
       occurredAt: (r['occurred_at'] as string) ?? null,
       collectedAt: r['collected_at'] as string,
       sourceKind: r['source_kind'] as string,
+      manual: r['source_kind'] === 'manual',
     }));
+  }
+
+  /** Movimentação manual (processo sem sincronização). Avisa pela fila, em instantes. */
+  async createManualMovement(processId: string, input: ManualMovementInput): Promise<void> {
+    const { error } = await this.supabase.rpc('create_manual_movement', {
+      p_process_id: processId,
+      p_occurred_on: input.occurredOn,
+      p_title: input.title,
+      p_detail: input.detail,
+    });
+    if (error) throw error;
+  }
+
+  /** Correção (ADMIN ou quem cadastrou o processo). Não reenvia aviso. */
+  async updateManualMovement(movementId: string, input: ManualMovementInput): Promise<void> {
+    const { error } = await this.supabase.rpc('update_manual_movement', {
+      p_movement_id: movementId,
+      p_occurred_on: input.occurredOn,
+      p_title: input.title,
+      p_detail: input.detail,
+    });
+    if (error) throw error;
+  }
+
+  async deleteManualMovement(movementId: string): Promise<void> {
+    const { error } = await this.supabase.rpc('delete_manual_movement', {
+      p_movement_id: movementId,
+    });
+    if (error) throw error;
   }
 
   async history(processId: string): Promise<HistoryRow[]> {

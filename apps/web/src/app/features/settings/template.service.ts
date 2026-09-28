@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import type { MessageTemplate, NotificationAudience } from '@juriflow/shared-types';
+import type { MessageTemplate, NotificationAudience, TemplateKind } from '@juriflow/shared-types';
 import { SUPABASE_CLIENT } from '../../core/supabase/supabase-client';
 import { AuthService } from '../../core/auth/auth.service';
 import { ActiveSpaceService } from '../../core/authorization/active-space.service';
@@ -8,6 +8,7 @@ interface TemplateRow {
   id: string;
   space_id: string;
   name: string;
+  kind: TemplateKind;
   audience: NotificationAudience;
   body: string;
   created_by: string;
@@ -17,6 +18,7 @@ interface TemplateRow {
 
 export interface TemplateInput {
   name: string;
+  kind: TemplateKind;
   audience: NotificationAudience;
   body: string;
 }
@@ -26,6 +28,7 @@ function toTemplate(r: TemplateRow): MessageTemplate {
     id: r.id,
     spaceId: r.space_id,
     name: r.name,
+    kind: r.kind,
     audience: r.audience,
     body: r.body,
     createdBy: r.created_by,
@@ -46,13 +49,16 @@ export class TemplateService {
     return id;
   }
 
-  async list(): Promise<MessageTemplate[]> {
-    const { data, error } = await this.supabase
+  /** Todos os templates do espaço, ou só os do tipo pedido. */
+  async list(kind?: TemplateKind): Promise<MessageTemplate[]> {
+    let q = this.supabase
       .from('message_templates')
       .select('*')
       .eq('space_id', this.spaceId())
       .order('audience')
       .order('name');
+    if (kind) q = q.eq('kind', kind);
+    const { data, error } = await q;
     if (error) throw error;
     return ((data ?? []) as TemplateRow[]).map(toTemplate);
   }
@@ -64,6 +70,7 @@ export class TemplateService {
         space_id: this.spaceId(),
         created_by: this.auth.userId(),
         name: input.name.trim(),
+        kind: input.kind,
         audience: input.audience,
         body: input.body.trim(),
       })
@@ -76,7 +83,12 @@ export class TemplateService {
   async update(id: string, input: TemplateInput): Promise<void> {
     const { error } = await this.supabase
       .from('message_templates')
-      .update({ name: input.name.trim(), audience: input.audience, body: input.body.trim() })
+      .update({
+        name: input.name.trim(),
+        kind: input.kind,
+        audience: input.audience,
+        body: input.body.trim(),
+      })
       .eq('id', id);
     if (error) throw error;
   }

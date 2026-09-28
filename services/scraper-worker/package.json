@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@juriflow/collectors-core": "*",
+    "@juriflow/shared-types": "*",
     "@supabase/supabase-js": "^2.45.4",
     "node-cron": "^3.0.3",
     "playwright": "1.63.0"

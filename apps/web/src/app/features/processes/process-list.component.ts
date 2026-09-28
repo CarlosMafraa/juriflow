@@ -85,8 +85,8 @@ const SUBTITLE: Record<Tab, { admin: string; colab: string }> = {
       />
       @if (usage(); as u) {
         <span class="usage" [class.usage--full]="planFull()">
-          {{ u.usedProcesses }} de {{ u.maxProcesses }} processos do plano · {{ u.usedTracked }} de
-          {{ u.maxTracked }} com sincronização automática
+          Plano {{ u.planName }}: {{ u.usedProcesses }} de {{ u.maxProcesses }} processos ·
+          {{ u.usedTracked }} de {{ u.maxTracked }} com sincronização automática
         </span>
       }
     </div>

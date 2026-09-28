@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Fase 3 — RLS e regras de negócio: processos, clientes, vínculos, transferência,
--- histórico, tribunais, soft delete, CNJ/documento, PF/PJ, SUPER_ADMIN.
+-- histórico, tribunais, soft delete, CNJ, PF/PJ (sem CPF/CNPJ), SUPER_ADMIN.
 -- Rode com: npm run db:test
 -- =============================================================================
 begin;
@@ -73,10 +73,10 @@ insert into public.process_responsible_history (process_id, responsible_id, assi
  ('30000000-0000-0000-0000-0000000000b1','00000000-0000-0000-0000-0000000000b2','00000000-0000-0000-0000-0000000000b1','process_created');
 
 -- ---- clientes ----
-insert into public.clients (id, space_id, type, name, document, created_by) values
- ('40000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-00000000000a','PF','Joao','52998224725','00000000-0000-0000-0000-0000000000a2'),
- ('40000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-00000000000a','PF','Pedro','39053344705','00000000-0000-0000-0000-0000000000a1'),
- ('40000000-0000-0000-0000-0000000000b1','10000000-0000-0000-0000-00000000000b','PF','Maria B','11144477735','00000000-0000-0000-0000-0000000000b1');
+insert into public.clients (id, space_id, type, name, created_by) values
+ ('40000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-00000000000a','PF','Joao','00000000-0000-0000-0000-0000000000a2'),
+ ('40000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-00000000000a','PF','Pedro','00000000-0000-0000-0000-0000000000a1'),
+ ('40000000-0000-0000-0000-0000000000b1','10000000-0000-0000-0000-00000000000b','PF','Maria B','00000000-0000-0000-0000-0000000000b1');
 
 -- =============================================================================
 -- LEITURA de processos — colaborador só vê onde é responsável
@@ -246,20 +246,8 @@ select tests_as('00000000-0000-0000-0000-0000000000f1');
 select is((select count(*)::int from public.clients), 0,
   'SUPER_ADMIN não tem acesso a clients');
 
-select tests_as('00000000-0000-0000-0000-0000000000a1');
-select throws_ok($$
-  insert into public.clients (space_id, type, name, document, created_by)
-  values ('10000000-0000-0000-0000-00000000000a','PF','Joao Xerox','529.982.247-25','00000000-0000-0000-0000-0000000000a1')
-$$, '23505', null, 'CPF duplicado no mesmo espaço é rejeitado (normalização ignora máscara)');
-select lives_ok($$
-  insert into public.clients (space_id, type, name, document, created_by)
-  values ('10000000-0000-0000-0000-00000000000a','PJ','Empresa','11.222.333/0001-81','00000000-0000-0000-0000-0000000000a1')
-$$, 'CNPJ válido é aceito');
-select tests_as('00000000-0000-0000-0000-0000000000b1');
-select lives_ok($$
-  insert into public.clients (space_id, type, name, document, created_by)
-  values ('10000000-0000-0000-0000-00000000000b','PF','Joao no espaco B','52998224725','00000000-0000-0000-0000-0000000000b1')
-$$, 'Mesmo CPF em outro espaço é permitido (isolamento)');
+-- LGPD (0048): o cliente não informa mais CPF/CNPJ — a coluna nem existe.
+select hasnt_column('public', 'clients', 'document', 'clients não guarda CPF/CNPJ');
 
 select tests_as('00000000-0000-0000-0000-0000000000a1');
 select throws_ok($$

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Logger } from '../infra/logger.js';
 import type { WahaSessionGateway, WahaSessionStatus } from '../infra/waha-session-gateway.js';
 import type { WhatsappSessionRow } from '../ports/whatsapp-session-repository.port.js';
-import { WhatsappSessionJob } from './whatsapp-session.job.js';
+import { SESSION_LOST_MESSAGE, WhatsappSessionJob } from './whatsapp-session.job.js';
 
 function buildLogger(): Logger {
   return { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
@@ -29,6 +29,8 @@ function buildGateway(status: WahaSessionStatus | null): WahaSessionGateway {
 
 interface MockRepository {
   listActionable: ReturnType<typeof vi.fn>;
+  listConnected: ReturnType<typeof vi.fn>;
+  touchConnected: ReturnType<typeof vi.fn>;
   markConnecting: ReturnType<typeof vi.fn>;
   markQrReady: ReturnType<typeof vi.fn>;
   markConnected: ReturnType<typeof vi.fn>;
@@ -39,6 +41,8 @@ interface MockRepository {
 function buildRepository(): MockRepository {
   return {
     listActionable: vi.fn(async () => []),
+    listConnected: vi.fn(async () => []),
+    touchConnected: vi.fn(async () => {}),
     markConnecting: vi.fn(async () => {}),
     markQrReady: vi.fn(async () => {}),
     markConnected: vi.fn(async () => {}),
@@ -134,5 +138,62 @@ describe('WhatsappSessionJob', () => {
 
     expect(repository.markFailed).toHaveBeenCalledWith('space-a', 'timeout');
     expect(repository.markConnected).toHaveBeenCalledWith('space-b');
+  });
+
+  describe('conferência das sessões conectadas (queda pelo celular)', () => {
+    function connected(gateway: WahaSessionGateway): {
+      repository: MockRepository;
+      run: () => Promise<void>;
+    } {
+      const repository = buildRepository();
+      repository.listConnected.mockResolvedValueOnce([buildRow({ status: 'connected' })]);
+      return {
+        repository,
+        run: () => new WhatsappSessionJob(gateway, repository, buildLogger()).checkConnected(),
+      };
+    }
+
+    it('WORKING: continua conectada, só registra a conferência', async () => {
+      const { repository, run } = connected(buildGateway('WORKING'));
+      await run();
+      expect(repository.touchConnected).toHaveBeenCalledWith('space-1');
+      expect(repository.markDisconnected).not.toHaveBeenCalled();
+    });
+
+    it.each(['SCAN_QR_CODE', 'FAILED'] as const)(
+      '%s: desconectou pelo celular — limpa a sessão no WAHA e marca desconectada com o motivo',
+      async (status) => {
+        const gateway = buildGateway(status);
+        const { repository, run } = connected(gateway);
+        await run();
+        expect(gateway.logoutAndDelete).toHaveBeenCalledWith('space_1');
+        expect(repository.markDisconnected).toHaveBeenCalledWith('space-1', SESSION_LOST_MESSAGE);
+      },
+    );
+
+    it('sessão sumiu do WAHA: marca desconectada', async () => {
+      const gateway = buildGateway(null);
+      const { repository, run } = connected(gateway);
+      await run();
+      expect(gateway.logoutAndDelete).not.toHaveBeenCalled();
+      expect(repository.markDisconnected).toHaveBeenCalledWith('space-1', SESSION_LOST_MESSAGE);
+    });
+
+    it('STOPPED (WAHA reiniciado): religa a sessão, sem pedir QR de novo', async () => {
+      const gateway = buildGateway('STOPPED');
+      const { repository, run } = connected(gateway);
+      await run();
+      expect(gateway.start).toHaveBeenCalledWith('space_1');
+      expect(repository.markDisconnected).not.toHaveBeenCalled();
+    });
+
+    it('WAHA fora do ar: não conclui que caiu', async () => {
+      const gateway = buildGateway('WORKING');
+      (gateway.getStatus as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('timeout'));
+      const { repository, run } = connected(gateway);
+      await run();
+      expect(repository.markDisconnected).not.toHaveBeenCalled();
+      expect(repository.markFailed).not.toHaveBeenCalled();
+    });
   });
 });

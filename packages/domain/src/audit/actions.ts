@@ -56,6 +56,13 @@ export const AUDIT_ACTIONS = {
   processMovementCollected: 'process.movement.collected',
   notificationDeliverySent: 'notification.delivery.sent',
   notificationDeliveryFailed: 'notification.delivery.failed',
+  /** 1ª sincronização de processo que tinha movimentações manuais: registrado sem aviso (N13). */
+  notificationDeliverySkipped: 'notification.delivery.skipped',
+
+  // Movimentações manuais (processo sem sincronização automática) — 0048.
+  processMovementManualCreate: 'process.movement.manual.create',
+  processMovementManualUpdate: 'process.movement.manual.update',
+  processMovementManualDelete: 'process.movement.manual.delete',
 
   // Motor de notificações configurável — templates + config geral/por processo
   templateCreate: 'template.create',

@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { isValidClientDocument } from '@juriflow/domain';
 import type { ClientType } from '@juriflow/shared-types';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
@@ -46,15 +45,6 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
           }
         </div>
         <div class="field">
-          <label for="document">{{ form.value.type === 'PJ' ? 'CNPJ' : 'CPF' }}</label>
-          <input pInputText id="document" formControlName="document" />
-          @if (docError()) {
-            <small class="field__error">{{ docError() }}</small>
-          } @else {
-            <small class="field__hint">Opcional. Único no espaço quando informado.</small>
-          }
-        </div>
-        <div class="field">
           <label for="phone">Telefone</label>
           <input pInputText id="phone" type="tel" formControlName="phone" />
           @if (phoneError()) {
@@ -71,6 +61,10 @@ import { PageHeaderService } from '../../shared/layout/page-header.service';
           <div class="field">
             <label for="birthDate">Data de nascimento</label>
             <input pInputText id="birthDate" type="date" formControlName="birthDate" />
+            <small class="field__hint"
+              >Opcional. Com o aceite de avisos, o cliente recebe os parabéns do escritório no
+              aniversário.</small
+            >
           </div>
         }
 
@@ -162,7 +156,6 @@ export class ClientFormComponent {
   protected readonly form = this.fb.nonNullable.group({
     type: 'PF' as ClientType,
     name: ['', [Validators.required]],
-    document: '',
     phone: '',
     email: ['', [Validators.email]],
     birthDate: '',
@@ -188,7 +181,6 @@ export class ClientFormComponent {
       this.form.patchValue({
         type: c.type,
         name: c.name,
-        document: c.document ?? '',
         phone: c.phone ?? '',
         email: c.email ?? '',
         birthDate: c.birthDate ?? '',
@@ -204,14 +196,6 @@ export class ClientFormComponent {
     return c.touched && c.invalid;
   }
 
-  protected docError(): string {
-    const v = this.form.getRawValue();
-    if (!v.document.trim()) return '';
-    return isValidClientDocument(v.type, v.document)
-      ? ''
-      : `${v.type === 'PJ' ? 'CNPJ' : 'CPF'} inválido.`;
-  }
-
   protected phoneError(): string {
     const p = this.form.value.phone?.trim();
     if (!p) return '';
@@ -225,7 +209,7 @@ export class ClientFormComponent {
 
   protected async submit(): Promise<void> {
     this.error.set('');
-    if (this.form.invalid || this.docError() || this.phoneError()) {
+    if (this.form.invalid || this.phoneError()) {
       this.form.markAllAsTouched();
       return;
     }
@@ -235,7 +219,6 @@ export class ClientFormComponent {
       const input = {
         type: v.type,
         name: v.name,
-        document: v.document,
         phone: v.phone,
         email: v.email,
         birthDate: v.birthDate,
@@ -260,10 +243,6 @@ export class ClientFormComponent {
 
   private humanize(err: unknown): string {
     const msg = (err as { message?: string })?.message ?? '';
-    if (msg.includes('clients_document_uniq'))
-      return 'Já existe um cliente com esse documento neste espaço.';
-    if (msg.includes('clients_document_len_chk'))
-      return 'O documento não tem o comprimento esperado (CPF 11, CNPJ 14 dígitos).';
     if (msg.includes('clients_birth_date_pf_chk'))
       return 'Data de nascimento só é permitida para pessoa física.';
     return 'Não foi possível salvar o cliente.';

@@ -11,6 +11,11 @@ import { WhatsappService } from './whatsapp.service';
 import { PageHeaderService } from '../../shared/layout/page-header.service';
 
 const POLL_MS = 2500;
+/**
+ * Com a sessão conectada, confere de tempos em tempos: se a pessoa
+ * desconectar pelo celular, o worker percebe e a tela acompanha.
+ */
+const CONNECTED_POLL_MS = 30_000;
 
 interface StatusView {
   severity: 'success' | 'info' | 'warn' | 'danger' | 'secondary';
@@ -46,17 +51,34 @@ const STATUS_VIEW: Record<WhatsappSessionStatus, StatusView> = {
         @if (s?.status === 'failed' && s?.lastError) {
           <p-message severity="error" [text]="s!.lastError!" styleClass="w-full block" />
         }
+        @if (s?.status === 'disconnected' && s?.lastError) {
+          <p-message severity="warn" [text]="s!.lastError!" styleClass="w-full block" />
+        }
+        @if (s?.status !== 'connected') {
+          <p class="meta hint">
+            Enquanto o WhatsApp estiver desconectado, os avisos ficam pendentes. Nada se perde: eles
+            saem automaticamente assim que a conexão for feita.
+          </p>
+        }
 
         @if (s?.status === 'qr_ready' && s?.qrCode) {
           <div class="qr-wrap">
             <img [src]="s!.qrCode" alt="QR code para conectar o WhatsApp" class="qr" />
-            <p class="qr-hint">Abra o WhatsApp no celular do espaço → Aparelhos conectados → escaneie este código.</p>
+            <p class="qr-hint">
+              Abra o WhatsApp no celular do espaço → Aparelhos conectados → escaneie este código.
+            </p>
           </div>
         }
 
         <div class="actions">
           @if (!s || s.status === 'disconnected' || s.status === 'failed') {
-            <p-button size="small" icon="pi pi-link" label="Conectar" [loading]="acting()" (onClick)="connect()" />
+            <p-button
+              size="small"
+              icon="pi pi-link"
+              label="Conectar"
+              [loading]="acting()"
+              (onClick)="connect()"
+            />
           } @else {
             <p-button
               size="small"
@@ -91,6 +113,9 @@ const STATUS_VIEW: Record<WhatsappSessionStatus, StatusView> = {
         align-items: center;
         gap: 0.75rem;
         margin-bottom: 1rem;
+      }
+      .hint {
+        margin: 0.75rem 0 0;
       }
       .meta {
         font-size: 0.8125rem;
@@ -134,6 +159,7 @@ export class WhatsappSettingsComponent implements OnDestroy {
   protected readonly session = signal<WhatsappSession | null>(null);
 
   private pollHandle: ReturnType<typeof setInterval> | null = null;
+  private pollInterval: number | null = null;
 
   constructor() {
     this.pageHeader.set(
@@ -201,11 +227,15 @@ export class WhatsappSettingsComponent implements OnDestroy {
 
   private syncPolling(): void {
     const s = this.session();
-    const transient = s !== null && (s.pendingAction !== null || s.status === 'connecting' || s.status === 'qr_ready');
-    if (transient && !this.pollHandle) {
-      this.pollHandle = setInterval(() => void this.refresh(), POLL_MS);
-    } else if (!transient) {
-      this.stopPolling();
+    const transient =
+      s !== null &&
+      (s.pendingAction !== null || s.status === 'connecting' || s.status === 'qr_ready');
+    const interval = transient ? POLL_MS : s?.status === 'connected' ? CONNECTED_POLL_MS : null;
+    if (interval === this.pollInterval) return;
+    this.stopPolling();
+    if (interval !== null) {
+      this.pollHandle = setInterval(() => void this.refresh(), interval);
+      this.pollInterval = interval;
     }
   }
 
@@ -214,5 +244,6 @@ export class WhatsappSettingsComponent implements OnDestroy {
       clearInterval(this.pollHandle);
       this.pollHandle = null;
     }
+    this.pollInterval = null;
   }
 }

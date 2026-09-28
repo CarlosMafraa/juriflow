@@ -48,6 +48,10 @@ export const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
   'process.movement.collected': 'Movimentação coletada',
   'notification.delivery.sent': 'WhatsApp enviado',
   'notification.delivery.failed': 'Falha no envio de WhatsApp',
+  'notification.delivery.skipped': 'Histórico registrado sem aviso (já informado)',
+  'process.movement.manual.create': 'Movimentação cadastrada à mão',
+  'process.movement.manual.update': 'Movimentação manual corrigida',
+  'process.movement.manual.delete': 'Movimentação manual excluída',
   'template.create': 'Template criado',
   'template.update': 'Template editado',
   'template.delete': 'Template excluído',
@@ -58,7 +62,8 @@ export const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
   'notification_config.process.delete': 'Processo voltou às regras do espaço',
   'notification_config.movement_type.update': 'Tipo de movimentação avisado alterado',
   'notification_config.process_movement_type.set': 'Tipo de movimentação do processo personalizado',
-  'notification_config.process_movement_type.reset': 'Tipo de movimentação do processo voltou ao padrão',
+  'notification_config.process_movement_type.reset':
+    'Tipo de movimentação do processo voltou ao padrão',
   'waha.session.connect': 'WhatsApp: conexão solicitada',
   'waha.session.disconnect': 'WhatsApp: desconexão solicitada',
 };

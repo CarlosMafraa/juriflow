@@ -68,6 +68,13 @@ const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
             }
           </div>
           <div class="field">
+            <label for="birthDate">Data de nascimento</label>
+            <input pInputText id="birthDate" type="date" formControlName="birthDate" />
+            <small class="field__hint"
+              >Opcional. Quem informa recebe os parabéns do escritório no WhatsApp.</small
+            >
+          </div>
+          <div class="field">
             <label for="email">E-mail de acesso</label>
             <input pInputText id="email" formControlName="email" />
             <small class="field__hint">Não pode ser alterado por aqui.</small>
@@ -193,6 +200,7 @@ export class ProfileComponent {
   protected readonly profileForm = this.fb.nonNullable.group({
     fullName: ['', [Validators.required, Validators.minLength(3)]],
     phone: '',
+    birthDate: '',
     email: [''],
   });
 
@@ -208,6 +216,7 @@ export class ProfileComponent {
     this.profileForm.setValue({
       fullName: profile?.fullName ?? '',
       phone: profile?.phone ?? '',
+      birthDate: profile?.birthDate ?? '',
       email: profile?.email ?? '',
     });
     this.profileForm.controls.email.disable();
@@ -278,8 +287,12 @@ export class ProfileComponent {
     if (!userId) return;
     this.savingProfile.set(true);
     try {
-      const { fullName, phone } = this.profileForm.getRawValue();
-      await this.profileService.updateProfile(userId, { fullName, phone: phone.trim() || null });
+      const { fullName, phone, birthDate } = this.profileForm.getRawValue();
+      await this.profileService.updateProfile(userId, {
+        fullName,
+        phone: phone.trim() || null,
+        birthDate: birthDate || null,
+      });
       await this.auth.refreshContext();
       this.toast.success('Perfil atualizado.');
     } catch {
