@@ -12,6 +12,14 @@ language sql security definer set search_path = '' as $$
     json_build_object('sub', uid::text, 'role', 'authenticated')::text, true);
 $$;
 
+-- "Hoje" do escritório (Manaus), como a regra de data da movimentação manual.
+-- current_date é UTC: entre 00h e 04h UTC já é "amanhã" e o teste quebraria.
+create function tests_today() returns date
+language sql stable set search_path = '' as $$
+  select (now() at time zone 'America/Manaus')::date;
+$$;
+grant execute on function tests_today() to authenticated;
+
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
 values
@@ -52,18 +60,18 @@ select is((select count(*)::int from public.process_movements
             where process_id = '30000000-0000-0000-0000-000000000001'), 0,
   'Sem sincronização, a movimentação do tribunal NÃO aparece (anti-burla)');
 select lives_ok($$ select public.create_manual_movement('30000000-0000-0000-0000-000000000001',
-  current_date - 1, 'Audiência realizada', 'Acordo proposto') $$,
+  tests_today() - 1, 'Audiência realizada', 'Acordo proposto') $$,
   'Responsável cadastra movimentação manual');
 select is((select description from public.process_movements
             where process_id = '30000000-0000-0000-0000-000000000001'),
   E'Audiência realizada\nAcordo proposto', 'Só a manual aparece, com título e detalhe');
 select throws_ok($$ select public.create_manual_movement('30000000-0000-0000-0000-000000000001',
-  current_date + 1, 'Futuro', null) $$, '23514', 'A data da movimentação não pode ser no futuro.',
+  tests_today() + 1, 'Futuro', null) $$, '23514', 'A data da movimentação não pode ser no futuro.',
   'Data no futuro é recusada');
 select throws_ok($$ select public.create_manual_movement('30000000-0000-0000-0000-000000000001',
-  current_date, '  ', null) $$, '23514', null, 'Título vazio é recusado');
+  tests_today(), '  ', null) $$, '23514', null, 'Título vazio é recusado');
 select throws_ok($$ select public.create_manual_movement('30000000-0000-0000-0000-000000000002',
-  current_date, 'Intrusa', null) $$, '42501', null, 'Não responsável não cadastra');
+  tests_today(), 'Intrusa', null) $$, '42501', null, 'Não responsável não cadastra');
 select throws_ok($$ insert into public.process_movements (space_id, process_id, source_kind, description, content_hash)
   values ('10000000-0000-0000-0000-00000000000a','30000000-0000-0000-0000-000000000001','manual','x','x') $$,
   '42501', null, 'Insert direto na tabela continua proibido (só pela RPC)');
@@ -71,24 +79,24 @@ select throws_ok($$ insert into public.process_movements (space_id, process_id, 
 -- colabB é responsável, mas não cadastrou o processo: não corrige nem exclui.
 select throws_ok($$ select public.update_manual_movement(
   (select id from public.process_movements where source_kind = 'manual' limit 1),
-  current_date, 'Editada', null) $$, '42501', null,
+  tests_today(), 'Editada', null) $$, '42501', null,
   'Responsável que não cadastrou o processo não corrige');
 reset role;
 
 select tests_as('00000000-0000-0000-0000-0000000000a2'); set local role authenticated;
 select lives_ok($$ select public.update_manual_movement(
   (select id from public.process_movements where source_kind = 'manual' limit 1),
-  current_date - 2, 'Audiência de conciliação', null) $$,
+  tests_today() - 2, 'Audiência de conciliação', null) $$,
   'Quem cadastrou o processo corrige');
 reset role;
 
 -- ADMIN corrige e exclui mesmo sem ter cadastrado o processo (P1 é da colabA).
 select tests_as('00000000-0000-0000-0000-0000000000a1'); set local role authenticated;
 select lives_ok($$ select public.create_manual_movement('30000000-0000-0000-0000-000000000001',
-  current_date, 'Movimentação do ADMIN', null) $$, 'ADMIN cadastra manual');
+  tests_today(), 'Movimentação do ADMIN', null) $$, 'ADMIN cadastra manual');
 select lives_ok($$ select public.update_manual_movement(
   (select id from public.process_movements where description = 'Movimentação do ADMIN'),
-  current_date, 'Movimentação do ADMIN corrigida', null) $$,
+  tests_today(), 'Movimentação do ADMIN corrigida', null) $$,
   'ADMIN corrige movimentação de processo que não cadastrou');
 select lives_ok($$ select public.delete_manual_movement(
   (select id from public.process_movements where description = 'Movimentação do ADMIN corrigida')) $$,
@@ -114,7 +122,7 @@ select is((select description from public.process_movements
             where process_id = '30000000-0000-0000-0000-000000000001'),
   'SENTENÇA DO TRIBUNAL', 'Com sincronização, só as do tribunal aparecem (manual guardada)');
 select throws_ok($$ select public.create_manual_movement('30000000-0000-0000-0000-000000000001',
-  current_date, 'Manual com sync', null) $$, '23514',
+  tests_today(), 'Manual com sync', null) $$, '23514',
   'Com a sincronização automática ligada, as movimentações vêm do tribunal.',
   'Com sincronização ligada, não cadastra manual');
 reset role;
@@ -189,7 +197,7 @@ select throws_ok($$ update public.space_notification_configs
   'Template de aniversário não serve para aviso de movimentação');
 select throws_ok($$ select * from public.birthday_greetings $$, '42501', null,
   'Registro dos parabéns é só do worker');
-select throws_ok($$ select * from public.worker_birthdays_on(current_date) $$, '42501', null,
+select throws_ok($$ select * from public.worker_birthdays_on(tests_today()) $$, '42501', null,
   'Lista de aniversariantes é só do worker');
 reset role;
 
