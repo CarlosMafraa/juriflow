@@ -1,3 +1,4 @@
+import { PasswordToggleDirective } from '../../shared/ui/password-toggle.directive';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -17,7 +18,14 @@ import { PASSWORD_HINT, passwordValidators } from '../../core/auth/password-poli
   selector: 'jf-reset-password',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, ButtonModule, InputTextModule, MessageModule, AuthCardComponent],
+  imports: [
+    ReactiveFormsModule,
+    ButtonModule,
+    InputTextModule,
+    MessageModule,
+    AuthCardComponent,
+    PasswordToggleDirective,
+  ],
   template: `
     <jf-auth-card title="Definir nova senha" subtitle="Escolha uma nova senha para sua conta.">
       <form [formGroup]="form" (ngSubmit)="submit()" class="form">
@@ -30,6 +38,7 @@ import { PASSWORD_HINT, passwordValidators } from '../../core/auth/password-poli
             pInputText
             id="password"
             type="password"
+            jfPasswordToggle
             autocomplete="new-password"
             formControlName="password"
           />
@@ -43,6 +52,7 @@ import { PASSWORD_HINT, passwordValidators } from '../../core/auth/password-poli
             pInputText
             id="confirm"
             type="password"
+            jfPasswordToggle
             autocomplete="new-password"
             formControlName="confirm"
           />

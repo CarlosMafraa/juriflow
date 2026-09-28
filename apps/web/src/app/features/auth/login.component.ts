@@ -1,3 +1,4 @@
+import { PasswordToggleDirective } from '../../shared/ui/password-toggle.directive';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -13,6 +14,7 @@ import { AuthCardComponent } from './auth-card.component';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PasswordToggleDirective,
     ReactiveFormsModule,
     RouterLink,
     ButtonModule,
@@ -45,6 +47,7 @@ import { AuthCardComponent } from './auth-card.component';
             pInputText
             id="password"
             type="password"
+            jfPasswordToggle
             autocomplete="current-password"
             formControlName="password"
           />

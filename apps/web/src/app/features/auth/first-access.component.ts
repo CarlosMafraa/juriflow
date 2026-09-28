@@ -1,3 +1,4 @@
+import { PasswordToggleDirective } from '../../shared/ui/password-toggle.directive';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -27,6 +28,7 @@ type View = 'loading' | 'blocked' | 'form';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PasswordToggleDirective,
     ReactiveFormsModule,
     RouterLink,
     ButtonModule,
@@ -103,6 +105,7 @@ type View = 'loading' | 'blocked' | 'form';
                     pInputText
                     id="password"
                     type="password"
+                    jfPasswordToggle
                     formControlName="password"
                     autocomplete="new-password"
                   />
@@ -116,6 +119,7 @@ type View = 'loading' | 'blocked' | 'form';
                     pInputText
                     id="confirm"
                     type="password"
+                    jfPasswordToggle
                     formControlName="confirm"
                     autocomplete="new-password"
                   />

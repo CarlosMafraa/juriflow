@@ -1,3 +1,4 @@
+import { PasswordToggleDirective } from '../../shared/ui/password-toggle.directive';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -18,7 +19,13 @@ const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
   selector: 'jf-profile',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, ButtonModule, CardModule, InputTextModule],
+  imports: [
+    ReactiveFormsModule,
+    ButtonModule,
+    CardModule,
+    InputTextModule,
+    PasswordToggleDirective,
+  ],
   template: `
     <div class="grid">
       <p-card header="Dados pessoais">
@@ -99,6 +106,7 @@ const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
               pInputText
               id="password"
               type="password"
+              jfPasswordToggle
               autocomplete="new-password"
               formControlName="password"
             />
@@ -112,6 +120,7 @@ const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
               pInputText
               id="confirm"
               type="password"
+              jfPasswordToggle
               autocomplete="new-password"
               formControlName="confirm"
             />
