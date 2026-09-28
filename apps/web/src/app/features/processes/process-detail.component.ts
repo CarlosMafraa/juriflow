@@ -23,6 +23,7 @@ import { CardModule } from 'primeng/card';
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
+import { PaginatorModule } from 'primeng/paginator';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { SelectModule } from 'primeng/select';
 import { SelectButtonModule } from 'primeng/selectbutton';
@@ -37,6 +38,7 @@ import {
   type LinkedClient,
   type MovementRow,
   type ProcessDetail,
+  DELIVERIES_PAGE_SIZE,
 } from './process.service';
 import { ClientService } from '../clients/client.service';
 import { MovementTypeTogglesComponent } from '../settings/movement-type-toggles.component';
@@ -97,6 +99,7 @@ type SavedOverride = Pick<
     CheckboxModule,
     InputTextModule,
     MessageModule,
+    PaginatorModule,
     ProgressSpinnerModule,
     SelectModule,
     SelectButtonModule,
@@ -567,23 +570,35 @@ type SavedOverride = Pick<
           }
 
           <p-card header="Notificações enviadas" styleClass="section">
-            @if (deliveries().length === 0) {
+            @if (deliveriesTotal() === 0) {
               <p class="muted">Nenhuma notificação de WhatsApp enviada para este processo ainda.</p>
             } @else {
-              <p-table [value]="deliveries()" styleClass="p-datatable-sm">
+              <p class="muted small deliveries-total">
+                {{ deliveriesTotal() }} {{ deliveriesTotal() === 1 ? 'envio' : 'envios' }} — um por
+                destinatário e movimentação, dos mais recentes para os mais antigos.
+              </p>
+              <p-table
+                [value]="deliveries()"
+                [loading]="deliveriesLoading()"
+                styleClass="p-datatable-sm"
+              >
                 <ng-template pTemplate="header">
                   <tr>
                     <th>Data</th>
                     <th>Destinatário</th>
+                    <th>Movimentação</th>
                     <th>Telefone</th>
                     <th>Status</th>
                   </tr>
                 </ng-template>
                 <ng-template pTemplate="body" let-d>
                   <tr>
-                    <td>{{ fmt(d.at) }}</td>
+                    <td class="nowrap">{{ fmt(d.at) }}</td>
                     <td>{{ d.recipientName }}</td>
-                    <td>{{ d.phone }}</td>
+                    <td class="movement-cell" [attr.title]="d.movementDescription">
+                      {{ d.movementDescription }}
+                    </td>
+                    <td class="nowrap">{{ d.phone }}</td>
                     <td>
                       @if (d.status === 'sent') {
                         <p-tag severity="success" value="Enviada" />
@@ -594,6 +609,14 @@ type SavedOverride = Pick<
                   </tr>
                 </ng-template>
               </p-table>
+              @if (deliveriesTotal() > deliveriesPageSize) {
+                <p-paginator
+                  [first]="deliveriesPage() * deliveriesPageSize"
+                  [rows]="deliveriesPageSize"
+                  [totalRecords]="deliveriesTotal()"
+                  (onPageChange)="goToDeliveriesPage($event.page ?? 0)"
+                />
+              }
             }
           </p-card>
         }
@@ -900,6 +923,18 @@ type SavedOverride = Pick<
         margin-bottom: 1rem;
         overflow-x: auto;
       }
+      .deliveries-total {
+        margin: 0 0 0.6rem;
+      }
+      .nowrap {
+        white-space: nowrap;
+      }
+      .movement-cell {
+        max-width: 22rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       .manual {
         display: grid;
         grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr);
@@ -977,6 +1012,10 @@ export class ProcessDetailComponent {
   protected readonly movements = signal<MovementRow[]>([]);
   protected readonly movementsLoading = signal(true);
   protected readonly deliveries = signal<DeliveryRow[]>([]);
+  protected readonly deliveriesTotal = signal(0);
+  protected readonly deliveriesPage = signal(0);
+  protected readonly deliveriesLoading = signal(false);
+  protected readonly deliveriesPageSize = DELIVERIES_PAGE_SIZE;
   protected readonly requestingCheck = signal(false);
   private checkPoll: ReturnType<typeof setInterval> | null = null;
 
@@ -1231,12 +1270,11 @@ export class ProcessDetailComponent {
         if (state.checkRequestedAt) return;
         this.stopCheckPoll();
         this.process.set({ ...p, ...state });
-        const [movements, deliveries] = await Promise.all([
+        const [movements] = await Promise.all([
           this.service.movements(p.id),
-          this.service.deliveries(p.id),
+          this.goToDeliveriesPage(0),
         ]);
         this.movements.set(movements);
-        this.deliveries.set(deliveries);
         if (state.lastCheckError) this.toast.warning('A consulta ao tribunal falhou.');
         else this.toast.success('Consulta concluída.');
       } catch {
@@ -1269,7 +1307,7 @@ export class ProcessDetailComponent {
           .movements(p.id)
           .then((m) => this.movements.set(m))
           .finally(() => this.movementsLoading.set(false)),
-        this.service.deliveries(p.id).then((d) => this.deliveries.set(d)),
+        this.goToDeliveriesPage(0),
       ];
       if (this.isAdmin()) {
         const spaceId = this.activeSpace.activeSpaceId();
@@ -1478,6 +1516,22 @@ export class ProcessDetailComponent {
       confirmLabel: 'Desligar',
       tone: 'danger',
     };
+  }
+
+  protected async goToDeliveriesPage(page: number): Promise<void> {
+    const p = this.process();
+    if (!p) return;
+    this.deliveriesLoading.set(true);
+    try {
+      const { rows, total } = await this.service.deliveries(p.id, page);
+      this.deliveries.set(rows);
+      this.deliveriesTotal.set(total);
+      this.deliveriesPage.set(page);
+    } catch {
+      this.toast.error('Não foi possível carregar os envios.');
+    } finally {
+      this.deliveriesLoading.set(false);
+    }
   }
 
   protected fmtDate(iso: string): string {

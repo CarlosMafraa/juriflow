@@ -71,6 +71,9 @@ export interface ManualMovementInput {
   detail: string | null;
 }
 
+/** Envios por página no histórico do processo. */
+export const DELIVERIES_PAGE_SIZE = 10;
+
 export interface DeliveryRow {
   id: string;
   recipientType: 'responsible' | 'client';
@@ -296,33 +299,44 @@ export class ProcessService {
   }
 
   /** Histórico de envios de WhatsApp deste processo (notification_deliveries). */
-  async deliveries(processId: string): Promise<DeliveryRow[]> {
-    const { data, error } = await this.supabase
+  /** Uma página do histórico de envios (mais recentes primeiro) e o total. */
+  async deliveries(
+    processId: string,
+    page = 0,
+    pageSize = DELIVERIES_PAGE_SIZE,
+  ): Promise<{ rows: DeliveryRow[]; total: number }> {
+    const from = page * pageSize;
+    const { data, error, count } = await this.supabase
       .from('notification_deliveries')
       .select(
-        'id, recipient_type, phone, status, error, sent_at, created_at, clients(name), process_movements(description)',
+        'id, recipient_type, phone, status, error, sent_at, created_at, clients(name), profile:profiles!notification_deliveries_recipient_profile_id_fkey(full_name), process_movements(description)',
+        { count: 'exact' },
       )
       .eq('process_id', processId)
       // "Já informado" (1ª sincronização sem histórico) não é envio.
       .neq('status', 'skipped')
       .order('created_at', { ascending: false })
-      .limit(50);
+      .order('id')
+      .range(from, from + pageSize - 1);
     if (error) throw error;
     const one = <T>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
-    return (data ?? []).map((r: Record<string, unknown>) => ({
+    const rows = (data ?? []).map((r: Record<string, unknown>) => ({
       id: r['id'] as string,
       recipientType: r['recipient_type'] as 'responsible' | 'client',
       recipientName:
         r['recipient_type'] === 'responsible'
-          ? 'Responsável'
+          ? (one(r['profile'] as { full_name: string | null } | null)?.full_name ?? 'Responsável')
           : (one(r['clients'] as { name: string } | null)?.name ?? 'Cliente'),
       phone: r['phone'] as string,
       status: r['status'] as 'sent' | 'failed',
       error: (r['error'] as string) ?? null,
+      // A movimentação pode não estar visível (fonte trocada): mostra só o envio.
       movementDescription:
-        one(r['process_movements'] as { description: string } | null)?.description ?? '—',
+        one(r['process_movements'] as { description: string } | null)?.description.split('\n')[0] ??
+        '—',
       at: ((r['sent_at'] as string) ?? r['created_at']) as string,
     }));
+    return { rows, total: count ?? rows.length };
   }
 
   /** Cadastro atômico (processo + responsáveis) e sujeito ao limite do plano. */
