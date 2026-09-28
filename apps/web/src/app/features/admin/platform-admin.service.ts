@@ -165,6 +165,12 @@ export class PlatformAdminService {
     if (error) throw error;
   }
 
+  /** Exclui de vez um escritório que ainda aguarda configuração. */
+  async deletePendingSpace(id: string): Promise<void> {
+    const { error } = await this.supabase.rpc('platform_delete_pending_space', { p_space_id: id });
+    if (error) throw error;
+  }
+
   async setSpaceStatus(id: string, status: SpaceStatus): Promise<void> {
     const { error } = await this.supabase.rpc('platform_set_space_status', {
       p_space_id: id,

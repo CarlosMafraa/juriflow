@@ -78,6 +78,8 @@ export const AUDIT_ACTIONS = {
   processMovementTypeReset: 'notification_config.process_movement_type.reset',
 
   // Sessão WhatsApp (WAHA) por espaço — RN seção 22 / F12.
+  /** Plataforma exclui escritório que aguardava configuração (0050). */
+  spaceDelete: 'space.delete',
   whatsappSessionConnect: 'waha.session.connect',
   whatsappSessionDisconnect: 'waha.session.disconnect',
 } as const;

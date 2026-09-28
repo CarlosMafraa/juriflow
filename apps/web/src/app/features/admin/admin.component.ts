@@ -188,7 +188,8 @@ function readNumber(event: Event): number | null {
                 @if (s.setupCompletedAt) {
                   <strong>{{ s.name }}</strong>
                 } @else {
-                  <p-tag severity="info" value="Aguardando configuração" />
+                  <span class="muted">Escritório novo</span>
+                  <div class="muted small">aguardando o administrador configurar</div>
                 }
               </td>
               <td>
@@ -204,10 +205,14 @@ function readNumber(event: Event): number | null {
                 }
               </td>
               <td>
-                <p-tag
-                  [severity]="s.status === 'active' ? 'success' : 'danger'"
-                  [value]="s.status === 'active' ? 'Ativo' : 'Suspenso'"
-                />
+                @if (!s.setupCompletedAt) {
+                  <p-tag severity="warn" value="Pendente" />
+                } @else {
+                  <p-tag
+                    [severity]="s.status === 'active' ? 'success' : 'danger'"
+                    [value]="s.status === 'active' ? 'Ativo' : 'Suspenso'"
+                  />
+                }
               </td>
               <td>
                 <p-select
@@ -233,40 +238,55 @@ function readNumber(event: Event): number | null {
                     type="number"
                     min="0"
                     [attr.aria-label]="f.label + ' (exceção) de ' + label(s)"
-                    [placeholder]="planOf(draft(s).planId)?.[f.key] ?? ''"
+                    placeholder="—"
                     [value]="draft(s)[f.key] ?? ''"
                     (input)="setDraftLimit(s, f.key, $event)"
                   />
                 }
+                <div class="muted small">vazio = segue o plano</div>
               </td>
-              <td class="actions">
-                <p-button
-                  size="small"
-                  icon="pi pi-check"
-                  label="Salvar plano"
-                  [disabled]="!planChanged(s)"
-                  [loading]="savingPlan() === s.id"
-                  (onClick)="savePlan(s)"
-                />
-                @if (!s.setupCompletedAt && s.inviteId && invite(s).canResend) {
+              <td>
+                <div class="action-buttons">
                   <p-button
                     size="small"
-                    severity="secondary"
-                    [outlined]="true"
-                    icon="pi pi-refresh"
-                    label="Reenviar convite"
-                    [loading]="resending() === s.id"
-                    (onClick)="resend(s)"
+                    icon="pi pi-check"
+                    label="Salvar plano"
+                    [disabled]="!planChanged(s)"
+                    [loading]="savingPlan() === s.id"
+                    (onClick)="savePlan(s)"
                   />
-                }
-                <p-button
-                  size="small"
-                  severity="secondary"
-                  [outlined]="true"
-                  [icon]="s.status === 'active' ? 'pi pi-ban' : 'pi pi-refresh'"
-                  [label]="s.status === 'active' ? 'Suspender' : 'Reativar'"
-                  (onClick)="toggleStatus(s)"
-                />
+                  @if (!s.setupCompletedAt && s.inviteId && invite(s).canResend) {
+                    <p-button
+                      size="small"
+                      severity="secondary"
+                      [outlined]="true"
+                      icon="pi pi-refresh"
+                      label="Reenviar convite"
+                      [loading]="resending() === s.id"
+                      (onClick)="resend(s)"
+                    />
+                  }
+                  @if (s.setupCompletedAt) {
+                    <p-button
+                      size="small"
+                      severity="secondary"
+                      [outlined]="true"
+                      [icon]="s.status === 'active' ? 'pi pi-ban' : 'pi pi-refresh'"
+                      [label]="s.status === 'active' ? 'Suspender' : 'Reativar'"
+                      (onClick)="toggleStatus(s)"
+                    />
+                  } @else {
+                    <p-button
+                      size="small"
+                      severity="danger"
+                      [outlined]="true"
+                      icon="pi pi-trash"
+                      label="Excluir"
+                      [loading]="deleting() === s.id"
+                      (onClick)="deletePending(s)"
+                    />
+                  }
+                </div>
               </td>
             </tr>
           </ng-template>
@@ -358,6 +378,13 @@ function readNumber(event: Event): number | null {
       .actions p-button {
         margin-left: 0.35rem;
       }
+      /* Botões quebram linha em vez de sair da tabela. */
+      .action-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.35rem;
+      }
     `,
   ],
 })
@@ -371,6 +398,7 @@ export class AdminComponent {
   protected readonly creating = signal(false);
   protected readonly resending = signal<string | null>(null);
   protected readonly savingPlan = signal<string | null>(null);
+  protected readonly deleting = signal<string | null>(null);
   protected readonly spaces = signal<PlatformSpace[]>([]);
   private readonly planDrafts = signal<Record<string, SpacePlanInput>>({});
 
@@ -592,6 +620,30 @@ export class AdminComponent {
       this.toast.error('Não foi possível atualizar o plano.');
     } finally {
       this.savingPlan.set(null);
+    }
+  }
+
+  /** Só escritório pendente (ninguém entrou): apaga de vez e invalida o convite. */
+  protected async deletePending(s: PlatformSpace): Promise<void> {
+    const ok = await this.dialogs.confirm({
+      title: 'Excluir escritório pendente',
+      message: `Excluir o escritório convidado para ${s.adminEmail ?? 'este administrador'}? O link do convite deixa de funcionar. Isso não pode ser desfeito.`,
+      confirmLabel: 'Excluir',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    this.deleting.set(s.id);
+    try {
+      await this.service.deletePendingSpace(s.id);
+      this.toast.success('Escritório pendente excluído.');
+      await this.load();
+    } catch (err) {
+      const e = (err as { message?: string; code?: string }) ?? {};
+      this.toast.error(
+        e.code === '23514' && e.message ? e.message : 'Não foi possível excluir o escritório.',
+      );
+    } finally {
+      this.deleting.set(null);
     }
   }
 

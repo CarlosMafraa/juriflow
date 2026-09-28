@@ -49,6 +49,7 @@ export const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
   'notification.delivery.sent': 'WhatsApp enviado',
   'notification.delivery.failed': 'Falha no envio de WhatsApp',
   'notification.delivery.skipped': 'Histórico registrado sem aviso (já informado)',
+  'space.delete': 'Escritório pendente excluído',
   'process.movement.manual.create': 'Movimentação cadastrada à mão',
   'process.movement.manual.update': 'Movimentação manual corrigida',
   'process.movement.manual.delete': 'Movimentação manual excluída',
